@@ -157,18 +157,23 @@ async def audit_dependencies(*, project_path: str, package_manager: str = "auto"
             deadline_seconds=deadline_seconds, include_lag=include_lag, lag_months=lag_months,
             use_system_proxy=use_system_proxy)
         if _candidate_binding is not None:
-            if package_manager != "npm" or include_lag or not registry:
-                raise AuditError("candidate-audit-options-invalid", "candidate binding requires npm security-only audit")
+            if package_manager not in {"npm", "yarn-berry"} or include_lag or not registry:
+                raise AuditError("candidate-audit-options-invalid", "candidate binding requires a supported security-only audit")
+            yarn_candidate = package_manager == "yarn-berry"
+            if yarn_candidate and ("policy" in _candidate_binding or "yarnVersion" not in _candidate_binding):
+                raise AuditError("candidate-audit-options-invalid", "Yarn candidate requires a pinned CLI and a security-only audit")
             policy = _candidate_binding.get("policy")
             registry_only = policy is not None and policy.get("securityEvidenceMode") == "REGISTRY_ONLY"
-            if restricted_host or registry_only:
+            if restricted_host or registry_only or yarn_candidate:
+                egress_variable = ("DEPLOOM_WORKSPACE_YARN_AUDIT_EGRESS_REGISTRY" if yarn_candidate
+                                   else "DEPLOOM_WORKSPACE_NPM_AUDIT_EGRESS_REGISTRY")
                 error = AuditError(
                     "candidate-audit-egress-not-configured",
-                    "Configure host-enforced npm audit egress and a no-redirect endpoint for the exact registry, "
-                    "then set DEPLOOM_WORKSPACE_NPM_AUDIT_EGRESS_REGISTRY in the host environment.",
+                    "Configure host-enforced audit egress and a no-redirect endpoint for the exact registry, "
+                    f"then set {egress_variable} in the host environment.",
                 )
                 try:
-                    approved = checked_registry(os.environ.get("DEPLOOM_WORKSPACE_NPM_AUDIT_EGRESS_REGISTRY"))
+                    approved = checked_registry(os.environ.get(egress_variable))
                 except AuditError:
                     raise error from None
                 if not approved or not approved.startswith("https://") or approved != request["registry"]:

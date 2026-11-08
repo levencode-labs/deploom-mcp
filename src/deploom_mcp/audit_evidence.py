@@ -60,7 +60,7 @@ def normalize_audit(stdout: str, exit_code: int, engine: str, *,
     reported_nodes: dict[str, int] | None = None
 
     def add(package: str, value: dict[str, Any], *, versions: list | None = None,
-            paths: list | None = None) -> None:
+            paths: list | None = None, yarn_dependents: list | None = None) -> None:
         if not isinstance(package, str) or not package:
             raise AuditError("audit-output-invalid", "advisory is missing its package name")
         identifier = value.get("source") or value.get("id") or value.get("url")
@@ -88,6 +88,11 @@ def normalize_audit(stdout: str, exit_code: int, engine: str, *,
                 if not isinstance(items, list) or any(not isinstance(x, str) for x in items):
                     raise AuditError("audit-output-invalid", f"invalid {field} in audit")
                 record[field] = sorted(set(record[field]) | set(items))
+        if yarn_dependents is not None:
+            if not isinstance(yarn_dependents, list) or any(not isinstance(x, str) for x in yarn_dependents):
+                raise AuditError("audit-output-invalid", "invalid Yarn dependents in audit")
+            by_advisory = record.setdefault("yarnDependentsByAdvisory", {})
+            by_advisory[key] = sorted(set(by_advisory.get(key, [])) | set(yarn_dependents))
 
     for record in records:
         if not isinstance(record, dict) or record.get("error"):
@@ -133,7 +138,7 @@ def normalize_audit(stdout: str, exit_code: int, engine: str, *,
             add(record.get("value"), {"id": child["ID"], "title": child["Issue"],
                 "severity": child["Severity"], "url": child.get("URL", ""),
                 "range": child.get("Vulnerable Versions", "")},
-                versions=child.get("Tree Versions", []))
+                versions=child.get("Tree Versions", []), yarn_dependents=child.get("Dependents"))
         elif engine == "yarn-berry" and record.get("type") == "info" and record.get("displayName") == "YN0000" and record.get("data") == "No audit suggestions":
             recognized = clean_signal = True
         elif engine == "yarn-berry" and record and all(isinstance(v, list) for v in record.values()):

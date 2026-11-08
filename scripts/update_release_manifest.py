@@ -49,7 +49,7 @@ def release_manifest(root: Path) -> dict:
         "schemaVersion": 1,
         "mcpVersion": project["version"],
         "blueprintSchemaVersion": 2,
-        "core": {"repository": "https://github.com/DepLoom/core", "revision": revision,
+        "core": {"repository": "https://github.com/levencode-labs/deploom-core", "revision": revision,
                  "version": (core / "VERSION").read_text(encoding="utf-8").strip(),
                  "contentSha256": inventory_digest(files), "files": files},
         "schemaSha256": digest((root / "contracts" / "upgrade-blueprint.schema.json").read_bytes()),

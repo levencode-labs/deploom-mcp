@@ -22,7 +22,7 @@ def _url(value: str | None) -> str | None:
     return result
 
 
-def _configured_routes(raw: bytes, *, yarn: bool) -> set[str]:
+def _configured_routes(raw: bytes, *, yarn: bool) -> tuple[set[str], bool]:
     routes = {}
     has_endpoint_auth = False
     for line in raw.decode("utf-8-sig").splitlines():
@@ -33,17 +33,17 @@ def _configured_routes(raw: bytes, *, yarn: bool) -> set[str]:
         match = (re.fullmatch(r"\s*([^\s=]+)\s+(.+?)\s*", line) if yarn else
                  re.fullmatch(r"\s*([^\s=]+)\s*=\s*(.+?)\s*", line))
         if not match:
-            raise AuditError("project-registry-unsupported", "Use an explicit registry for this project configuration")
+            raise AuditError("project-registry-unsupported", "Use a literal project registry configuration")
         key, value = match.groups()
         key = key.strip("\"'").lower()
         if value[:1] in {"\"", "'"} and value[-1:] == value[:1]:
             value = value[1:-1]
         if key in routes:
-            raise AuditError("project-registry-ambiguous", "Use an explicit registry when a project route is repeated")
+            raise AuditError("project-registry-ambiguous", "Remove the repeated project registry route")
         routes[key] = _url(value)
     if (routes or has_endpoint_auth) and "registry" not in routes:
-        raise AuditError("project-registry-ambiguous", "Use an explicit registry for a scope-only or authentication-only registry configuration")
-    return set(routes.values())
+        raise AuditError("project-registry-ambiguous", "Single-registry planning requires a project default route for scope or endpoint authentication settings")
+    return set(routes.values()), any(key.startswith("@") for key in routes)
 
 
 def _yarn_yaml_mapping(node: yaml.Node) -> dict[str, yaml.Node]:
@@ -59,7 +59,7 @@ def _yarn_yaml_mapping(node: yaml.Node) -> dict[str, yaml.Node]:
     return fields
 
 
-def _configured_yarn_yaml_routes(raw: bytes) -> set[str]:
+def _configured_yarn_yaml_routes(raw: bytes) -> tuple[set[str], bool]:
     try:
         if any(isinstance(token, (yaml.tokens.AnchorToken, yaml.tokens.AliasToken)) for token in yaml.scan(raw)):
             raise AuditError("project-registry-unsupported", "Yarn registry configuration cannot use YAML aliases")
@@ -67,7 +67,7 @@ def _configured_yarn_yaml_routes(raw: bytes) -> set[str]:
     except (yaml.YAMLError, RecursionError):
         raise AuditError("project-registry-unsupported", "Could not parse Yarn registry configuration") from None
     if document is None:
-        return set()
+        return set(), False
 
     config = _yarn_yaml_mapping(document)
     default = config.get("npmRegistryServer")
@@ -75,28 +75,26 @@ def _configured_yarn_yaml_routes(raw: bytes) -> set[str]:
     scoped = [settings["npmRegistryServer"] for scope in scopes.values()
               if "npmRegistryServer" in (settings := _yarn_yaml_mapping(scope))]
     if scoped and default is None:
-        raise AuditError("project-registry-ambiguous", "Use an explicit registry for Yarn scope-only routing")
+        raise AuditError("project-registry-ambiguous", "Single-registry planning requires a Yarn default route")
 
     routes = set()
     for node in ([default] if default is not None else []) + scoped:
         if not isinstance(node, yaml.ScalarNode) or node.tag != "tag:yaml.org,2002:str":
             raise AuditError("invalid-registry", "Yarn registry must be a literal HTTP(S) URL")
         routes.add(_url(node.value))
-    return routes
+    return routes, bool(scoped)
 
 
 def planning_registry(project: Path, explicit: str | None) -> str | None:
     approved = _url(os.environ.get("DEPLOOM_MCP_ALLOWED_PROJECT_REGISTRY"))
     restricted = approved is not None and os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") == "1"
-    if explicit is not None:
-        selected = _url(explicit.strip() if isinstance(explicit, str) else explicit)
-        if restricted and selected != approved:
-            raise AuditError("project-registry-not-authorized", "Planning registry must match the MCP host's approved registry")
-        return selected
-
+    selected = _url(explicit.strip() if isinstance(explicit, str) else explicit)
+    if selected is not None and restricted and selected != approved:
+        raise AuditError("project-registry-not-authorized", "Planning registry must match the MCP host's approved registry")
     if not project.is_dir():
-        return None
+        return selected
     routes = set()
+    scoped_routes = False
     try:
         for name in (".npmrc", ".yarnrc", ".yarnrc.yml"):
             path = project / name
@@ -106,13 +104,21 @@ def planning_registry(project: Path, explicit: str | None) -> str | None:
                 continue
             raw = _read_bytes(path, 16 * 1024, root=project)
             if name == ".yarnrc.yml":
-                routes.update(_configured_yarn_yaml_routes(raw))
+                configured, scoped = _configured_yarn_yaml_routes(raw)
             else:
-                routes.update(_configured_routes(raw, yarn=name == ".yarnrc"))
+                configured, scoped = _configured_routes(raw, yarn=name == ".yarnrc")
+            routes.update(configured)
+            scoped_routes = scoped_routes or scoped
     except (GoalContractError, OSError, UnicodeError):
         raise AuditError("project-registry-unavailable", "Could not safely read the project registry configuration") from None
+    # Core's flat planner sends all registry reads to one endpoint. An explicit
+    # default cannot authorize routing scoped or transitive packages elsewhere.
     if len(routes) > 1:
-        raise AuditError("project-registry-ambiguous", "Use an explicit registry for a project with multiple registry routes")
+        raise AuditError("project-registry-ambiguous", "Single-registry planning does not support multiple project registry routes")
+    if selected is not None:
+        if routes and selected not in routes and (restricted or scoped_routes):
+            raise AuditError("project-registry-conflict", "Explicit registry differs from the configured project route")
+        return selected
     if not routes:
         return approved if restricted else None
     selected = next(iter(routes))
