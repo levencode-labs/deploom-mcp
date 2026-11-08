@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/deploom-mcp-mark.png" width="112" alt="Deploom MCP logo" />
+<img src="assets/social-preview.png" width="768" alt="Deploom MCP banner" />
 
 # Deploom MCP
 
