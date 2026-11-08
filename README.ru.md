@@ -1,126 +1,63 @@
-# DepLoom MCP
+<div align="center">
 
-[English](README.md) · [Руководство пользователя](USERGUIDE.ru.md) · [Документация](docs/INDEX.ru.md)
+<img src="assets/deploom-mcp-mark.png" width="112" alt="Логотип Deploom MCP" />
 
-Headless Core планирования обновлений зависимостей и MCP-сервер экосистемы DepLoom.
-Wheel содержит точный закреплённый Core, схему Blueprint и канонический скилл.
-DepLoom Desktop и Electron не нужны. Core поддерживается в
-[DepLoom/core](https://github.com/DepLoom/core).
+# Deploom MCP
+
+**Понятные планы обновления зависимостей для AI-агентов.**
+
+[Levencode Labs](https://github.com/levencode-labs) · [English](README.md) · [Руководство](USERGUIDE.ru.md) · [Документация](docs/INDEX.ru.md) · [Релизы](https://github.com/levencode-labs/deploom-mcp/releases)
+
+</div>
+
+Deploom MCP связывает движок планирования зависимостей с MCP-совместимыми агентами. Вместо непрозрачной рекомендации «обнови пакеты» он показывает допустимую область изменений, варианты версий, ограничения совместимости и то, какие доказательства ещё отсутствуют.
+
+Опубликованный wheel содержит **точно закреплённый [Deploom Core](https://github.com/levencode-labs/deploom-core)**, схемы и канонический Skill `deploom-upgrade`. Для его использования не нужны Electron/Desktop или отдельная установка Core.
+
+## Возможности
+
+- **Планирование:** `get_upgrade_plan` создаёт Upgrade Blueprint с целями, разрешёнными изменениями, ограничениями и неизвестными.
+- **Разбор решений:** `evaluate_assignment` и `explain_conflict` помогают понять существующее предложение; они не выполняют миграцию и не пересчитывают произвольный новый вариант.
+- **npm workspaces:** инвентаризация и ограниченное совместное планирование имеют собственные условия, покрытие и границы. Найденный workspace сам по себе не означает разрешение на его изменение.
+- **Skill для агента:** `deploom-upgrade` описывает preflight, работу с планом, изолированные изменения, проверки и evidence-отчёт.
+- **Отдельный путь выполнения:** поддерживаемые standalone npm-цели могут проходить host-authorized verification и финальную фиксацию результата — только в пределах [матрицы поддержки](docs/GOAL_EXECUTION_SUPPORT.md).
+
+**`PLANNING_ONLY` / `NOT_VERIFIED` — это предложение, а не готовое обновление.** Успешный lockfile, `npm ci`, проверки фактического дерева, тесты и runtime дают разные доказательства.
 
 ## Быстрый старт
 
-1. [Установите MCP и скилл](USERGUIDE.ru.md#self-hosted-mcp-stdio).
-2. [Подключите OpenCode V2](USERGUIDE.ru.md#3-подключите-opencode-v2).
-3. [Получите план без изменения проекта](USERGUIDE.ru.md#первая-проба-только-план).
-4. Затем явно разрешите миграцию и проверку результата.
+1. [Установите релизный wheel и при необходимости Skill](USERGUIDE.ru.md#1-установите-релиз).
+2. [Подключите MCP-клиент](USERGUIDE.ru.md#3-подключите-mcp-клиент): [Codex](integrations/codex/README.md), [OpenCode](integrations/opencode/README.ru.md) или [Claude Code](integrations/claude-code/README.md).
+3. Начните с **PLAN_ONLY** на открытом или синтетическом проекте и изучите настоящий Blueprint.
+4. Для изменения проекта отдельно разрешите работу в изолированной копии и независимую проверку.
 
-Примеры закреплены на [MCP 0.2.2](https://github.com/DepLoom/mcp/releases/tag/v0.2.2),
-контракт скилла — **2.0.2**. Для коллег есть [установочный комплект](docs/SHARING_WITH_COLLEAGUES.ru.md).
+Для сетевого подключения см. [HTTP deployment](docs/HTTP_DEPLOYMENT.md). По умолчанию сервер работает через **stdio**. Встроенной аутентификации и изоляции пользователей в HTTP нет: публичный доступ требует защищённого gateway и отдельных экземпляров для недоверенных клиентов.
 
-**Self-hosted MCP (stdio)** поддерживается локально.
-**Networked MCP (remote HTTP)**: см. [настройку HTTP и контейнера](docs/HTTP_DEPLOYMENT.md).
+## Разработка из исходников
 
-## Что делает продукт
-
-`get_upgrade_plan` возвращает структурированное предложение: цель, полномочия
-по выбору версий, scope, причины решений, ограничения и недостающее evidence.
-`evaluate_assignment` и `explain_conflict` исследуют сохранённые решения;
-они не выполняют миграцию и не решают заново произвольное альтернативное дерево.
-
-План остаётся **PLANNING_ONLY / NOT_VERIFIED**. `PROPOSED` не означает, что
-обновление установлено или совместимо с приложением. Отдельный explicit-goal
-маршрут поддерживает host-authorized выполнение только заявленных standalone
-npm-профилей. Импортированный план и текст агента таких полномочий не дают.
-[Матрица выполнения](docs/GOAL_EXECUTION_SUPPORT.md).
-
-Read-only инвентаризация workspaces не равна совместному плану монорепозитория
-и не разрешает автоматическое выполнение по всему workspace. Проверяйте
-покрытие, `jointAssignment`, caps, unknown и происхождение решений.
-
-За пределами пакета: Desktop Autopilot, общий dispatch фоновых агентов,
-дашборды и GitLab/Renovate-интеграция. Универсальная экономия времени/токенов
-агента не является доказанным свойством MCP.
-
-## Как связаны компоненты
-
-```text
-Разработчик → OpenCode / другой MCP-клиент
-                    ↓ get_upgrade_plan
-              DepLoom MCP → закреплённый Core
-                    ↓
-             Upgrade Blueprint
-                    ↓
-       Агент + скилл deploom-upgrade
-                    ↓
-   разрешённые изменения и реальные проверки
-```
-
-**MCP** предоставляет инструменты. **Skill** задаёт процесс: preflight, план,
-согласование workspaces, изолированное выполнение, проверки и отчёт.
-Ни установка скилла, ни успешная сборка не заменяют итоговый аудит политики.
-
-## Требования и установка из исходников
-
-Python `>=3.12,<3.15`; закреплённый Core и SDK проверяются CI на Python 3.12.
-Поддерживаются Windows/Linux; z3-solver устанавливается платформенным wheel.
-Нужны окружение проекта, Python-зависимости и доступ к разрешённому registry.
-
-Для пробы проще использовать [релизный wheel](USERGUIDE.ru.md).
-Для разработки:
+Пакет объявляет Python **`>=3.12,<3.15`**; для первой проверки рекомендуется **Python 3.12**. Некоторые зависимости имеют платформенные wheel.
 
 ```bash
-git clone https://github.com/DepLoom/mcp.git
-cd mcp
+git clone https://github.com/levencode-labs/deploom-mcp.git
+cd deploom-mcp
 git submodule update --init --recursive
 python -m venv .venv
-.venv/Scripts/python -m pip install -e .
-# Linux: .venv/bin/python -m pip install -e .
+# Активируйте виртуальное окружение или вызывайте его Python явно.
+python -m pip install -e .
+python -m deploom_mcp
 ```
 
-Запуск из установленного окружения: `python -m deploom_mcp`.
-Это stdio-сервер, ожидающий протокол MCP, а не веб-страница.
-[Конфигурация клиента и скилл](USERGUIDE.ru.md), [proxy](docs/SYSTEM_PROXY.md).
+Последняя команда запускает stdio MCP-сервер и не открывает веб-интерфейс. Для повторяемой проверки опубликованного пакета используйте [руководство](USERGUIDE.ru.md). Gitlink Core закреплён: косметические изменения не должны менять его без отдельной проверки.
 
-## Инструменты 0.2.2
+## Документация
 
-| Назначение | Инструменты |
-| --- | --- |
-| План и evidence follow-up | `get_upgrade_plan`, `evaluate_assignment`, `explain_conflict` |
-| Explicit-goal маршрут | `get_goal_plan`, `apply_goal_candidate`, `verify_goal_candidate`, `get_goal_checkpoint`, `get_goal_report` |
-| Read-only workspace inventory | `observe_workspace_inventory_v1` |
+| Раздел | Ссылка |
+| :-- | :-- |
+| Установка и первая проба | [Руководство](USERGUIDE.ru.md) · [English](USERGUIDE.md) |
+| Контракты и архитектура | [Индекс](docs/INDEX.ru.md) |
+| Процесс агента | [Skill](skills/deploom-upgrade/SKILL.md) |
+| Границы выполнения | [Goal execution](docs/GOAL_EXECUTION_SUPPORT.md) |
+| HTTP и безопасность | [HTTP deployment](docs/HTTP_DEPLOYMENT.md) |
+| Установка для коллег | [Как передать Deploom](docs/SHARING_WITH_COLLEAGUES.ru.md) |
 
-Опциональный `python -m deploom_mcp.audit_server` добавляет `audit_dependencies`.
-Аудит использует текущий lock и пакетный менеджер; не делает install/audit fix
-и сам по себе не доказывает runtime или достижение Yellow/Green.
-[Контракт аудита](docs/DEPENDENCY_AUDIT.md).
-
-## Что проверять при обновлении
-
-- Явные пороги политики, exact targets/разрешённые линии, scope и исключения.
-- Полный Blueprint и unresolved evidence, а не только краткую сводку.
-- Согласованность назначений при частичном workspace-покрытии.
-- Чистую установку, физическое дерево, обязательные project checks и runtime
-  на точных итоговых байтах.
-- Финальный аудит: unknown не равен нулю, deferred остаются в знаменателе,
-  установка не означает, что тесты выполнены.
-
-Скилл требует отчёт evidence и документы для разработчика. Без вашего разрешения
-он не делает commit, push, merge или публикацию.
-[Контракт скилла](docs/SKILL_CONTRACT_V2.md).
-
-## Разработка
-
-`src/deploom_mcp/` — сервер/адаптер; `upstream/deploom/` — pin Core;
-`contracts/` — схемы; `skills/deploom-upgrade/` — канонический скилл;
-`integrations/` — клиентские инструкции; `tests/` — проверки границ продукта.
-
-```bash
-.venv/Scripts/python -m unittest discover -s tests -v
-# Linux: .venv/bin/python -m unittest discover -s tests -v
-```
-
-[Технические контракты и исторические материалы](docs/INDEX.ru.md).
-Мейнтейнерам: [релизы компонентов](docs/RELEASING.md),
-[проверка дистрибутива](docs/DISTRIBUTION.md).
-Не правьте pin Core на месте: изменения проходят в его собственном репозитории.
-Эта документация не меняет условия лицензирования/распространения upstream Core.
+**Релиз-ориентир:** [`v0.2.11`](https://github.com/levencode-labs/deploom-mcp/releases/tag/v0.2.11) был последним опубликованным релизом на 8 ноября 2026 года. Проверяйте [новые релизы](https://github.com/levencode-labs/deploom-mcp/releases/latest). Ускорение миграции и качество на любых проектах не считаются доказанными без независимого сравнения и выполнения необходимых проверок.

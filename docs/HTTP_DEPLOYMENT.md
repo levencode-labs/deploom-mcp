@@ -1,26 +1,37 @@
 # Streamable HTTP deployment
 
-The default entry point remains stdio. Start HTTP locally with:
+[User guide](../USERGUIDE.md) · [Sharing with colleagues](SHARING_WITH_COLLEAGUES.md)
+
+Deploom MCP uses **stdio by default**. The separate Streamable HTTP entrypoint is appropriate for controlled deployment, not an unauthenticated public server.
+
+## Local loopback example
 
 ```sh
 python -m deploom_mcp --transport streamable-http --host 127.0.0.1 --port 8000
 ```
 
-Connect an MCP Streamable HTTP client to `http://127.0.0.1:8000/mcp`. DNS-rebinding protection is enabled even when listening on a non-loopback address. By default only loopback Host and Origin headers are allowed. For a gateway with a different Host header, pass `--allowed-host` once per exact host and port (e.g. `--allowed-host mcp.example.com`); for browser Origin headers pass `--allowed-origin https://example.com`. Custom lists replace loopback defaults. Avoid wildcards. The gateway must preserve an allowed Host or rewrite it accordingly.
+Use an MCP Streamable HTTP client with endpoint `http://127.0.0.1:8000/mcp`.
 
-## Container
+DNS-rebinding protection applies even on non-loopback binds. By default, only loopback Host and Origin headers are accepted. For a gateway with a different Host header, supply `--allowed-host` for the exact host/port. For a browser Origin, supply `--allowed-origin` for the exact allowed origin. Custom lists replace the loopback defaults; do not use wildcards. Verify gateway Host forwarding/rewrite explicitly.
 
-Initialize the pinned Core first: `git submodule update --init --recursive`. Build from the MCP repository root:
+## Container example
+
+From a clean source checkout, initialize the exact pinned Core first:
 
 ```sh
-docker build -t deploom-mcp:0.2.3 .
+git submodule update --init --recursive
+docker build -t deploom-mcp:0.2.11 .
 docker run --rm -p 127.0.0.1:8000:8000 \
   --mount type=bind,src=/absolute/host/projects,dst=/projects,readonly \
-  deploom-mcp:0.2.3
+  deploom-mcp:0.2.11
 ```
 
-Pass `project_path` as a path **inside the container**, e.g. `/projects/my-app`, not the host path. The container user (UID 10001) needs read access. Output and caches are server-side, and disappear when the container is removed unless stored on a suitable writable persistent volume. A read-only project mount supports planning; execution requiring changes needs a separate, deliberately authorized configuration.
+`project_path` must be a **server/container path** such as `/projects/example-app`. A read-only bind mount supports planning; any explicitly authorized execution involving writes requires a separately reviewed deployment and permissions. The container's unprivileged user must be able to read mounted paths. State, output and caches live server-side and require deliberate persistence where necessary.
 
-The server has no built-in user authentication or per-user path isolation. It exposes planning as well as host-authorized execution tools. All clients share the server's OS identity, project mounts and state; do not mount secrets or unrelated projects. For colleagues use an authenticated TLS gateway with access controls and network restrictions, isolate mutually untrusted users in separate instances and use least-privilege mounts. Do not publish the container port directly. Review host authorization and execution permissions before enabling write access.
+## Security boundary
 
-Configure client and proxy response/idle timeouts above the chosen `deadline_seconds` and test access to the intended npm registry or proxy from the container. Resource limits and concurrency controls belong to the deployment. The example is a starting point, not validation of a particular Archestra or Kubernetes environment.
+**There is no built-in authentication or per-user project-path isolation.** The HTTP process exposes both planning and separately authorized execution surfaces. Connected clients share the server's OS identity, mounts, and state.
+
+Never mount credentials or unrelated confidential repositories. For multiple users, use an authenticated TLS gateway with access controls and network restrictions; run separate instances for mutually untrusted users with least-privilege mounts. Do **not** publish the container port directly. Inspect host execution authorizations before any write-enabled setup.
+
+Set client response/idle timeouts to accommodate chosen tool deadlines. Apply resource limits, concurrency controls and process monitoring in your deployment, and separately validate registry/proxy access from **inside** the server/container. This is a deployment starting point, not certification for any specific infrastructure.

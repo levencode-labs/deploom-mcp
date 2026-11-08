@@ -1,40 +1,20 @@
-# deploom-upgrade: подключение OpenCode
+# Deploom MCP + OpenCode
 
-[English](README.md) · [Простой старт с wheel](../../USERGUIDE.ru.md)
+[English](README.md) · [Руководство](../../USERGUIDE.ru.md) · [Релизы](https://github.com/levencode-labs/deploom-mcp/releases/latest)
 
-Это инструкция подключения одного канонического скилла `skills/deploom-upgrade`.
-Процесс миграции и evidence определены в самом `SKILL.md` и references;
-отдельного варианта `deploom-upgrade-opencode` нет.
+Deploom — локальный **stdio MCP-сервер** и необязательный канонический Skill `deploom-upgrade`. В опубликованный wheel уже входит закреплённый Core. Desktop-приложение не требуется.
 
-## Установка скилла
+## Установка
 
-После установки wheel:
+Сначала выполните [установку wheel](../../USERGUIDE.ru.md#1-установите-релиз) и запомните абсолютный путь к Python из его окружения. В том же окружении будет установщик Skill `deploom-install-skill`.
 
-```powershell
-deploom-install-skill --client opencode --scope user --dry-run
-deploom-install-skill --client opencode --scope user --verify
-```
+## Конфигурация OpenCode
 
-Либо из исходников:
+У **OpenCode V1 и V2 разные конфиги**. Посмотрите фактическую версию и её документацию, не перезаписывайте другие MCP, провайдеры и permissions.
 
-```bash
-python scripts/install_skill.py --client opencode --scope project --project /path/to/project
-python scripts/install_skill.py --client opencode --scope user --dry-run
-```
+### Пример OpenCode V2
 
-Каталоги: `<project>/.opencode/skills/deploom-upgrade/` или
-`~/.config/opencode/skills/deploom-upgrade/`. Копируется весь комплект:
-SKILL, contract, references, examples, scripts. Инструкции используются
-клиентом по мере необходимости, а не загружаются целиком в каждый запрос.
-
-Старую отличающуюся установку сначала сохраните и проверьте dry-run;
-для обновления канонических файлов нужен `--force --verify`.
-Квитанция установки доказывает байты файлов, но не загрузку клиентом.
-
-## MCP: формат OpenCode V2
-
-В существующем `~/.config/opencode/opencode.jsonc` или конфиге проекта
-добавьте только запись `mcp.servers.deploom`. Сохраните остальные настройки.
+Добавьте сервер в существующий `mcp.servers` (замените путь):
 
 ```jsonc
 {
@@ -42,8 +22,7 @@ SKILL, contract, references, examples, scripts. Инструкции испол�
     "servers": {
       "deploom": {
         "type": "local",
-        "command": ["C:/path/to/venv/Scripts/python.exe", "-m", "deploom_mcp"],
-        "environment": {"DEPLOOM_MCP_STATE_DIR": "C:/path/to/deploom-state"},
+        "command": ["C:/path/to/Deploom/venv/Scripts/python.exe", "-m", "deploom_mcp"],
         "disabled": false
       }
     }
@@ -51,33 +30,15 @@ SKILL, contract, references, examples, scripts. Инструкции испол�
 }
 ```
 
-Укажите реальные абсолютные пути к установленному Python и state-каталогу.
-На Linux используйте `.../venv/bin/python`. В V2 серверы лежат в
-`mcp.servers`; старые `mcp.<name>` и `enabled` не подходят.
-[Официальный формат](https://opencode.ai/v2/docs/mcp-servers).
+Для **V1** используйте схему именно установленной версии (`mcp.<name>` и `enabled`, а не `mcp.servers` и `disabled`). Не вставляйте конфиг V2 в V1.
 
-Wheel включает собственный Core. Устаревшие `PYTHONPATH` и
-`DEPLOOM_MCP_GENERATOR_PATH` из другого checkout могут подменить runtime;
-обычной релизной установке они не нужны.
+## Skill и первая проба
 
-После изменения MCP/скилла перезапустите OpenCode, проверьте connected в
-`/mcps` и попросите явно загрузить `deploom-upgrade`. Стандартный сервер
-0.2.2 предоставляет девять инструментов, перечисленных в [руководстве](../../USERGUIDE.ru.md).
-Репозиторий/установщик скилла не меняет глобальный MCP-конфиг автоматически.
+```powershell
+& "C:/path/to/Deploom/venv/Scripts/deploom-install-skill.exe" --client opencode --scope user --dry-run
+& "C:/path/to/Deploom/venv/Scripts/deploom-install-skill.exe" --client opencode --scope user --verify
+```
 
-## Права и первая проба
+Перезапустите клиент. Проверьте подключение MCP и фактическую загрузку Skill. Набор tools может зависеть от entrypoint и версии: число инструментов из старого релиза 0.2.2 нельзя автоматически приписывать текущему.
 
-Скилл использует обычные инструменты клиента: чтение/правки, shell для
-пакетного менеджера и проверок, MCP для плана. Внешняя изолированная рабочая
-копия может потребовать разрешения `external_directory`.
-Скилл не включает опасные permissions и не обходит отказ клиента.
-
-Начните с [PLAN_ONLY запроса](../../USERGUIDE.ru.md#первая-проба-только-план).
-Headless-запуск с автоматическим подтверждением применим только к disposable
-fixture и подтверждённым флагам вашей версии CLI; для рабочего проекта лучше
-интерактивное выполнение с явными полномочиями.
-
-Скилл не создаёт commit/PR/merge без разрешения и не придумывает решатель.
-Follow-up и explicit-goal инструменты сохраняют собственные ограничения
-authority и поддерживаемых профилей. Частичный workspace-план не является
-планом всего проекта.
+Для первой пробы возьмите открытый/синтетический проект, режим **PLAN_ONLY Yellow** и реальный вызов `get_upgrade_plan`. Требуйте coverage всех owners/workspaces, путь Blueprint, блокеры и UNKNOWN, **без изменений файлов и установки пакетов**. Пример — в [руководстве](../../USERGUIDE.ru.md#4-первая-проба--только-план). Для remote MCP смотрите [HTTP](../../docs/HTTP_DEPLOYMENT.md) и его требования к безопасности.

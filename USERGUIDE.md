@@ -1,72 +1,88 @@
-# DepLoom MCP user guide
+# Deploom MCP — User guide
 
-[Русский](USERGUIDE.ru.md) · [Overview](README.md) · [Sharing with colleagues](docs/SHARING_WITH_COLLEAGUES.md)
+[Русский](USERGUIDE.ru.md) · [Product overview](README.md) · [Documentation](docs/INDEX.md) · [Latest release](https://github.com/levencode-labs/deploom-mcp/releases/latest)
 
-## Choose your setup
+This guide describes a **local MCP client + released wheel** workflow. It does not require Deploom Desktop, a source checkout, or a separate Core installation. First use a public/synthetic project; decide separately whether your private project and its dependency inventory may contact the configured services.
 
-- **Self-hosted MCP (stdio):** each developer runs MCP locally; the coding client starts it.
-- **Networked MCP (remote HTTP):** see [HTTP deployment](docs/HTTP_DEPLOYMENT.md) and the security limits below.
+> **Release pinned in examples:** Deploom MCP **0.2.11** (published 2026-11-07), including canonical Skill contract **2.0.14**. For newer releases, use the exact files and checksums from [GitHub Releases](https://github.com/levencode-labs/deploom-mcp/releases/latest) rather than mixing versions.
 
-The wheel includes the pinned headless Core and canonical Skill. No DepLoom Desktop, Electron, Git clone or separate Core install is required.
+## 1. Install the release
 
-## Network access and project data
+**Requirements:** Python `>=3.12,<3.15` is declared; **CPython 3.12 x86-64** is a practical starting point on Windows/Linux. Package dependencies (including native wheels) must be available from an approved Python index or offline wheelhouse. You also need the appropriate Node/npm toolchain to verify a JavaScript project later.
 
-Local stdio describes the transport between client and server, not an offline-only planner. Planning can request package/version metadata from the configured registry and vulnerability evidence from OSV (the bundled Core defaults to `api.osv.dev`). Setting `registry` does not redirect OSV traffic to that registry. Optional migration-reference requests can contact their documented official sources. Use a non-sensitive first trial and check your organization's data policy before planning private dependencies. Proxy settings change routing, not data permissions.
-
-## Self-hosted MCP (stdio)
-
-### 1. Install
-
-Use Python 3.12 or 3.13 for a first trial. The package declares Python `>=3.12,<3.15`. You also need the project's Node/package manager and access to its approved registry.
-
-Windows PowerShell:
+### Windows (PowerShell)
 
 ```powershell
-$install = Join-Path $env:LOCALAPPDATA 'DepLoom'
-py -3.12 -m venv "$install\venv"
-$python = Join-Path $install 'venv\Scripts\python.exe'
-& $python -m pip install "https://github.com/DepLoom/mcp/releases/download/v0.2.2/deploom_mcp-0.2.2-py3-none-any.whl"
-& $python -m pip check
-& $python -c "import importlib.metadata; print(importlib.metadata.version('deploom-mcp'))"
+$deploomHome = Join-Path $env:LOCALAPPDATA 'Deploom'
+python -m venv "$deploomHome\venv"  # Use a Python 3.12 interpreter
+$py = Join-Path $deploomHome 'venv\Scripts\python.exe'
+$wheel = 'deploom_mcp-0.2.11-py3-none-any.whl'
+$base = 'https://github.com/levencode-labs/deploom-mcp/releases/download/v0.2.11'
+New-Item -ItemType Directory -Force "$deploomHome\downloads" | Out-Null
+Invoke-WebRequest "$base/$wheel" -OutFile "$deploomHome\downloads\$wheel"
+Invoke-WebRequest "$base/SHA256SUMS.txt" -OutFile "$deploomHome\downloads\SHA256SUMS.txt"
+$entry = Get-Content "$deploomHome\downloads\SHA256SUMS.txt" | Where-Object { $_ -match ([regex]::Escape($wheel) + '$') }
+if (-not $entry -or @($entry).Count -ne 1) { throw 'Missing/ambiguous wheel checksum' }
+$expected = ($entry -split '\s+')[0].ToLowerInvariant()
+$actual = (Get-FileHash "$deploomHome\downloads\$wheel" -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($actual -ne $expected) { throw 'Release checksum mismatch' }
+& $py -m pip install "$deploomHome\downloads\$wheel"
+if ($LASTEXITCODE -ne 0) { throw 'Installation failed' }
+& $py -m pip check
+& $py -c "import importlib.metadata as m; print(m.version('deploom-mcp'))"
 ```
 
-Or download the wheel, compare its SHA-256 with `SHA256SUMS.txt` from the [same release](https://github.com/DepLoom/mcp/releases/tag/v0.2.2), and install the local file. These are GitHub release assets; a PyPI publication is not assumed.
+If `python` is not the intended version, invoke your installed Python 3.12 binary explicitly. The release checksum verifies agreement with the publisher's `SHA256SUMS.txt`; it is **not** an independent signature. For Python dependencies, follow your approved index, certificates, and proxy rules.
 
-Linux with Python 3.12:
+### Linux (Python 3.12)
 
 ```bash
 python3.12 -m venv "$HOME/.local/share/deploom/venv"
-PYTHON="$HOME/.local/share/deploom/venv/bin/python"
-"$PYTHON" -m pip install "https://github.com/DepLoom/mcp/releases/download/v0.2.2/deploom_mcp-0.2.2-py3-none-any.whl"
-"$PYTHON" -m pip check
+PY="$HOME/.local/share/deploom/venv/bin/python"
+"$PY" -m pip install 'https://github.com/levencode-labs/deploom-mcp/releases/download/v0.2.11/deploom_mcp-0.2.11-py3-none-any.whl'
+"$PY" -m pip check
+"$PY" -c 'import importlib.metadata as m; print(m.version("deploom-mcp"))'
 ```
 
-Use your normal approved Python index, certificates and proxy. The [offline kit](docs/SHARING_WITH_COLLEAGUES.md) avoids repeating Python package downloads.
+For a checksum-verified offline distribution to colleagues, see [Sharing with colleagues](docs/SHARING_WITH_COLLEAGUES.md). Published wheels bundle Core; editable source clones are for developers, not required for a first trial.
 
-### 2. Install the Skill
+## 2. Install the optional Skill
 
-For OpenCode on Windows:
+The same versioned **`deploom-upgrade`** Skill supports different coding clients. The installer does **not** register MCP or alter a client's existing configuration.
 
 ```powershell
-& "$install\venv\Scripts\deploom-install-skill.exe" --client opencode --scope user --dry-run
-& "$install\venv\Scripts\deploom-install-skill.exe" --client opencode --scope user --verify
+# Windows example, continuing from step 1
+& "$deploomHome\venv\Scripts\deploom-install-skill.exe" --client codex --scope user --dry-run
+& "$deploomHome\venv\Scripts\deploom-install-skill.exe" --client codex --scope user --verify
 ```
 
-Linux:
+Choose `--client opencode` or `--client claude-code` instead when appropriate; use `--scope project --project /absolute/project/path` for a project-level installation. On Linux, invoke `$HOME/.local/share/deploom/venv/bin/deploom-install-skill` instead of the Windows `.exe`.
 
-```bash
-"$HOME/.local/share/deploom/venv/bin/deploom-install-skill" --client opencode --scope user --verify
+If an older installed Skill differs, back it up, inspect `--dry-run`, and use a documented explicit replacement flow (`--force --verify`) only after reviewing it. Avoid editing the installed hash-bound Skill files in place. Restart or start a new coding-client session and verify that the client loaded the intended Skill content.
+
+## 3. Connect an MCP client
+
+### Codex
+
+Use the **absolute interpreter path** from the wheel environment, not an arbitrary system Python:
+
+```powershell
+codex mcp add deploom -- "$deploomHome\venv\Scripts\python.exe" -m deploom_mcp
 ```
 
-The folder is `~/.config/opencode/skills/deploom-upgrade/`. It contains `SKILL.md`, `contract.json`, references, examples and scripts. Release 0.2.2 ships Skill contract **2.0.2**.
+Alternatively configure your existing `~/.codex/config.toml` according to your Codex version (preserving other entries):
 
-For a differing older installation, back it up, inspect `--dry-run`, then update with `--force --verify`. Foreign extra files are preserved. Do not translate installed hash-bound Skill files in place.
+```toml
+[mcp_servers.deploom]
+command = "C:/path/to/Deploom/venv/Scripts/python.exe"
+args = ["-m", "deploom_mcp"]
+```
 
-Other destinations: `--client codex`, `--client claude-code`, or `--scope project --project /absolute/path/to/project`. Skill installation does **not** register MCP or prove that a running client loaded it.
+See the [Codex integration notes](integrations/codex/README.md) and check `codex mcp --help` on your installed CLI. Do not disable the sandbox or broaden project trust just to make a test pass.
 
-### 3. Connect OpenCode V2
+### OpenCode V2
 
-Merge this server into the existing `mcp.servers` in `~/.config/opencode/opencode.jsonc`. Preserve other providers/servers/permissions. Replace `YOUR_USER` with your own directory.
+Merge the following server entry into your **existing** OpenCode configuration; replace the path and keep all unrelated configuration:
 
 ```jsonc
 {
@@ -75,12 +91,11 @@ Merge this server into the existing `mcp.servers` in `~/.config/opencode/opencod
       "deploom": {
         "type": "local",
         "command": [
-          "C:/Users/YOUR_USER/AppData/Local/DepLoom/venv/Scripts/python.exe",
-          "-m",
-          "deploom_mcp"
+          "C:/Users/YOUR_USER/AppData/Local/Deploom/venv/Scripts/python.exe",
+          "-m", "deploom_mcp"
         ],
         "environment": {
-          "DEPLOOM_MCP_STATE_DIR": "C:/Users/YOUR_USER/AppData/Local/DepLoom/state"
+          "DEPLOOM_MCP_STATE_DIR": "C:/Users/YOUR_USER/AppData/Local/Deploom/state"
         },
         "disabled": false
       }
@@ -89,31 +104,19 @@ Merge this server into the existing `mcp.servers` in `~/.config/opencode/opencod
 }
 ```
 
-On Linux use the absolute `.../.local/share/deploom/venv/bin/python` path and a writable state directory. V2 uses `mcp.servers` and `disabled`, not V1's `mcp.<name>` and `enabled`. [Official OpenCode configuration](https://opencode.ai/v2/docs/mcp-servers).
+For Linux use the equivalent absolute `venv/bin/python`. Verify the configuration format for **your installed OpenCode version**; V1 and V2 differ. See [OpenCode integration](integrations/opencode/README.md).
 
-The wheel finds its own bundled Core. Do not retain obsolete `PYTHONPATH` or `DEPLOOM_MCP_GENERATOR_PATH` overrides from an old checkout. Codex/Claude Code use different configuration formats: see [integrations](integrations/).
+### Other MCP-compatible clients
 
-### 4. Restart and check
+Configure a **stdio** server with command `/absolute/path/to/venv/python` and arguments `-m deploom_mcp`. Restart the client, inspect the actual MCP tools catalog and confirm there is no startup error. A terminal running `python -m deploom_mcp` expects protocol input; it is not a chat interface or website.
 
-Restart OpenCode. In its MCP view (`/mcps`), confirm `deploom` is connected. Ask the agent to load the Skill named exactly **`deploom-upgrade`**.
+## 4. First request: plan only
 
-The standard 0.2.2 server exposes nine tools:
+Use a public/synthetic project first. Example agent request:
 
-- Planning: `get_upgrade_plan`, `evaluate_assignment`, `explain_conflict`.
-- Explicit goals: `get_goal_plan`, `apply_goal_candidate`, `verify_goal_candidate`, `get_goal_checkpoint`, `get_goal_report`.
-- Read-only inventory: `observe_workspace_inventory_v1`.
+> Load `deploom-upgrade` and use the installed Deploom MCP. PLAN_ONLY, target Yellow. Do not change project files, install packages, commit, push or publish. Inventory workspaces; state actual plan coverage and selected mutable scope. Call `get_upgrade_plan` rather than only describing it. Report the real Blueprint path, proposal status, blockers and UNKNOWN evidence. Do not infer runtime success from planning.
 
-Optional: replace the module with `deploom_mcp.audit_server` to add `audit_dependencies`. See [audit support](docs/DEPENDENCY_AUDIT.md).
-
-The client normally starts the server. Running `python -m deploom_mcp` yourself waits for MCP protocol input; it does not open a web page. Do not paste chat prompts into its stdin.
-
-## First request: plan only
-
-Open a small, non-sensitive project and send:
-
-> Load deploom-upgrade. Use DepLoom MCP to prepare a Yellow plan. PLAN_ONLY: do not change files, install, commit or publish. Use this project's approved registry. Inventory all workspaces, report actual planning coverage, unknowns and blockers. Explain minimal changes and save the real MCP request and Blueprint path.
-
-A direct tool-call example:
+A minimal direct request to `get_upgrade_plan`:
 
 ```json
 {
@@ -126,38 +129,43 @@ A direct tool-call example:
 }
 ```
 
-Pass the approved URL in `registry` when needed; never include credentials in prompts/URLs. Read the full Blueprint: `DRAFT_READY` can still have unknown evidence, candidate caps and partial workspace coverage.
+Use only the project-approved registry; the `registry` parameter takes a URL **without credentials**. Read the complete Blueprint, not only an agent summary. A proposal may have partial coverage, unresolved peers, candidate caps, incomplete evidence, or stale input identity.
 
-## Authorize an actual upgrade separately
+### How to interpret the result
 
-> Apply the agreed Yellow plan in an isolated working copy. Preserve my changes, scope, exclusions and peer/engine constraints. Verify clean installation, the physical tree, required project checks and relevant runtime behavior. Run the final policy audit. Report old/new versions, remaining blockers and evidence. Do not commit, push, release or deploy.
+| Result or observation | What it proves |
+| :-- | :-- |
+| `PLANNING_ONLY` / `NOT_VERIFIED` | A plan was computed; no installation or project acceptance is established. |
+| Feasible modeled assignment | Satisfies the represented constraints, **not** necessarily the real npm tree. |
+| Lockfile-only success | The lock representation passed its declared checks; physical providers and runtime remain unobserved. |
+| `npm ci`, `npm ls`, actual owner/provider checks | Evidence about a specific installed dependency tree, not a general application proof. |
+| Build/tests/runtime gates | Only the checks actually executed, on the exact candidate and platform. |
+| `UNKNOWN`, `PARTIAL`, `NOT_RUN` | Missing work or evidence must remain visible; never convert them to PASS. |
 
-Specify exact targets, excluded packages and approved major lines. A health target does not mean “everything to latest”.
+For npm workspaces, inventory and joint plans have different scopes. A held dependency, peer provider, or other owner's declaration cannot be changed just to make an independent plan look green. Use the [current execution support matrix](docs/GOAL_EXECUTION_SUPPORT.md) before requesting the host-authorized goal route.
 
-`PROPOSED` and `PLANNING_ONLY/NOT_VERIFIED` are proposals, not installed or runtime-verified upgrades. Build/test success proves only the executed checks. Final policy evidence must retain the scope, denominator, thresholds, unknowns and freshness.
+## 5. Authorize an upgrade separately
 
-For workspaces, `SINGLE_MANIFEST_PLANNING`, `PARTIAL` or `jointAssignment=NOT_COMPUTED` requires client-side reconciliation. Inventory does not authorize whole-workspace execution. Explicit-goal verification/apply needs host authorization and a [supported standalone npm profile](docs/GOAL_EXECUTION_SUPPORT.md). Agent-managed edits are not automatically a Core solver verdict/checkpoint.
+After reviewing the plan, give an explicit scope and authorization. Example:
 
-## Networked MCP (remote HTTP)
+> Apply only the agreed dependency changes in an isolated worktree. Preserve all unrelated manifests, lockfile relationships and source. Run a fresh install, verify actual dependency ownership/peer providers, execute the required project tests and runtime checks, and perform an independent final audit. Show changed files, results and missing evidence. Do not commit, push or release.
 
-The HTTP transport and container setup are described in [HTTP deployment](docs/HTTP_DEPLOYMENT.md). A shared host still needs authenticated transport, project-path/permission boundaries, isolated state/evidence and concurrency controls. Paths refer to the **server's** filesystem, not a colleague's laptop. Exposing planning remotely without a path boundary can expose host files.
+The agent-managed edit workflow and the explicit host-authorized MCP goal route are **not interchangeable**. `get_goal_plan`, `verify_goal_candidate`, and `apply_goal_candidate` have separate capabilities and evidence requirements; imported plans or agent prose do not grant write authority. See [Goal execution support](docs/GOAL_EXECUTION_SUPPORT.md).
 
-For today's trials distribute the [local installation kit](docs/SHARING_WITH_COLLEAGUES.md). An HTTP server serving wheel files is **file distribution, not Networked MCP**.
+## 6. Network and security
 
-## Registry-only security evidence
+**Local stdio is not the same as offline operation.** The planner may contact npm registry endpoints and OSV (`api.osv.dev` by default), and optional reference sources. Sending a registry URL does not reroute OSV queries. A registry-backed advisory path may send package names and versions in requests. Check data policy before using private dependencies, and retain `UNKNOWN` if approved evidence sources are unavailable.
 
-For hosts that disallow external advisory queries, set `DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE=1`. To let the flat planner use npm bulk advisories, also set `DEPLOOM_MCP_REGISTRY_ADVISORY_SOURCE` to the exact approved HTTPS registry URL. For automatic discovery from project config, set `DEPLOOM_MCP_ALLOWED_PROJECT_REGISTRY` to that same URL. Set these variables in the MCP server environment, then restart it.
+**Remote Streamable HTTP** is documented in [HTTP deployment](docs/HTTP_DEPLOYMENT.md). It has no built-in user authentication or per-user project-path isolation. For remote access, require a TLS/authenticated gateway, least-privilege mounts, separated instances for untrusted users, and appropriate resource/process controls. The `project_path` refers to the server's filesystem, not the client's machine.
 
-Enable the advisory source only if the registry operator confirms that omitted package keys mean no advisories reported for the requested versions. Node and npm's bundled semver are used to match advisory ranges. Check `planningOptions.securityEvidenceMode` for `REGISTRY_BULK_ADVISORY`. This covers exact versions queried by the flat planner. Verify the final lockfile and runtime separately.
-
-For Yarn Classic, high and critical findings can include `lockfileRootAttribution` from `audit_dependencies`. Each exact version lists the number of direct declarations that reach it and up to four example chains, with the manifest and dependency section. A partial result does not rule out other paths. This is lockfile evidence for choosing what to investigate, and runtime impact requires separate verification.
+For proxy and registry problems, see [System proxy](docs/SYSTEM_PROXY.md) and the project's current data-policy documentation. Never silently fall back to an unapproved public registry or advisory endpoint.
 
 ## Troubleshooting
 
-- MCP connected, Skill missing: install both parts, restart, explicitly load `deploom-upgrade`.
-- Startup failure: inspect stderr, absolute Python path and actual installed version.
-- Wrong Core/version: check runtime provenance and stale source overrides.
-- Registry/TLS/proxy failure: retain UNKNOWN and repair the approved route; see [proxy](docs/SYSTEM_PROXY.md). Never silently switch a corporate project to public services.
-- Capped/partial plan: inspect recovery actions; do not repeat an unchanged request.
+- **MCP not visible:** inspect the exact Python path, installed package version, client config and stderr, then restart the client.
+- **Skill not loaded:** install/verify the Skill *and* connect MCP; these are separate steps.
+- **Registry / certificate / proxy failure:** keep incomplete evidence `UNKNOWN`, fix the approved route, and retry with a bounded deadline.
+- **Monorepo partially covered:** report which owners/workspaces were not planned; do not assert full-tree acceptance.
+- **Planner returns a proposal:** verify the actual candidate with fresh package-manager and project checks before accepting Yellow/Green.
 
-[Technical documentation](docs/INDEX.md).
+[Documentation index](docs/INDEX.md) · [Current release](https://github.com/levencode-labs/deploom-mcp/releases/latest)

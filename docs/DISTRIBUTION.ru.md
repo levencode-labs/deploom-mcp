@@ -1,66 +1,39 @@
-# Headless-дистрибутив MCP
+# Дистрибутив и проверка Deploom MCP
 
-[English](DISTRIBUTION.md) · [Установка для пользователей](../USERGUIDE.ru.md)
+[English](DISTRIBUTION.md) · [Руководство](../USERGUIDE.ru.md) · [Релизы](https://github.com/levencode-labs/deploom-mcp/releases/latest)
 
-Wheel включает закреплённый Core, схемы, canonical Skill и установщик.
-Он запускается без Electron, Desktop и соседнего checkout.
-Прохождение package smoke не является проверкой агентской миграции.
+Опубликованный wheel включает закреплённый [Deploom Core](https://github.com/levencode-labs/deploom-core), схемы Upgrade Blueprint, канонический Skill и установщик. Пользователю wheel **не нужны** Desktop/Electron, отдельный checkout Core и Git для запуска сервера.
+
+`release-manifest.json` закрепляет ожидаемые версию, Core/gitlink, инвентарь исходников и содержимое Skill/схем. Эти сведения нужно сопоставлять с фактическими байтами и runtime provenance. Наличие manifest или квитанции установки Skill **не доказывает**, какой текст реально загрузил агент.
 
 ## Сборка из закреплённых исходников
 
-Используйте Python 3.12–3.13 и инициализируйте submodule.
-Установите runtime-зависимости и инструменты `build`, `setuptools`, `wheel`
-в отдельное окружение. После намеренного изменения pin Core или ресурсов:
+Используйте чистый checkout, отдельный Python 3.12–3.13 и разрешённые зависимости/инструменты. **Не меняйте файлы Core внутри submodule.** Новый pin допустим только после review изменений в его собственном репозитории.
 
 ```bash
+git submodule update --init --recursive
 python scripts/check_skill.py --write
-git add upstream/deploom
 python scripts/update_release_manifest.py
 python scripts/check_skill.py
 python scripts/update_release_manifest.py --check
 python -m build --no-isolation
 ```
 
-Обновление manifest требует совпадения HEAD submodule со staged gitlink
-и не принимает tracked-правки Core. Изменяйте Core в его собственном
-репозитории и затем обновляйте pin. Команды не повышают версию,
-не создают tag и не публикуют пакет.
+Команды могут обновлять сгенерированные контрольные суммы. Выполняйте их только в подготовленной релизной задаче с закреплённым baseline. Изменения логотипов/README **не должны** менять Core gitlink, версию пакета, `release-manifest.json` или Skill.
 
-Сборка проверяет явный inventory Core и canonical Skill до копирования.
-В пакет не включаются Desktop, Git history, тесты, caches и неучтённые
-локальные файлы. Sdist содержит тот же явный inventory Core:
-для пересборки wheel из sdist загрузка submodule не нужна.
-Drift схемы/скилла требует осознанного обновления manifest.
+## Установка и проверка релиза
 
-## Установка и запуск локальной сборки
+Команды ниже закреплены на опубликованной версии, проверенной 8 ноября 2026 года:
 
 ```bash
-python -m pip install dist/deploom_mcp-0.2.2-py3-none-any.whl
-deploom-mcp
-deploom-install-skill --client codex --scope user --verify
-```
-
-Для изолированной проверки установщика используйте
-`--target /absolute/test/skill-dir` вместо user scope.
-Установщик не редактирует MCP-конфиг. Планирование остаётся
-`PLANNING_ONLY`, даже когда wheel и ресурсы прошли distribution checks.
-
-## Проверки дистрибутива
-
-```bash
-python -m unittest discover -s tests -v
+python -m pip install dist/deploom_mcp-0.2.11-py3-none-any.whl
+python -m pip check
 python scripts/smoke_stdio.py
-python -m build --no-isolation
-python scripts/smoke_wheel.py dist/deploom_mcp-0.2.2-py3-none-any.whl
+python scripts/smoke_wheel.py dist/deploom_mcp-0.2.11-py3-none-any.whl
 ```
 
-`smoke_wheel.py` создаёт временное окружение вне checkout, переиспользует
-установленные runtime-зависимости и ставит только указанный wheel.
-Он проверяет запуск реального bundled Core, shipped schema, read-only
-планирование пустого synthetic-проекта и побайтную установку скилла.
-Registry и мигрированное приложение в этом smoke не проверяются;
-непустой planning отдельно проверяется production-boundary тестами.
+Для будущих версий используйте **реальное** имя собранного файла. Smoke установленного wheel проверяет ресурсы и базовый запуск, но не доказывает поведение мигрированного приложения, ускорение или полную приёмку нового релиза. Отдельно проверьте wheel, восстановленный из sdist, и зафиксируйте SHA/toolchain.
 
-При изменениях упаковки проверьте и wheel, пересобранный из sdist.
-Зафиксируйте SHA wheel и версии Python/зависимостей.
-Локальная сборка не равна публичному релизу и не доказывает качество/скорость миграции.
+## Граница публикации
+
+Релиз требует точного commit/tag, CI-матрицы, проверки исходников и серверных digest-аттестаций по [релизному регламенту](RELEASING.md). Локальная сборка ничего не публикует на GitHub или PyPI. Нельзя передвигать опубликованный tag, подменять бинарные assets или молча расширять матрицу приёмки.

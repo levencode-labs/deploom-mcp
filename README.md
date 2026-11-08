@@ -1,304 +1,63 @@
-# DepLoom MCP
+<div align="center">
 
-[Русский](README.ru.md) · [User guide](USERGUIDE.md) · [Documentation](docs/INDEX.md)
+<img src="assets/deploom-mcp-mark.png" width="112" alt="Deploom MCP logo" />
 
-New users: start with the [release-wheel quick start](USERGUIDE.md), including
-local stdio, Skill installation, OpenCode V2 and [colleague trials](docs/SHARING_WITH_COLLEAGUES.md).
+# Deploom MCP
 
-For HTTP and containers, see [HTTP deployment](docs/HTTP_DEPLOYMENT.md).
+**Explainable dependency upgrades for coding agents.**
 
-Release maintainers: see the [component release instructions](docs/RELEASING.md).
+[Levencode Labs](https://github.com/levencode-labs) · [Русский](README.ru.md) · [User guide](USERGUIDE.md) · [Documentation](docs/INDEX.md) · [Releases](https://github.com/levencode-labs/deploom-mcp/releases)
 
-Headless upgrade-planning boundary and MCP server for the DepLoom ecosystem.
+</div>
 
-DepLoom MCP exposes the Python planning Core through `get_upgrade_plan`,
-and two read-only evidence-bound follow-up tools: `evaluate_assignment` and
-`explain_conflict`. They do not execute or re-solve a migration. The Core is maintained in [`DepLoom/core`](https://github.com/DepLoom/core) and
-pinned here as `upstream/deploom`; built wheels include that exact headless Core,
-the schema and the canonical Skill. Desktop and Electron are not required.
+Deploom MCP connects a headless dependency-planning engine to MCP-compatible coding agents. It helps make upgrade scope, version choices, compatibility constraints, and missing evidence explicit, so an agent can act on a structured plan instead of guessing what an update means.
 
-**What MCP does** — produce a structured dependency proposal with explicit
-objective, target authority, scope coverage, reasons and unresolved evidence.
+The published wheel bundles the **exact pinned [Deploom Core](https://github.com/levencode-labs/deploom-core)**, schemas, and canonical `deploom-upgrade` Skill. Electron/Desktop and a separate Core checkout are not required to use the wheel.
 
-**Planning authority** — `get_upgrade_plan` stays `PLANNING_ONLY` and does not
-prove installation or runtime compatibility. The separate explicit-goal route
-supports host-authorized isolated verification, final apply, current checkpoints
-and replay for declared standalone npm profiles. Imported plans or agent prose
-do not grant execution permission. See
-[`docs/GOAL_EXECUTION_SUPPORT.md`](docs/GOAL_EXECUTION_SUPPORT.md) for the exact
-support matrix and evidence limits; workspace inventory is read-only and does
-not authorize workspace execution.
+## What you get
 
-**Outside this package** — Autopilot, background agent dispatch, general repair
-loops, dashboards and GitLab/Renovate integration.
+- **Planning:** `get_upgrade_plan` returns an inspectable Upgrade Blueprint with authorized scope, target authority, proposed choices, conflicts, and remaining unknowns.
+- **Explanation:** `evaluate_assignment` and `explain_conflict` inspect an existing decision and its evidence; they do not silently re-solve or execute an alternative migration.
+- **Workspace visibility:** dedicated inventory and bounded joint-planning paths have their own coverage and authority limits. An observed workspace is not automatically an executable workspace migration.
+- **Optional Skill:** `deploom-upgrade` describes a disciplined agent workflow: preflight, plan, optional isolated changes, project checks, and evidence report.
+- **Separate execution route:** explicitly authorized standalone npm goals can use isolated verification and final checkpoints subject to the [documented support matrix](docs/GOAL_EXECUTION_SUPPORT.md). Imported plans do not confer execution authority.
 
-## Architecture
+**`PLANNING_ONLY` is not a successful upgrade.** An npm exit code, lockfile-only result, installed dependency tree, project tests, runtime checks, and final policy audit provide different kinds of evidence.
 
-```text
-Developer
-    │
-    ▼
-OpenCode / other MCP client
-    │ get_upgrade_plan
-    ▼
-DepLoom MCP Server
-    │
-    ▼
-Upgrade Blueprint Adapter
-    │
-    ▼
-Pinned DepLoom Planning Core   (upstream/deploom submodule)
-    │
-    ▼
-Structured Upgrade Blueprint
-    │
-    ▼
-AI Agent  → updates manifests, adapts code, reports verification
-```
+## Quick start
 
-Deployment topology and contracts are described in
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-The boundary contract is detailed in
-[`docs/STAGE_01_UPGRADE_BLUEPRINT.md`](docs/STAGE_01_UPGRADE_BLUEPRINT.md);
-the MCP server in [`docs/STAGE_02_MCP_SERVER.md`](docs/STAGE_02_MCP_SERVER.md);
-the universal agent skill in [`docs/STAGE_03_UNIVERSAL_SKILL.md`](docs/STAGE_03_UNIVERSAL_SKILL.md).
-Release changes and support limits are in [`docs/RELEASE_0_2_1.md`](docs/RELEASE_0_2_1.md).
-The exact-target evidence contract is in [`docs/DECISION_CONTRACT.md`](docs/DECISION_CONTRACT.md);
-the opt-in finite-goal contract is in [`docs/COUPLED_GOAL_BRIDGE.md`](docs/COUPLED_GOAL_BRIDGE.md);
-optional official migration references are in [`docs/OFFICIAL_MIGRATION_EVIDENCE.md`](docs/OFFICIAL_MIGRATION_EVIDENCE.md);
-experiment preparation and agent handoff are in [`docs/EXPERIMENT_HANDOFF.md`](docs/EXPERIMENT_HANDOFF.md).
+1. [Install a published wheel and optional Skill](USERGUIDE.md#1-install-the-release) (or [на русском](USERGUIDE.ru.md#1-установите-релиз)).
+2. [Connect your MCP client](USERGUIDE.md#3-connect-an-mcp-client): [Codex](integrations/codex/README.md), [OpenCode](integrations/opencode/README.md), or [Claude Code](integrations/claude-code/README.md).
+3. Start with a **plan-only** request on a small public/synthetic project; review the actual Blueprint and scope coverage.
+4. Authorize isolated edits and independent verification separately if you want the agent to perform a migration.
 
-## Repository layout
+For HTTP/container use, see [Streamable HTTP deployment](docs/HTTP_DEPLOYMENT.md). The default local transport is **stdio**. **Remote HTTP has no built-in user authentication or per-user project isolation**; do not expose it without an authenticated gateway and least-privilege isolation.
 
-```text
-upstream/deploom/          pinned planning core (Git submodule; see release-manifest.json)
-src/deploom_mcp/           Python package (blueprint adapter + MCP server)
-contracts/                 Upgrade Blueprint JSON Schema (v2)
-tests/                     unit, protocol and production-boundary tests
-tests/fixtures/            fake planning core + skill/installer fixtures
-skills/deploom-upgrade/    canonical Agent Skill (skill + references + examples)
-integrations/              per-client adapters (opencode / claude-code / codex)
-benchmarks/                Stage 1 + Stage 2 performance measurements
-docs/                      architecture and stage documentation
-examples/opencode/         OpenCode configuration example
-```
+## Develop from source
 
-## Deploom-upgrade Agent Skill
-
-[`skills/deploom-upgrade/`](skills/deploom-upgrade/SKILL.md) is a single,
-client-neutral skill for opencode / Claude Code / Codex that lays out the full
-workflow — preflight, `get_upgrade_plan`, safety gates, worktree execution,
-verification and a single evidence report. Install it with
-[`scripts/install_skill.py`](scripts/install_skill.py)
-(byte-identical, idempotent, dry-run/verify supported):
+Python **`>=3.12,<3.15`** is declared; **Python 3.12** is the recommended first-test interpreter. Native Windows and Linux use platform-specific wheels for some dependencies.
 
 ```bash
-python scripts/install_skill.py --client opencode --scope project --project /path/to/project
-python scripts/install_skill.py --client codex --scope user
-python scripts/install_skill.py --client claude-code --scope user --dry-run
-```
-
-The historical Stage 3 E2E pilot exercised the earlier Skill revision; it does
-not validate the current 2.0 contract. The current bundle has synthetic contract,
-evidence and installer checks. A new loaded-client or migration experiment is
-still required to evaluate agent behavior; see
-[`docs/STAGE_03_UNIVERSAL_SKILL.md`](docs/STAGE_03_UNIVERSAL_SKILL.md). The skill never edits
-`upstream/deploom`, never writes MCP configuration itself, and never commits,
-pushes or merges.
-
-## Optional dependency audit (npm / Yarn)
-
-An **opt-in** MCP entrypoint exposes `audit_dependencies` alongside
-`get_upgrade_plan`. The default planning entrypoint and the frozen A/B
-experiment's tool surface are unchanged:
-
-```bash
-python -m deploom_mcp.audit_server
-```
-
-The audit is read-only to the project: npm audits the existing lockfile,
-Yarn Classic passes an exact `yarn.lock` package/version inventory to
-`npm audit`, and Yarn Berry uses `yarn npm audit --all --recursive`.
-It does not install packages, apply fixes or prove runtime safety or
-Yellow/Green closure. See [dependency audit contract](docs/DEPENDENCY_AUDIT.md)
-for supported engines, registry access, completeness and evidence fields.
-
-## Requirements
-
-- Python **>= 3.12, < 3.15** (the pinned Core and the MCP SDK are verified in CI on 3.12).
-- Access to `github.com` to fetch the submodule and Python packages.
-- Windows and Linux are supported; z3-solver is installed from a platform wheel.
-
-## Installation (from a clean clone)
-
-```bash
-git clone https://github.com/DepLoom/mcp.git
-cd mcp
+git clone https://github.com/levencode-labs/deploom-mcp.git
+cd deploom-mcp
 git submodule update --init --recursive
-
 python -m venv .venv
-.venv/Scripts/python -m pip install -e .      # Windows
-# .venv/bin/python -m pip install -e .        # Linux/macOS
+# Activate the venv or invoke its Python explicitly:
+python -m pip install -e .
+python -m deploom_mcp
 ```
 
-If OSV or npm registry needs the host proxy, see [system proxy](docs/SYSTEM_PROXY.md).
-`DEPLOOM_MCP_USE_SYSTEM_PROXY=true` enables it by default, overridden by
-`use_system_proxy=true|false` per network-using tool. Without either, planning
-keeps its previous `false` behavior.
+The last command starts a protocol server on stdio, **not** a web UI. For reproducible installed-wheel trials, follow the [user guide](USERGUIDE.md), not an editable source install. The Core gitlink is pinned and must not be rewritten as part of a cosmetic/docs change.
 
-The source checkout fetches the pinned Core as a submodule. A built wheel is
-self-contained and also provides `deploom-install-skill`; see
-[`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md) for build, install and isolated
-package checks. No Desktop installation is required.
+## Explore
 
-## Running the MCP server (stdio)
+| Area | Where to start |
+| :-- | :-- |
+| Installation and first request | [User guide](USERGUIDE.md) · [Руководство](USERGUIDE.ru.md) |
+| Technical contracts | [Documentation index](docs/INDEX.md) |
+| Agent workflow | [Canonical Skill](skills/deploom-upgrade/SKILL.md) |
+| Execution/evidence limitations | [Goal support matrix](docs/GOAL_EXECUTION_SUPPORT.md) |
+| Remote transport and security | [HTTP deployment](docs/HTTP_DEPLOYMENT.md) |
+| Sharing an installation | [Colleague guide](docs/SHARING_WITH_COLLEAGUES.md) |
 
-```bash
-.venv/Scripts/python -m deploom_mcp           # Windows
-# .venv/bin/python -m deploom_mcp             # Linux/macOS
-```
-
-The default 0.2.2 server exposes **nine tools**: `get_upgrade_plan`,
-`evaluate_assignment`, `explain_conflict`, `get_goal_plan`, `apply_goal_candidate`,
-`verify_goal_candidate`, `get_goal_checkpoint`, `get_goal_report` and
-`observe_workspace_inventory_v1`. The optional `python -m deploom_mcp.audit_server`
-adds `audit_dependencies` as a tenth. See the
-[execution support matrix](docs/GOAL_EXECUTION_SUPPORT.md) for authority limits.
-
-### Decision follow-up tools
-
-Use the full Blueprint path returned by
-`get_upgrade_plan.artifacts.blueprint` and optionally its
-`identities.decisionDigest` for a strict identity check.
-
-`evaluate_assignment` compares package names (or precise `declarationId`
-keys) to exact candidate versions. It detects out-of-scope changes,
-nonapproved major lines, pinned replan requirements and changed local files.
-An alternative target does **not** inherit original Z3, security or target
-policy evidence: the tool reports `UNKNOWN` rather than pretending to have
-re-solved the assignment. It is a constraint/authority **triage**, not an
-independent peer solver. `explain_conflict` retrieves typed original
-blockers/reviews with evidence pointers, project scope and next actions.
-
-[Complete decision follow-up contract](docs/DECISION_FOLLOWUPS.md).
-
-### `get_upgrade_plan` (contract)
-
-```jsonc
-{
-  "project_path": "/abs/path/to/project",   // read-only; a package.json is required
-  "target_level": "yellow",                  // "yellow" | "green"  (default "yellow")
-  "min_lag_ok_pct": 80,                      // minimum registry-lag % for a clean proposal
-  "deadline_seconds": 20,                     // default 20, clamped to [5, 600]
-  "include_prerelease": false,               // allow prerelease targets
-  "use_system_proxy": null,                 // env setting or false; explicit boolean overrides
-  "registry": null,                          // optional npm registry; must be an http(s) URL
-  "registry_metadata_ttl": 3600,             // packument TTL seconds for the shared cache
-  "output_dir": null,                        // optional; MUST be outside the project
-  "exclude": null,                           // explicit health-scope exclusions
-  "target_mode": "pinned",                   // "pinned" | "advisory"
-  "objective": "minimum-change-to-policy",   // or "latest-compatible-in-approved-lines"
-  "mutable_packages": null,                 // null = all; [] = none; others remain constraints
-  "approved_version_lines": {},              // package -> allowed major numbers
-  "draft_max_candidates": 3,                 // evidence cap, separate from the deadline
-  "previous_evidence_digest": null           // diagnose unchanged published evidence
-}
-```
-
-All inputs are validated fail-closed before any work starts: non-finite
-deadlines, out-of-range `min_lag_ok_pct`, registries with credentials, invalid
-TTLs and malformed `exclude` lists are rejected with machine-readable error
-codes (`invalid-deadline`, `invalid-policy`, `invalid-registry`,
-`invalid-exclude`) instead of being forwarded to the planner. Write boundaries
-are fail-closed too: an `output_dir` overlapping the project (`output-inside-project`)
-and a managed state overlapping the project (`state-inside-project`) are
-rejected **before any directory is created**. Overlap is checked on both the
-lexical absolute path (symlinks/junctions preserved) and the real path after
-following them, so a link that routes *through* the project cannot smuggle
-writes inside it.
-
-The response is a **compact** representation of the Upgrade Blueprint
-(`protocol=upgrade-blueprint`, run, status, summary, recommendation groups,
-compact dependency rows, artifact paths) plus planning boundaries. The full
-Blueprint and raw planner artifacts are written under a controlled artifact
-directory whose paths are returned; an AI agent reads them with its own file
-tools.
-
-The inline rows are **bounded deterministically** (default 50 groups / 50
-packages per group / 100 rows, capped at 512 KiB of serialized JSON): when
-there are more, the `truncation` block reports the exact clipped counts
-(`inlineGroups/totalGroups`, `inlinePackages/totalPackages`,
-`inlineDependencies/totalDependencies`, plus `byteLimit/bytes/limitsHit`)
-while `summary.statusCounts` stays complete. The budget bounds the serialized
-**payload** and `truncation.bytes` equals its exact final size (the test
-suite re-serializes the response and asserts equality); if even the minimal
-required payload cannot fit, the call fails closed with
-`response-too-large`. The response also carries the policy that was actually
-**applied** (`policy.{targetLevel,minLagOkPct,exclusions,policyHash}`), with a
-request-vs-applied mismatch surfaced as `policyDiscrepancy`.
-
-A deadline-exhausted run returns a `DRAFT_PARTIAL` plan with
-`partial.replanRequired=true`; that partial result is produced by the planner
-itself, **not** by client cancellation. Because the tool is async, client
-cancellation (e.g. the SDK's per-request read-timeout abandon, which sends
-`notifications/cancelled`) reliably kills the whole planner process tree —
-verified over a real stdio session; the interrupt yields no manufactured
-partial blueprint, only the tree-kill cleanup, and the server session stays
-alive (see [`docs/STAGE_02_MCP_SERVER.md`](docs/STAGE_02_MCP_SERVER.md)).
-
-The response is always `NOT_VERIFIED / PLANNING_ONLY / UNKNOWN / UNPROVEN`: a
-`PROPOSED` verdict means "this upgrade **can** be proposed", not "already
-updated", and `needsReview` requests evidence review within existing user authority.
-It does not require asking the owner again for an already authorized action. Machine-readable errors use `{"ok": false, "error":
-{code, message, ...}}`; see
-[`docs/STAGE_02_MCP_SERVER.md`](docs/STAGE_02_MCP_SERVER.md) for the full
-contract, error codes and partial-plan handling.
-
-## Connecting OpenCode
-
-See [`examples/opencode/README.md`](examples/opencode/README.md) (pointer to
-[`integrations/opencode/README.md`](integrations/opencode/README.md), which
-covers both the MCP server and the `deploom-upgrade` skill). The example
-config is meant to be copied into your own OpenCode configuration; this
-repository never modifies global OpenCode configuration.
-
-## Tests
-
-```bash
-.venv/Scripts/python -m unittest discover -s tests -v
-```
-
-The suite covers unit projection tests, real MCP protocol tests over stdio, a
-production-boundary test that runs the **real** pinned planner against a real
-fixture, 17+ deterministic hardening tests that run the boundary against a
-**fake planner core** (`tests/fixtures/fake_core/`, no network) to pin down the
-contract validator, hash verification, JSON Schema check, filesystem write
-guards, exclusions and the subprocess runner lifecycle, and 20 offline
-skill/installer tests (`tests/test_skill_contract.py`,
-`tests/test_skill_install.py`). CI runs the same suite on a clean checkout
-across Windows/Linux and Python 3.12/3.13, a `scripts/smoke_stdio.py`
-startup/clean-stdout check, and an installer smoke on all four install
-configs.
-
-## Updating the Core
-
-The Core is a pinned submodule. Updating it is an explicit, reviewable
-dependency change:
-
-```bash
-git -C upstream/deploom fetch origin
-git -C upstream/deploom checkout <new pinned SHA>
-git add upstream/deploom
-git commit -m "chore(core): pin deploy core to <SHA>"
-```
-
-Then refresh `release-manifest.json` and re-run the full test and distribution
-checks in [`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md). Do **not** edit files
-inside `upstream/deploom`.
-
-## License / distribution
-
-This repository does not re-license the upstream Core or add an open-source
-license. The headless build can be validated locally; these changes do not
-publish a package to a registry or alter distribution terms. The repository
-owner must select the intended terms before a public package release.
+**Release reference:** [`v0.2.11`](https://github.com/levencode-labs/deploom-mcp/releases/tag/v0.2.11) was the latest published release verified on 2026-11-08. Use [latest releases](https://github.com/levencode-labs/deploom-mcp/releases/latest) for subsequent versions. Neither a plan nor a release tag is a claim of universal migration quality or speedup.

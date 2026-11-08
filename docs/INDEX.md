@@ -1,31 +1,24 @@
-# Documentation
+# Deploom MCP documentation
 
-[Русский](INDEX.ru.md) · [Product overview](../README.md)
+[Русский](INDEX.ru.md) · [Overview](../README.md) · [User guide](../USERGUIDE.md) · [Current releases](https://github.com/levencode-labs/deploom-mcp/releases/latest)
 
-## Start, connect and share
+## Start here
 
-- [User guide](../USERGUIDE.md) ([RU](../USERGUIDE.ru.md))
-- [Sharing with colleagues](SHARING_WITH_COLLEAGUES.md) ([RU](SHARING_WITH_COLLEAGUES.ru.md))
-- [OpenCode integration](../integrations/opencode/README.md) ([RU](../integrations/opencode/README.ru.md))
-- [Distribution](DISTRIBUTION.md) ([RU](DISTRIBUTION.ru.md)), [component releases](RELEASING.md)
+- **Install and plan:** [User guide](../USERGUIDE.md) ([RU](../USERGUIDE.ru.md))
+- **Give a colleague a local kit:** [Sharing](SHARING_WITH_COLLEAGUES.md) ([RU](SHARING_WITH_COLLEAGUES.ru.md))
+- **Configure a coding client:** [Codex](../integrations/codex/README.md), [OpenCode](../integrations/opencode/README.md) ([RU](../integrations/opencode/README.ru.md)), [Claude Code](../integrations/claude-code/README.md)
+- **Deploy HTTP/container:** [Streamable HTTP](HTTP_DEPLOYMENT.md) — authentication and per-user isolation must be added externally
+- **Build and release:** [Distribution](DISTRIBUTION.md) ([RU](DISTRIBUTION.ru.md)); [Release process](RELEASING.md)
 
-## Current technical contracts
+## Contracts and evidence
 
-- [Architecture](ARCHITECTURE.md), [Skill contract](SKILL_CONTRACT_V2.md)
-- [Planning decisions](DECISION_CONTRACT.md), [follow-ups](DECISION_FOLLOWUPS.md)
-- [Goal contract](GOAL_CONTRACT.md), [execution support](GOAL_EXECUTION_SUPPORT.md), [coupled choices](COUPLED_GOAL_BRIDGE.md)
-- [Workspace inventory](NPM_WORKSPACE_INVENTORY_V1.md), [execution admission](NPM_WORKSPACE_EXECUTION_ADMISSION_V0.md)
-- [Official migration evidence](OFFICIAL_MIGRATION_EVIDENCE.md)
-- [Dependency audit](DEPENDENCY_AUDIT.md)
-- [System proxy](SYSTEM_PROXY.md), [registry diagnostics](REGISTRY_DIAGNOSTICS_PROJECTION.md)
-- [Standalone output receipts](STANDALONE_OUTPUT_RECEIPTS.md), [Windows path identity](WINDOWS_NTFS_PATH_IDENTITY.md)
+- [Architecture](ARCHITECTURE.md) · [Skill contract](SKILL_CONTRACT_V2.md)
+- [Planner decisions](DECISION_CONTRACT.md) · [Follow-up tools](DECISION_FOLLOWUPS.md)
+- [Goal authority](GOAL_CONTRACT.md) · [Execution support matrix](GOAL_EXECUTION_SUPPORT.md) · [Coupled choices](COUPLED_GOAL_BRIDGE.md)
+- [npm workspace inventory](NPM_WORKSPACE_INVENTORY_V1.md) · [Execution admission](NPM_WORKSPACE_EXECUTION_ADMISSION_V0.md)
+- [Dependency audit](DEPENDENCY_AUDIT.md) · [Registry diagnostics](REGISTRY_DIAGNOSTICS_PROJECTION.md) · [System proxy](SYSTEM_PROXY.md)
+- [Official migration references](OFFICIAL_MIGRATION_EVIDENCE.md) · [Output receipts](STANDALONE_OUTPUT_RECEIPTS.md)
 
-## Historical stages, pilots and reviews
+## Historical material
 
-These describe their recorded stage, not fresh acceptance of a new release.
-
-- [Blueprint stage](STAGE_01_UPGRADE_BLUEPRINT.md), [MCP stage](STAGE_02_MCP_SERVER.md), [Skill stage](STAGE_03_UNIVERSAL_SKILL.md)
-- [P0 exact target](P0_EXACT_TARGET_NO_TARGET.md), [P1 correctness preflight](P1_CORRECTNESS_BENCH_PREFLIGHT.md), [P2 Chalk demo](P2_CHALK_BREAKING_API_DEMO.md)
-- [Windows demo](D1_WINDOWS_POWERSHELL_DEMO.md), [pilot handoff](D1_PILOT_HANDOFF.md)
-- [Experiment handoff](EXPERIMENT_HANDOFF.md), [proof budget](CURRENT_PROOF_BUDGET.md), [Core repin review](CORE_REPIN_REVIEW.md)
-- [Release 0.2.1](RELEASE_0_2_1.md)
+Historical stage reviews, experiments, pilot handoffs and release notes remain in this directory. Their statuses and version-specific commands describe **their own recorded period** and are not automatically applicable to the latest release. Start with the current guide and support matrix above rather than treating an old pilot as fresh acceptance.

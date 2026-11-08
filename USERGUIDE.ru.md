@@ -1,72 +1,88 @@
-# Руководство пользователя DepLoom MCP
+# Deploom MCP — руководство пользователя
 
-[English](USERGUIDE.md) · [Обзор](README.ru.md) · [Раздача коллегам](docs/SHARING_WITH_COLLEAGUES.ru.md)
+[English](USERGUIDE.md) · [Обзор продукта](README.ru.md) · [Документация](docs/INDEX.ru.md) · [Последний релиз](https://github.com/levencode-labs/deploom-mcp/releases/latest)
 
-## Выберите способ запуска
+Это руководство для установки **опубликованного wheel и подключения локального MCP**. Deploom Desktop, отдельная установка Core и клонирование исходников не нужны. Для первой пробы лучше использовать публичный/синтетический проект; работу с приватными зависимостями и сетевыми источниками нужно разрешать отдельно.
 
-- **Self-hosted MCP (stdio):** каждый разработчик запускает MCP локально через агентский клиент.
-- **Networked MCP (remote HTTP):** см. [настройку HTTP и контейнера](docs/HTTP_DEPLOYMENT.md) и ограничения безопасности ниже.
+> **Версия в примерах:** Deploom MCP **0.2.11** (релиз 7 ноября 2026 года), канонический Skill **2.0.14**. При переходе на новый релиз берите wheel и суммы из [одного выпуска](https://github.com/levencode-labs/deploom-mcp/releases/latest), не смешивая версии.
 
-Wheel содержит закреплённый headless Core и канонический скилл. DepLoom Desktop, Electron, клонирование Git и отдельная установка Core не нужны.
+## 1. Установите релиз
 
-## Сетевые запросы и данные проекта
+**Требования:** пакет объявляет Python `>=3.12,<3.15`; для первой проверки на Windows/Linux разумно выбрать **CPython 3.12 x86-64**. Нужны доступные платформенные wheel зависимостей из разрешённого Python index либо подготовленного wheelhouse. Node/npm и инструменты проекта потребуются для последующих проверок миграции.
 
-Локальный stdio — это transport между клиентом и сервером, а не обещание офлайн-планирования. Планировщик может запрашивать package/version metadata у заданного registry и vulnerability evidence у OSV (bundled Core по умолчанию использует `api.osv.dev`). Параметр `registry` не перенаправляет трафик OSV в этот registry. Необязательные migration-reference запросы обращаются к описанным официальным источникам. Для первой пробы возьмите несекретный проект, а перед планированием приватных зависимостей проверьте политику передачи данных вашей организации. Proxy меняет маршрут, а не разрешение на передачу данных.
-
-## Self-hosted MCP (stdio)
-
-### 1. Установите релиз
-
-Для первой пробы рекомендуется Python 3.12 или 3.13; пакет объявляет `>=3.12,<3.15`. Также нужны Node, пакетный менеджер проекта и доступ к его разрешённому registry.
-
-Windows, PowerShell:
+### Windows (PowerShell)
 
 ```powershell
-$install = Join-Path $env:LOCALAPPDATA 'DepLoom'
-py -3.12 -m venv "$install\venv"
-$python = Join-Path $install 'venv\Scripts\python.exe'
-& $python -m pip install "https://github.com/DepLoom/mcp/releases/download/v0.2.2/deploom_mcp-0.2.2-py3-none-any.whl"
-& $python -m pip check
-& $python -c "import importlib.metadata; print(importlib.metadata.version('deploom-mcp'))"
+$deploomHome = Join-Path $env:LOCALAPPDATA 'Deploom'
+python -m venv "$deploomHome\venv"  # Здесь должен вызываться Python 3.12
+$py = Join-Path $deploomHome 'venv\Scripts\python.exe'
+$wheel = 'deploom_mcp-0.2.11-py3-none-any.whl'
+$base = 'https://github.com/levencode-labs/deploom-mcp/releases/download/v0.2.11'
+New-Item -ItemType Directory -Force "$deploomHome\downloads" | Out-Null
+Invoke-WebRequest "$base/$wheel" -OutFile "$deploomHome\downloads\$wheel"
+Invoke-WebRequest "$base/SHA256SUMS.txt" -OutFile "$deploomHome\downloads\SHA256SUMS.txt"
+$entry = Get-Content "$deploomHome\downloads\SHA256SUMS.txt" | Where-Object { $_ -match ([regex]::Escape($wheel) + '$') }
+if (-not $entry -or @($entry).Count -ne 1) { throw 'Не найдена однозначная контрольная сумма wheel' }
+$expected = ($entry -split '\s+')[0].ToLowerInvariant()
+$actual = (Get-FileHash "$deploomHome\downloads\$wheel" -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($actual -ne $expected) { throw 'Контрольная сумма релиза не совпадает' }
+& $py -m pip install "$deploomHome\downloads\$wheel"
+if ($LASTEXITCODE -ne 0) { throw 'Ошибка установки' }
+& $py -m pip check
+& $py -c "import importlib.metadata as m; print(m.version('deploom-mcp'))"
 ```
 
-Можно сначала скачать wheel, сравнить SHA-256 с `SHA256SUMS.txt` из [того же релиза](https://github.com/DepLoom/mcp/releases/tag/v0.2.2) и установить локальный файл. Это GitHub Releases; публикация в PyPI не предполагается.
+Если `python` указывает на другую версию, вызовите установленный Python 3.12 по полному пути. `SHA256SUMS.txt` подтверждает соответствие файлу, опубликованному автором релиза, но **не является независимой криптографической подписью**. Для зависимостей используйте разрешённые index, сертификаты и proxy.
 
-Linux с установленным Python 3.12:
+### Linux (Python 3.12)
 
 ```bash
 python3.12 -m venv "$HOME/.local/share/deploom/venv"
-PYTHON="$HOME/.local/share/deploom/venv/bin/python"
-"$PYTHON" -m pip install "https://github.com/DepLoom/mcp/releases/download/v0.2.2/deploom_mcp-0.2.2-py3-none-any.whl"
-"$PYTHON" -m pip check
+PY="$HOME/.local/share/deploom/venv/bin/python"
+"$PY" -m pip install 'https://github.com/levencode-labs/deploom-mcp/releases/download/v0.2.11/deploom_mcp-0.2.11-py3-none-any.whl'
+"$PY" -m pip check
+"$PY" -c 'import importlib.metadata as m; print(m.version("deploom-mcp"))'
 ```
 
-Используйте обычные разрешённые настройки Python index, сертификатов и proxy. [Автономный комплект](docs/SHARING_WITH_COLLEAGUES.ru.md) позволяет не скачивать Python-зависимости повторно.
+Для подготовки переносимого офлайн-комплекта см. [инструкцию для коллег](docs/SHARING_WITH_COLLEAGUES.ru.md). Из опубликованного wheel Core устанавливается вместе с MCP.
 
-### 2. Установите скилл
+## 2. Установите Skill (необязательно)
 
-Для OpenCode на Windows:
+Канонический Skill **`deploom-upgrade`** одинаков для поддерживаемых клиентов. Его установка **не регистрирует MCP** и не меняет имеющиеся клиентские конфигурации.
 
 ```powershell
-& "$install\venv\Scripts\deploom-install-skill.exe" --client opencode --scope user --dry-run
-& "$install\venv\Scripts\deploom-install-skill.exe" --client opencode --scope user --verify
+# Windows, в окружении из шага 1
+& "$deploomHome\venv\Scripts\deploom-install-skill.exe" --client codex --scope user --dry-run
+& "$deploomHome\venv\Scripts\deploom-install-skill.exe" --client codex --scope user --verify
 ```
 
-Linux:
+Для OpenCode или Claude Code замените `--client` на `opencode` / `claude-code`. Для установки в проект можно выбрать `--scope project --project /absolute/project/path`. На Linux запускайте `$HOME/.local/share/deploom/venv/bin/deploom-install-skill`.
 
-```bash
-"$HOME/.local/share/deploom/venv/bin/deploom-install-skill" --client opencode --scope user --verify
+Если установленный Skill отличается от нового, сначала сохраните копию, изучите `--dry-run` и только затем применяйте предусмотренный явный путь обновления (`--force --verify`). Не исправляйте напрямую файлы Skill, зафиксированные контрольными суммами. После установки перезапустите клиент и убедитесь, что он действительно загрузил нужную версию.
+
+## 3. Подключите MCP-клиент
+
+### Codex
+
+Указывайте абсолютный путь к Python **того** окружения, куда установлен wheel:
+
+```powershell
+codex mcp add deploom -- "$deploomHome\venv\Scripts\python.exe" -m deploom_mcp
 ```
 
-Каталог: `~/.config/opencode/skills/deploom-upgrade/`. В нём находятся `SKILL.md`, `contract.json`, references, examples и scripts. Релиз 0.2.2 включает контракт скилла **2.0.2**.
+Или дополните существующий `~/.codex/config.toml` (не удаляя другие записи):
 
-Если старые файлы отличаются, сохраните их копию, изучите `--dry-run` и обновите с `--force --verify`. Посторонние дополнительные файлы сохраняются. Не переводите установленные файлы скилла на месте: они связаны контрольными суммами.
+```toml
+[mcp_servers.deploom]
+command = "C:/path/to/Deploom/venv/Scripts/python.exe"
+args = ["-m", "deploom_mcp"]
+```
 
-Другие варианты: `--client codex`, `--client claude-code` или `--scope project --project /absolute/path/to/project`. Установка скилла **не регистрирует MCP** и не доказывает его загрузку уже работающим клиентом.
+Сверяйте синтаксис с `codex mcp --help` именно установленной версии. [Интеграция Codex](integrations/codex/README.md). Не отключайте sandbox и не расширяйте доверенные каталоги только ради прохождения теста.
 
-### 3. Подключите OpenCode V2
+### OpenCode V2
 
-Добавьте запись сервера в существующий `mcp.servers` файла `~/.config/opencode/opencode.jsonc`. Сохраните остальные серверы, провайдеры и permissions. Замените `YOUR_USER` на свой каталог.
+Добавьте сервер в **имеющийся** конфиг OpenCode; остальные серверы, модели и разрешения не удаляйте. Замените путь пользователя:
 
 ```jsonc
 {
@@ -75,12 +91,11 @@ Linux:
       "deploom": {
         "type": "local",
         "command": [
-          "C:/Users/YOUR_USER/AppData/Local/DepLoom/venv/Scripts/python.exe",
-          "-m",
-          "deploom_mcp"
+          "C:/Users/YOUR_USER/AppData/Local/Deploom/venv/Scripts/python.exe",
+          "-m", "deploom_mcp"
         ],
         "environment": {
-          "DEPLOOM_MCP_STATE_DIR": "C:/Users/YOUR_USER/AppData/Local/DepLoom/state"
+          "DEPLOOM_MCP_STATE_DIR": "C:/Users/YOUR_USER/AppData/Local/Deploom/state"
         },
         "disabled": false
       }
@@ -89,31 +104,19 @@ Linux:
 }
 ```
 
-На Linux укажите абсолютный путь `.../.local/share/deploom/venv/bin/python` и доступный для записи state-каталог. В V2 нужны `mcp.servers` и `disabled`, а не старые `mcp.<name>` / `enabled`. [Официальная документация OpenCode](https://opencode.ai/v2/docs/mcp-servers).
+На Linux нужен абсолютный `venv/bin/python`. **Конфиг OpenCode V1 и V2 различается**: проверьте собственную версию клиента. Подробнее: [интеграция OpenCode](integrations/opencode/README.ru.md).
 
-Wheel сам находит свой bundled Core. Не переносите старые `PYTHONPATH` и `DEPLOOM_MCP_GENERATOR_PATH` из исходников. Codex и Claude Code используют другие форматы конфига — см. [интеграции](integrations/).
+### Другой MCP-клиент
 
-### 4. Перезапустите и проверьте
+Зарегистрируйте **stdio**-сервер: команда `/absolute/path/to/venv/python`, аргументы `-m deploom_mcp`. Перезапустите клиент, проверьте реальный каталог инструментов MCP и отсутствие ошибки запуска. `python -m deploom_mcp` в терминале ждёт сообщения протокола, а не обычный текст чата.
 
-Перезапустите OpenCode. В списке MCP (`/mcps`) `deploom` должен быть connected. Попросите агента загрузить скилл с точным именем **`deploom-upgrade`**.
+## 4. Первая проба — только план
 
-Стандартный сервер 0.2.2 предоставляет девять инструментов:
+Выберите публичный или синтетический проект. Пример запроса агенту:
 
-- План: `get_upgrade_plan`, `evaluate_assignment`, `explain_conflict`.
-- Explicit goals: `get_goal_plan`, `apply_goal_candidate`, `verify_goal_candidate`, `get_goal_checkpoint`, `get_goal_report`.
-- Read-only inventory: `observe_workspace_inventory_v1`.
+> Загрузи `deploom-upgrade` и используй установленный Deploom MCP. Режим PLAN_ONLY, цель Yellow. Не меняй файлы, не устанавливай зависимости, не делай commit, push или публикацию. Выполни инвентаризацию workspaces, покажи реальное покрытие и scope разрешённых изменений. Вызови `get_upgrade_plan`, а не просто опиши его. Сообщи путь настоящего Blueprint, статус, блокеры и UNKNOWN evidence. Не объявляй runtime успешным по одному плану.
 
-Необязательно: замените модуль на `deploom_mcp.audit_server`, чтобы добавить `audit_dependencies`. См. [контракт аудита](docs/DEPENDENCY_AUDIT.md).
-
-Обычно сервер запускает клиент. Команда `python -m deploom_mcp` в терминале ждёт сообщения протокола MCP, а не открывает страницу. Не отправляйте обычные чат-запросы в её stdin.
-
-## Первая проба: только план
-
-Откройте небольшой несекретный проект и отправьте:
-
-> Загрузи deploom-upgrade. Через DepLoom MCP подготовь план Yellow. Режим PLAN_ONLY: не меняй файлы, не устанавливай пакеты, не делай commit или публикацию. Используй разрешённый registry проекта. Учти все workspaces в инвентаре, покажи фактическое покрытие планирования, unknown и блокеры. Объясни минимальные изменения и сохрани реальный запрос MCP и путь Blueprint.
-
-Пример прямого вызова инструмента:
+Минимальный пример `get_upgrade_plan`:
 
 ```json
 {
@@ -126,38 +129,43 @@ Wheel сам находит свой bundled Core. Не переносите с�
 }
 ```
 
-При необходимости передайте разрешённый URL в `registry`; не добавляйте credentials в запрос или URL. Читайте полный Blueprint: `DRAFT_READY` не исключает unknown, caps и частичного workspace-покрытия.
+Передавайте только **разрешённый** registry, не указывая credentials в URL или prompt. Проверяйте полный Blueprint, а не только пересказ агента. Даже у предложенного плана могут быть частичное покрытие, unknown, лимиты кандидатов, несовместимые peers или устаревшая входная идентичность.
 
-## Затем отдельно разрешите обновление
+### Как читать результат
 
-> По согласованному плану доведи проект до Yellow в изолированной рабочей копии. Сохрани мои изменения, scope, исключения и peer/engine ограничения. Проверь чистую установку, физическое дерево, обязательные проверки проекта и затронутый runtime. Выполни итоговый аудит политики. Покажи версии до/после, блокеры и evidence. Не делай commit, push, релиз или деплой.
+| Наблюдение | Что действительно подтверждено |
+| :-- | :-- |
+| `PLANNING_ONLY` / `NOT_VERIFIED` | Построено предложение; установка и приёмка проекта не доказаны. |
+| Допустимое назначение в модели | Выполнены **учтённые в модели** ограничения, но не обязательно реальный npm tree. |
+| Успешный `LOCKFILE_ONLY` | Проверен lockfile в объявленных границах; физическое дерево и runtime не наблюдались. |
+| `npm ci`, `npm ls`, проверки реальных providers | Сведения о конкретном установленном дереве, но не обо всём поведении приложения. |
+| Build/tests/runtime | Только фактически выполненные проверки на точном кандидате и платформе. |
+| `UNKNOWN`, `PARTIAL`, `NOT_RUN` | Доказательств недостаёт; нельзя подменять такие статусы на PASS. |
 
-Отдельно задайте exact targets, исключённые пакеты и допустимые major-линии. Уровень здоровья не означает «всё до latest».
+Для npm workspaces инвентаризация и совместное планирование — разные возможности. Изменения удерживаемых деклараций или чужого owner недопустимы ради искусственного PASS. Перед explicit-goal выполнением изучите [матрицу поддержки](docs/GOAL_EXECUTION_SUPPORT.md).
 
-`PROPOSED` и `PLANNING_ONLY/NOT_VERIFIED` — предложение, а не уже установленное или проверенное в runtime обновление. Тесты/build подтверждают только выполненные сценарии. Финальный аудит должен сохранять scope, знаменатель, пороги, unknown и актуальность evidence.
+## 5. Отдельно разрешите обновление
 
-Для workspaces `SINGLE_MANIFEST_PLANNING`, `PARTIAL` или `jointAssignment=NOT_COMPUTED` требуют согласования на стороне клиента. Инвентарь не разрешает автоматическое выполнение по всему workspace. Explicit-goal verify/apply требует host-авторизации и [поддерживаемого standalone npm-профиля](docs/GOAL_EXECUTION_SUPPORT.md). Ручные изменения агента не становятся вердиктом Core/checkpoint автоматически.
+После разбора плана обозначьте scope и разрешение. Пример:
 
-## Networked MCP (remote HTTP)
+> Примени только согласованные изменения зависимостей в изолированном worktree. Сохрани остальные манифесты, lockfile-связи и исходники. Выполни чистую установку, проверь настоящих dependency owners и peer providers, обязательные тесты и runtime. Проведи независимый итоговый аудит. Покажи diff, результаты и недостающие доказательства. Не делай commit, push и релиз.
 
-HTTP-транспорт и контейнер описаны в [инструкции по развёртыванию](docs/HTTP_DEPLOYMENT.md). Общему серверу по-прежнему нужны аутентификация, границы путей и прав проектов, изоляция state/evidence и ограничение конкурентных процессов. Пути относятся к файловой системе **сервера**, а не ноутбука коллеги. Удалённое планирование без границы путей может раскрыть файлы хоста.
+Агентские правки и host-authorized маршрут выполнения MCP — **разные контракты**. У `get_goal_plan`, `verify_goal_candidate`, `apply_goal_candidate` отдельные полномочия и требования к evidence. Импортированный план или утверждение агента не даёт разрешения на запись. См. [Goal execution](docs/GOAL_EXECUTION_SUPPORT.md).
 
-Для текущих проб передавайте [локальный установочный комплект](docs/SHARING_WITH_COLLEAGUES.ru.md). HTTP-раздача wheel — **передача файлов, не Networked MCP**.
+## 6. Сеть и безопасность
 
-## Данные безопасности только из registry
+**Локальный stdio не означает работу без сети.** Планировщик может обращаться к npm registry, OSV (по умолчанию `api.osv.dev`) и отдельным документированным источникам. Параметр `registry` не перенаправляет OSV в этот registry. Registry advisory-запросы могут передавать имена и версии пакетов. Проверьте корпоративную политику перед запуском на приватных зависимостях. При недоступных разрешённых источниках оставляйте evidence `UNKNOWN`.
 
-Если на хосте запрещены внешние запросы об уязвимостях, задайте `DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE=1`. Чтобы планировщик одиночного проекта мог использовать npm bulk advisories, укажите точный разрешённый HTTPS URL в `DEPLOOM_MCP_REGISTRY_ADVISORY_SOURCE`. Для автоматического выбора адреса из конфигурации проекта укажите тот же URL в `DEPLOOM_MCP_ALLOWED_PROJECT_REGISTRY`. Задайте переменные в окружении MCP-сервера и перезапустите его.
+**Remote Streamable HTTP:** [инструкция](docs/HTTP_DEPLOYMENT.md). У сервера нет встроенной аутентификации пользователей и изоляции проектных путей. Для удалённой работы нужны TLS/authenticated gateway, ограниченные права и mount, отдельные instances для недоверенных пользователей и лимиты процессов. `project_path` относится к файловой системе **сервера**.
 
-Включайте источник, если администратор registry подтверждает, что отсутствие ключа пакета означает отсутствие зарегистрированных записей для запрошенных версий. Для проверки диапазонов нужны Node и semver из npm. В ответе ищите `REGISTRY_BULK_ADVISORY` в `planningOptions.securityEvidenceMode`. Этот режим покрывает точные версии, запрошенные планировщиком одиночного проекта. Итоговый lockfile и runtime проверяются отдельно.
+Ошибки proxy/registry решайте через [System proxy](docs/SYSTEM_PROXY.md), не переключая приватный проект на сторонний registry или advisory API без разрешения.
 
-Для Yarn Classic инструмент `audit_dependencies` может вернуть `lockfileRootAttribution` для High и Critical. Для каждой точной версии указаны число прямых деклараций, которые до неё доходят, и до четырёх примеров цепочек с манифестом и секцией зависимостей. При частичном покрытии возможны другие цепочки. Эти данные помогают выбрать, что обновлять. Влияние на runtime проверяется отдельно.
+## Частые проблемы
 
-## Если что-то не работает
+- **Не видно MCP:** проверьте полный путь к Python, версию установленного wheel, конфиг и stderr, перезапустите клиент.
+- **Не загрузился Skill:** установка Skill и регистрация MCP — два независимых действия.
+- **Ошибка registry, TLS или proxy:** сохраните `UNKNOWN`, исправьте разрешённый маршрут и повторите ограниченный запрос.
+- **Монорепозиторий покрыт частично:** перечислите owners/workspaces, которые не вошли в план; не объявляйте полную приёмку.
+- **План построен:** для Yellow/Green всё ещё нужны реальные npm/project проверки на конечном кандидате.
 
-- MCP подключён, скилла нет: установите обе части, перезапустите клиент и явно загрузите `deploom-upgrade`.
-- Ошибка старта: проверьте stderr, абсолютный Python-путь и реальную версию пакета.
-- Другой Core/версия: проверьте runtime provenance и устаревшие source override.
-- Ошибка registry/TLS/proxy: сохраняйте UNKNOWN, исправляйте разрешённый маршрут; см. [proxy](docs/SYSTEM_PROXY.md). Не переключайте корпоративный проект на публичные сервисы молча.
-- Частичный/capped план: прочитайте recovery action; не повторяйте неизменный запрос.
-
-[Техническая документация](docs/INDEX.ru.md).
+[Индекс документации](docs/INDEX.ru.md) · [Релизы](https://github.com/levencode-labs/deploom-mcp/releases/latest)
