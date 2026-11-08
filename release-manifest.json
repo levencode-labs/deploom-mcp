@@ -1,7 +1,7 @@
 {
   "blueprintSchemaVersion": 2,
   "core": {
-    "contentSha256": "58e5c26d95f7554c939f4bbc0b1521618f0413f465347d9a9da90f535f4d52f0",
+    "contentSha256": "b9ddddcad31b4bd79b9c3f56dd4ceeb3233e037d6895ed7c1f15d96091a002c3",
     "files": {
       "VERSION": "2698c63efcc74d9adc7a29889fc4ecc7fadfb58c4588db3f117f9d87cfaaff40",
       "analyze_verification_telemetry.py": "1ee235ef0b9cf275fe34c22cf16cb4049e88fb19953096ddaecbb73d7a700e6f",
@@ -150,7 +150,7 @@
       "workspace_health_evidence.py": "915865d6688815afe6a0dced0cb814b5bb9a2624f607f4d1476d28c283168221",
       "workspace_health_policy.py": "6aa0024feb51775e2333f438f84486c18b4fcaaa6d1c7afb0b3d16a24065fe62",
       "workspace_noise.py": "0ed76379a5308cb8a5b053ed92293fdf4bd255c7799c6e77a644db8bac3af27a",
-      "workspace_npm_lock_delta.py": "d09aea623d7ab9880ac13aab3a9d9a44e70d490b1fb4a4ac2b44d0367d4c434b",
+      "workspace_npm_lock_delta.py": "ef343d700b01542cf027b2d2c8f90dbe3cddb4fdcdfca1845e109d194e41b0b8",
       "workspace_npm_obligations.py": "646ed1b88dde5dccbcf4f5cf379deb8d3cd183dfd391cc0440a3657d4880d912",
       "workspace_npm_preflight.py": "32a9969b3dd69a3d03d0020748794ed19351fbedc131aea69aecc1c2a3734fa5",
       "workspace_npm_transitive_override.py": "4e98f646be73b1b6cc58ec05632754602419887601a2475069a688546a56ceba",
@@ -158,7 +158,7 @@
       "yarn_berry.py": "bd769e797823ff99129983f8295a52b5aac1f01f9be2c2a8eac9ffeaf20903d2"
     },
     "repository": "https://github.com/levencode-labs/deploom-core",
-    "revision": "df3a55246b32b289f7be1dc4071a69c07ffe2b1e",
+    "revision": "d1e01d944ef916b3f7c3fd52bdfb6ee56bb0733f",
     "version": "1.0.0-preview.20"
   },
   "mcpVersion": "0.2.12",

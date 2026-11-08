@@ -176,6 +176,32 @@ def main():
     run("independent-vector", [*npm, "install", "--package-lock-only", *WORKSPACE_NPM_POLICY, *npm_options],
         cwd=split, environment=env, expected="ERESOLVE")
     assignments = {tuple(json.loads(key)): value for key, value in plan["assignment"].items()}
+    held_peer = run_workspace_npm_preflight(
+        manifests, (baseline / "package-lock.json").read_bytes(), assignments,
+        frozenset(domains), artifacts=out / "held-peer", cache=cache, registry=registry, reauthor=dlegacy,
+    )
+    if held_peer.get("lockDelta") != {
+        "status": "RESOLUTION_FAILED", "code": "HELD_LOCK_PROVIDER_CHANGED",
+        "path": ui, "dependency": "react", "section": "peerDependencies",
+    }:
+        raise RuntimeError(f"held UI peer control differs: {held_peer.get('lockDelta') or held_peer['code']}")
+
+    # In the positive fixture the app owns React and injects it into the UI.
+    # This keeps SSR meaningful without giving the upgrade authority over a held peer.
+    ui_manifest = json.loads(files["packages/ui/package.json"])
+    del ui_manifest["peerDependencies"]
+    files["packages/ui/package.json"] = dump(ui_manifest)
+    files["packages/ui/index.cjs"] = files["packages/ui/index.cjs"].replace(
+        b'const React = require("react");', b'module.exports = function createUi(React) {',
+    ).replace(b"exports.react = React;", b"const exports = {react: React};") + b"return exports;\n};\n"
+    files["packages/app/main.cjs"] = files["packages/app/main.cjs"].replace(
+        b'require("deploom-control-ui");', b'require("deploom-control-ui")(React);',
+    )
+    del lock["packages"][ui]["peerDependencies"]
+    baseline = out / "injected-ui-baseline"
+    place(baseline, {**files, "package-lock.json": dump(lock)})
+    baseline_hashes = {name: sha(baseline / name) for name in (*files, "package-lock.json")}
+    manifests[ui] = files["packages/ui/package.json"]
     result = run_workspace_npm_preflight(manifests, (baseline / "package-lock.json").read_bytes(), assignments,
                                         frozenset(domains), artifacts=out / "native", cache=cache, registry=registry,
                                         reauthor=dlegacy)
@@ -212,7 +238,8 @@ def main():
         raise RuntimeError("baseline changed during isolated application")
     report = {"coreRevision": json.loads(release_manifest_path().read_bytes())["core"]["revision"],
               "fixtureSha256": sha(source), "node": node_version, "npm": npm_version, "independentVector": "ERESOLVE",
-              "jointPlan": plan["status"], "nativeLock": result["status"], "install": proof["installation"]["status"],
+              "jointPlan": plan["status"], "heldPeerControl": held_peer["lockDelta"],
+              "nativeLock": result["status"], "install": proof["installation"]["status"],
               "physicalLinks": 3, "npmLs": "PASS", "appSsr": "PASS", "legacySsr": "PASS",
               "candidateLockSha256": result["candidateLockSha256"], "verificationSha256": sha(receipt),
               "isolatedApply": "APPLIED", "applyReceiptSha256": applied_sha256,
