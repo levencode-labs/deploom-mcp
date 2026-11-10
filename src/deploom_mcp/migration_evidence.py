@@ -71,20 +71,51 @@ def source_controls(package,documents):
             'relation':'REFERENCE_NOT_AUTOMATICALLY_SELECTED','resolverVerified':False})
     return controls,conflicts
 
+
+def suggested_checks(package, documents):
+    sources = {document['kind']: document for document in documents}
+    checks = []
+    def add(identifier, source, purpose):
+        checks.append({'checkId': identifier, 'sourceIds': [sources[source]['sourceId']],
+                       'purpose': purpose, 'status': 'NOT_RUN',
+                       'authority': 'RECOMMENDATION_ONLY', 'localApplicability': 'UNKNOWN'})
+    if 'afterPackage' in sources:
+        add('TARGET_RUNTIME_AND_EXPORTS', 'afterPackage',
+            'Check target engines and package exports against the actual project runtime and imports.')
+    if package == 'eslint' and 'migrationGuide' in sources:
+        guide = sources['migrationGuide']['text']
+        if 'eslint.config.js' in guide:
+            add('ESLINT_CONFIG_AND_LINT', 'migrationGuide',
+                'Review config migration and run the project lint check over its intended file scope.')
+        if 'RuleTester' in guide:
+            add('ESLINT_CUSTOM_RULE_TESTS', 'migrationGuide',
+                'If custom rules exist, run their RuleTester suite with the target ESLint.')
+    elif package == 'vite' and 'migrationGuide' in sources:
+        add('VITE_BUILD_AND_RUNTIME', 'migrationGuide',
+            'Run the project build and exercise its built application with the target runtime.')
+    elif package == 'strip-json-comments' and 'afterSource' in sources:
+        add('JSON_COMMENT_AND_TRAILING_COMMA_CASES', 'afterSource',
+            'Exercise the project comment parsing and trailing comma cases without assuming documented defaults.')
+    return checks
+
 def _keyword_hints(documents,source_version,target_version):
     from deploom_mcp.distribution import resolve_core_dir
     core=resolve_core_dir();sys.path.insert(0,str(core))
-    import dependency_live_roadmap_generator as generator
-    from pathlib import Path
-    if not Path(generator.__file__).resolve().is_relative_to(core.resolve()):
-        return {'kind':'LABELLED_KEYWORD_HINTS','status':'UNAVAILABLE_CORE_ORIGIN'}
-    value=generator.analyze_release_text('\n\n'.join(x['text'] for x in documents),source_version,target_version,len(documents),'Pinned reference documents; semantic/project coverage unknown',coverage_complete=False)
-    return {'kind':'LABELLED_KEYWORD_HINTS','authority':'UNTRUSTED_DOCUMENT_HINTS','semanticValidation':'NOT_PERFORMED',
-        'breaking':value.breaking_changes,'migration':value.migration_notes,'requirements':value.requirements,'deprecations':value.deprecations}
+    try:
+        import dependency_live_roadmap_generator as generator
+        from pathlib import Path
+        if not Path(generator.__file__).resolve().is_relative_to(core.resolve()):
+            return {'kind':'LABELLED_KEYWORD_HINTS','status':'UNAVAILABLE_CORE_ORIGIN'}
+        value=generator.analyze_release_text('\n\n'.join(x['text'] for x in documents),source_version,target_version,len(documents),'Pinned reference documents; semantic/project coverage unknown',coverage_complete=False)
+        return {'kind':'LABELLED_KEYWORD_HINTS','authority':'UNTRUSTED_DOCUMENT_HINTS','semanticValidation':'NOT_PERFORMED',
+            'breaking':value.breaking_changes,'migration':value.migration_notes,'requirements':value.requirements,'deprecations':value.deprecations}
+    finally:
+        sys.path.pop(0)
+
 
 def reference_transition(store,row,detail):
     result={**row,'reference':{'authority':'REFERENCE_ONLY','status':'UNKNOWN','sources':[],'controls':[],
-        'conflicts':[],'coverage':{'status':'PARTIAL','missingKinds':['RUNTIME','SEMANTIC_LOCAL_APPLICABILITY'] }},'applicability':_app()}
+        'conflicts':[],'suggestedChecks':[],'codemodApplicability':'NOT_ESTABLISHED','coverage':{'status':'PARTIAL','missingKinds':['RUNTIME','SEMANTIC_LOCAL_APPLICABILITY'] }},'applicability':_app()}
     ref=result['reference'];key=(row['package'],row['from'],row['to'])
     if row['from']==row['to']:ref.update(status='NO_TRANSITION');return result
     from semantic_version import Version
@@ -100,6 +131,7 @@ def reference_transition(store,row,detail):
             documents.append(document)
         controls,conflicts=source_controls(row['package'],documents)
         ref.update(status='CONFLICT' if conflicts else 'AVAILABLE',retrievalStatus='AVAILABLE',controls=controls,conflicts=conflicts,
+            suggestedChecks=suggested_checks(row['package'],documents),
             keywordHints=_keyword_hints(documents,row['from'],row['to']))
     except (EvidenceUnavailable,OSError,ValueError) as exc:ref.update(status='UNKNOWN',reason=str(exc) if isinstance(exc,EvidenceUnavailable) else 'REFERENCE_UNAVAILABLE')
     for document in documents:

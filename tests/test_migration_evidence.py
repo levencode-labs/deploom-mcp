@@ -22,7 +22,7 @@ class FrozenPublicBodies:
                 if r==repo and hashlib.sha1((r+'@'+t).encode()).hexdigest()==commit:tag=t
         if tag is None:raise AssertionError('unexpected reference')
         if artifact.endswith('package.json'):
-            name='strip-json-comments' if 'strip-json-comments' in repo else '@vitejs/plugin-react' if 'vite-plugin-react' in repo else 'vite'
+            name='eslint' if repo=='eslint/eslint' else 'strip-json-comments' if 'strip-json-comments' in repo else '@vitejs/plugin-react' if 'vite-plugin-react' in repo else 'vite'
             version=tag.removeprefix('v').replace('plugin-react@','');value={'name':'wrong-name' if self.invalid_name else name,'version':version}
             if version in ('5.0.0','7.0.0'):value.update(type='module',exports='./index.js',engines={'node':'>=14.16'})
             if name=='@vitejs/plugin-react':value['peerDependencies']={'vite':'^4 || ^5 || ^6 || ^7.0.0-beta.0'}
@@ -30,6 +30,7 @@ class FrozenPublicBodies:
         if artifact=='index.d.ts':return b'/** Strip trailing commas. @default true */\nreadonly trailingCommas?: boolean;'.replace(b'\\n',b'\n')
         if artifact=='readme.md':return b'### trailingCommas\nType: `boolean`\nDefault: `false`\n'.replace(b'\\n',b'\n')
         if artifact=='index.js':return b'module.exports = function() {}' if tag=='v3.1.1' else b'export default function stripJsonComments(input, {trailingCommas = false} = {}) {}'
+        if repo=='eslint/eslint':return b'# ESLint 9 migration: eslint.config.js and RuleTester'
         return b'# Vite 7 migration\nNode.js 20.19+ required. Removed Sass legacy API and splitVendorChunkPlugin.'.replace(b'\\n',b'\n')
 
 def request(package='strip-json-comments',before='3.1.1',after='5.0.0',**kw):
@@ -56,6 +57,21 @@ class ReferenceContractTests(unittest.TestCase):
         row=self.section(request('vite','6.4.5','7.0.0'))['transitions'][0]
         control=next(c for c in row['reference']['controls'] if c['controlId']=='COMPANION_PEER_REFERENCE')
         self.assertEqual(control['relation'],'REFERENCE_NOT_AUTOMATICALLY_SELECTED');self.assertFalse(control['resolverVerified'])
+    def test_eslint_exact_reference_supplies_checks_without_applicability_or_execution(self):
+        import sys
+        before=list(sys.path)
+        row=self.section(request('eslint','8.57.1','9.0.0'))['transitions'][0]
+        self.assertEqual(row['reference']['status'],'AVAILABLE')
+        self.assertEqual(sys.path,before)
+        checks=row['reference']['suggestedChecks']
+        self.assertEqual({check['checkId'] for check in checks},
+            {'TARGET_RUNTIME_AND_EXPORTS','ESLINT_CONFIG_AND_LINT','ESLINT_CUSTOM_RULE_TESTS'})
+        sources={source['sourceId'] for source in row['reference']['sources']}
+        self.assertTrue(all(set(check['sourceIds'])<=sources and check['status']=='NOT_RUN'
+                            and check['localApplicability']=='UNKNOWN' for check in checks))
+        self.assertEqual(row['reference']['codemodApplicability'],'NOT_ESTABLISHED')
+        self.assertEqual(row['applicability']['executionAuthority'],'NONE')
+
     def test_no_transition_and_unsupported_target_do_not_fetch(self):
         for req,status in [(request(after='3.1.1'),'NO_TRANSITION'),(request(after='5.0.0-beta.1'),'UNSUPPORTED'),(request(package='npm:renamed'),'IDENTITY_UNVERIFIED'),(request(package='unknown'),'UNSUPPORTED')]:
             self.assertEqual(self.section(req)['transitions'][0]['reference']['status'],status)

@@ -4,12 +4,16 @@ import hashlib,http.client,ipaddress,json,math,os,re,socket,ssl,time
 from pathlib import Path
 from urllib.parse import quote,urlsplit
 
-VERSION='official-reference-provider-v1'
+VERSION='official-reference-provider-v2'
 TTL=86400
 SHA=re.compile(r'[0-9a-f]{40}\Z')
 HEX=re.compile(r'[0-9a-f]{64}\Z')
 ORIGINS={'api.github.com','raw.githubusercontent.com'}
 CATALOG={
+ ('eslint','8.57.1','9.0.0'):[
+  ('beforePackage','eslint/eslint','v8.57.1','package.json'),
+  ('afterPackage','eslint/eslint','v9.0.0','package.json'),
+  ('migrationGuide','eslint/eslint','v9.0.0','docs/src/use/migrate-to-9.0.0.md')],
  ('strip-json-comments','3.1.1','5.0.0'):[
   ('beforePackage','sindresorhus/strip-json-comments','v3.1.1','package.json'),
   ('afterPackage','sindresorhus/strip-json-comments','v5.0.0','package.json'),
