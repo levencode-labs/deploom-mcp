@@ -151,9 +151,9 @@ class NativeAuditTests(unittest.TestCase):
         (self.project / "package.json").write_text(json.dumps(package), encoding="utf-8")
         return {p.name: p.read_bytes() for p in self.project.iterdir()}
 
-    def run_audit(self, manager, registry):
+    def run_audit(self, manager, registry, **options):
         return asyncio.run(audit_dependencies(project_path=str(self.project), package_manager=manager,
-            registry=registry, output_dir=str(self.outputs), deadline_seconds=60))
+            registry=registry, output_dir=str(self.outputs), deadline_seconds=60, **options))
 
     def assert_preserved(self, before):
         after = {p.name: p.read_bytes() for p in self.project.iterdir() if p.is_file()}
@@ -213,6 +213,34 @@ class NativeAuditTests(unittest.TestCase):
         self.assertEqual("UNKNOWN", report["security"]["verdict"])
         self.assertEqual("standalone-audit-egress-denied", report["error"]["code"])
         self.assert_preserved(before)
+
+    def test_scoped_lag_is_rejected_before_any_egress_for_each_manager(self):
+        for manager in ("npm", "yarn-classic", "yarn-berry"):
+            with self.subTest(manager=manager), Registry(findings=False) as approved:
+                self.project = self.base / manager
+                self.project.mkdir()
+                before = self.scoped_fixture(approved.url, manager)
+                with patch.dict(os.environ, {"DEPLOOM_STANDALONE_AUDIT_EGRESS_REGISTRY": approved.url}):
+                    report = self.run_audit(manager, approved.url, include_lag=True)
+                self.assertEqual([], approved.requests)
+                self.assertEqual([], report["commands"])
+                self.assertEqual("standalone-scoped-audit-lag-unsupported", report["error"]["code"])
+                self.assertEqual("UNKNOWN", report["security"]["verdict"])
+                self.assert_preserved(before)
+
+    def test_same_origin_different_path_redirect_is_rejected(self):
+        for manager in ("npm", "yarn-classic", "yarn-berry"):
+            with self.subTest(manager=manager), Registry(findings=False) as approved:
+                approved.redirect = approved.url + "/outside-approved-route"
+                self.project = self.base / manager
+                self.project.mkdir()
+                before = self.scoped_fixture(approved.url, manager)
+                with patch.dict(os.environ, {"DEPLOOM_STANDALONE_AUDIT_EGRESS_REGISTRY": approved.url}):
+                    report = self.run_audit(manager, approved.url)
+                self.assertEqual(["/-/npm/v1/security/advisories/bulk"], approved.requests)
+                self.assertEqual("UNKNOWN", report["security"]["verdict"])
+                self.assertEqual("standalone-audit-egress-denied", report["error"]["code"])
+                self.assert_preserved(before)
 
     def test_standalone_scoped_yarn_sends_inventory_only_to_approved_endpoint(self):
         for manager in ("yarn-classic", "yarn-berry"):
