@@ -187,6 +187,7 @@ class Runner:
         self.env, self.private = env, private
         self.commands: list[dict] = []
         self.yarn_candidate_launcher: list[str] | None = None
+        self.scoped_audit_status: Path | None = None
         self._command_count = 0
         self.secrets = {v for k, v in env.items() if re.search(r"token|password|secret|auth", k, re.I) and len(v) >= 4}
         self._lock = threading.Lock()
@@ -320,6 +321,7 @@ def configure(
 
     import yaml
     npm_lines: list[str] = []
+    has_npm_scopes = False
     npm_registry = runner.env.get("npm_config_registry") or runner.env.get("NPM_CONFIG_REGISTRY")
     paths = [Path.home() / ".npmrc"]
     configured_user = os.environ.get("NPM_CONFIG_USERCONFIG") or os.environ.get("npm_config_userconfig")
@@ -335,7 +337,10 @@ def configure(
             if not line.strip() or line.lstrip().startswith((";", "#")) or "=" not in line:
                 continue
             key, value = (v.strip() for v in line.split("=", 1))
-            permitted = key in ("registry", "always-auth", "cafile", "strict-ssl", "proxy", "https-proxy") or (key.startswith("@") and key.endswith(":registry")) or (key.startswith("//") and re.search(r":(_authToken|_auth|_password|username|always-auth)$", key))
+            key = key.lower() if not key.startswith("//") else key
+            scoped = key.startswith("@") and key.endswith(":registry")
+            has_npm_scopes |= scoped
+            permitted = key in ("registry", "always-auth", "cafile", "strict-ssl", "proxy", "https-proxy") or scoped or (key.startswith("//") and re.search(r":(_authToken|_auth|_password|username|always-auth)$", key))
             if permitted:
                 npm_lines.append(f"{key}={value}")
                 if key == "registry":
@@ -382,7 +387,24 @@ def configure(
             match = re.search(r'(?m)^\s*registry\s+[\"\']?([^\s\"\']+)', inputs[".yarnrc"].decode("utf-8-sig"))
             if match:
                 registry = metadata_registry = expand(match[1])
-    registry, metadata_registry = checked_registry(expand(registry)), checked_registry(expand(metadata_registry))
+    scoped_audit = has_npm_scopes or (manager == "yarn-berry" and bool(yarn_config.get("npmScopes")))
+    if scoped_audit:
+        approved = checked_registry(runner.env.get("DEPLOOM_STANDALONE_AUDIT_EGRESS_REGISTRY"))
+        if requested_registry is None or requested_registry != approved:
+            raise AuditError("standalone-audit-registry-not-approved",
+                             "scoped audit requires an explicit registry matching host approval")
+        # Guarded audit uses a direct connection to the approved endpoint.
+        proxy_keys = {"http_proxy", "https_proxy", "all_proxy", "ftp_proxy",
+                      "npm_config_proxy", "npm_config_https_proxy", "yarn_http_proxy", "yarn_https_proxy"}
+        if (any(value for key, value in runner.env.items() if key.lower() in proxy_keys)
+                or any(line.startswith(("proxy=", "https-proxy=")) for line in npm_lines)
+                or any(yarn_config.get(key) for key in ("httpProxy", "httpsProxy"))):
+            raise AuditError("standalone-audit-proxy-unsupported",
+                             "host-approved scoped audit requires a direct registry connection")
+        runner.scoped_audit_status = runner.private / "scoped-audit-status"
+        registry = metadata_registry = approved
+    else:
+        registry, metadata_registry = checked_registry(expand(registry)), checked_registry(expand(metadata_registry))
     yarn_config.update({"npmRegistryServer": metadata_registry, "npmAuditRegistry": registry,
         "enableScripts": False, "enableTelemetry": False, "enableColors": False,
         "enableProgressBars": False, "ignorePath": True, "httpRetry": 0,
@@ -479,6 +501,11 @@ def execute(request: dict) -> dict:
 
         check_candidate_snapshot()
         report["registry"] = {"audit": registry, "metadata": metadata_registry, "fallbackUsed": False}
+        if runner.scoped_audit_status is not None:
+            report["registry"]["auditSource"] = "HOST_APPROVED_EXPLICIT"
+            if request["includeLag"]:
+                raise AuditError("standalone-scoped-audit-lag-unsupported",
+                                 "scoped audit does not authorize separate lag metadata requests")
         report["coverage"] = {"manifests": manifests, "complete": not issues, "unresolvedEdges": issues,
             "basis": "CANONICAL_LOCKFILE", "installedNodeModulesExamined": False,
             "manifestLockConsistency": "NOT_VERIFIED"}
@@ -556,7 +583,19 @@ def execute(request: dict) -> dict:
                 command.append("--legacy-peer-deps")
             if candidate is not None:
                 command.extend(("--workspaces=true", "--include-workspace-root=true", "--include=prod"))
+        if runner.scoped_audit_status is not None:
+            guard = Path(__file__).with_name("standalone_audit_guard.cjs").resolve(strict=True)
+            runner.env.update({
+                "NODE_OPTIONS": "--require=" + json.dumps(str(guard), ensure_ascii=False),
+                "DEPLOOM_AUDIT_GUARD_REGISTRY": registry,
+                "DEPLOOM_AUDIT_GUARD_STATUS": str(runner.scoped_audit_status),
+            })
         code, stdout, stderr = runner.run(command, audit_cwd)
+        if runner.scoped_audit_status is not None:
+            if (not runner.scoped_audit_status.is_file()
+                    or runner.scoped_audit_status.read_text(encoding="ascii") != "observed"):
+                raise AuditError("standalone-audit-egress-denied",
+                                 "native scoped audit did not complete on the approved endpoint")
         check_candidate_snapshot()
         # Yarn 4.9.x's --json --no-deprecations emits no JSON when the audit
         # endpoint returned an empty advisory map. Accept the documented CLI

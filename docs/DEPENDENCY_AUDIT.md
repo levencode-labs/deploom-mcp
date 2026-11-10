@@ -78,7 +78,20 @@ The wrapper checks hashes of the bundled Core inventory before invoking it.
 Audit sends package names and versions to the **effective configured audit
 registry**, as native npm/Yarn do. An explicit `registry` overrides it;
 credentials in URLs, query strings and fragments are rejected. The wrapper
-never falls back from a private registry to a public one. Project/user npm
+does not retry failed audits on another registry. For standalone audits with
+npm scope mappings or Yarn Berry `npmScopes`, the request must supply an
+explicit `registry` matching the host's
+`DEPLOOM_STANDALONE_AUDIT_EGRESS_REGISTRY`. Without that match the audit stops
+before launching the CLI and reports `UNKNOWN`. The complete inventory is
+audited against that one host-approved endpoint. The report identifies the
+selected endpoint and records `registry.auditSource=HOST_APPROVED_EXPLICIT`.
+
+For this scoped path, the trusted native Node CLI is restricted to its audit
+POST routes at the approved endpoint. Redirects and unapproved requests fail
+closed. Proxy routing and `include_lag=true` are unsupported for this path.
+The request guard does not replace OS-level egress controls.
+
+Project/user npm
 registry credentials and declarative Yarn registry/auth settings are used
 only in the disposable snapshot and removed afterward. Credentials are
 redacted from retained evidence; configuration that executes code or filters

@@ -21,8 +21,8 @@ from deploom_mcp.dependency_audit import audit_dependencies
 
 
 class Registry:
-    def __init__(self, findings=True, fail=False):
-        self.findings, self.fail = findings, fail
+    def __init__(self, findings=True, fail=False, redirect=None):
+        self.findings, self.fail, self.redirect = findings, fail, redirect
         self.requests, self.payloads = [], []
 
     def __enter__(self):
@@ -41,6 +41,11 @@ class Registry:
                 if self.headers.get("Content-Encoding") == "gzip":
                     raw = gzip.decompress(raw)
                 outer.payloads.append(json.loads(raw))
+                if outer.redirect:
+                    self.send_response(307)
+                    self.send_header("Location", outer.redirect + self.path)
+                    self.end_headers()
+                    return
                 if outer.fail:
                     return self.emit(503, {"error": "synthetic audit unavailable"})
                 if self.path.endswith("/advisories/bulk"):
@@ -151,6 +156,73 @@ class NativeAuditTests(unittest.TestCase):
         self.assertFalse((self.project / "node_modules").exists())
         self.assertFalse((self.project / "SHOULD_NOT_EXIST").exists())
         self.assertEqual([], list(self.outputs.glob("audits/*/private-*")))
+
+    def scoped_fixture(self, registry, manager="npm"):
+        self.fixture(manager, registry)
+        lock = "package-lock.json" if manager == "npm" else "yarn.lock"
+        for name in ("package.json", lock):
+            path = self.project / name
+            text = path.read_text(encoding="utf-8").replace("sample-dep", "@fixture/sample")
+            if manager == "yarn-berry" and name == lock:
+                text = text.replace("    @fixture/sample:", '    "@fixture/sample":')
+            path.write_text(text, encoding="utf-8")
+        if manager == "yarn-berry":
+            with (self.project / ".yarnrc.yml").open("a", encoding="utf-8") as config:
+                config.write(f'npmScopes:\n  fixture:\n    npmRegistryServer: "{registry}"\n')
+        else:
+            (self.project / ".npmrc").write_text(f"@fixture:registry={registry}\n", encoding="utf-8")
+        return {p.name: p.read_bytes() for p in self.project.iterdir()}
+
+    def test_standalone_scoped_npm_requires_approved_audit_registry(self):
+        with Registry(findings=False) as scope, Registry(findings=False) as default:
+            before = self.scoped_fixture(scope.url)
+            with patch.dict(os.environ, {"npm_config_registry": default.url, "NPM_CONFIG_REGISTRY": default.url}):
+                report = self.run_audit("npm", None)
+        self.assertEqual([], default.requests, f"scoped inventory reached the default registry: {default.payloads}")
+        self.assertEqual([], scope.requests)
+        self.assertEqual([], report["commands"])
+        self.assertEqual("standalone-audit-registry-not-approved", report["error"]["code"])
+        self.assertEqual("UNKNOWN", report["security"]["verdict"])
+        self.assert_preserved(before)
+
+    def test_standalone_scoped_npm_sends_inventory_only_to_approved_endpoint(self):
+        with Registry(findings=False) as approved, Registry(findings=False) as other:
+            before = self.scoped_fixture(other.url)
+            with patch.dict(os.environ, {"DEPLOOM_STANDALONE_AUDIT_EGRESS_REGISTRY": approved.url}):
+                report = self.run_audit("npm", approved.url)
+        self.assertEqual([], other.requests)
+        self.assertEqual(["/-/npm/v1/security/advisories/bulk"], approved.requests)
+        self.assertEqual([{"@fixture/sample": ["1.0.0"]}], approved.payloads)
+        self.assertEqual("NO_KNOWN_FINDINGS", report["security"]["verdict"])
+        self.assertEqual(approved.url, report["registry"]["audit"])
+        self.assertEqual("HOST_APPROVED_EXPLICIT", report["registry"]["auditSource"])
+        self.assert_preserved(before)
+
+    def test_standalone_scoped_npm_does_not_follow_audit_redirect(self):
+        with Registry(findings=False) as other, Registry(redirect=other.url) as approved:
+            before = self.scoped_fixture(approved.url)
+            with patch.dict(os.environ, {"DEPLOOM_STANDALONE_AUDIT_EGRESS_REGISTRY": approved.url}):
+                report = self.run_audit("npm", approved.url)
+        self.assertEqual(["/-/npm/v1/security/advisories/bulk"], approved.requests)
+        self.assertEqual([], other.requests)
+        self.assertEqual("UNKNOWN", report["security"]["verdict"])
+        self.assertEqual("standalone-audit-egress-denied", report["error"]["code"])
+        self.assert_preserved(before)
+
+    def test_standalone_scoped_yarn_sends_inventory_only_to_approved_endpoint(self):
+        for manager in ("yarn-classic", "yarn-berry"):
+            with self.subTest(manager=manager), Registry(findings=False) as approved, Registry(findings=False) as other:
+                self.project = self.base / manager
+                self.project.mkdir()
+                before = self.scoped_fixture(other.url, manager)
+                with patch.dict(os.environ, {"DEPLOOM_STANDALONE_AUDIT_EGRESS_REGISTRY": approved.url}):
+                    report = self.run_audit(manager, approved.url)
+                self.assertEqual([], other.requests)
+                self.assertEqual(["/-/npm/v1/security/advisories/bulk"], approved.requests, report)
+                self.assertEqual([{"@fixture/sample": ["1.0.0"]}], approved.payloads)
+                self.assertEqual("NO_KNOWN_FINDINGS", report["security"]["verdict"], report)
+                self.assertEqual("HOST_APPROVED_EXPLICIT", report["registry"]["auditSource"])
+                self.assert_preserved(before)
 
     def test_npm_finding_real_command_and_read_only(self):
         with Registry() as registry:

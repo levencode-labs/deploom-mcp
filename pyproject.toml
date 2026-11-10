@@ -29,4 +29,4 @@ deploom-install-skill = "deploom_mcp.distribution:install_skill_main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-deploom_mcp = ["py.typed", "migration_usage.cjs"]
+deploom_mcp = ["py.typed", "migration_usage.cjs", "standalone_audit_guard.cjs"]
