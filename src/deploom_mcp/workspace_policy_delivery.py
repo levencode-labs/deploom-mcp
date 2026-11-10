@@ -35,6 +35,8 @@ def load_delivery_policy(audit_path, expected_sha256, policy_path, plan):
     manifests = {(PurePosixPath(owner) / "package.json").as_posix(): record["manifestSha256"]
                  for owner, record in plan["workspaceOwners"].items()}
     files = {**manifests, "package-lock.json": plan["approvedLockSha256"]}
+    if "rootNpmrcSha256" in plan:
+        files[".npmrc"] = plan["rootNpmrcSha256"]
     digest = hashlib.sha256(json.dumps(files, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     if (report["protocol"] != "dependency-audit" or report["schemaVersion"] != 1 or report["packageManager"] != "npm"
             or report["ok"] is not True or report["workerExitCode"] != 0 or report["inputIntegrity"] != "UNCHANGED"

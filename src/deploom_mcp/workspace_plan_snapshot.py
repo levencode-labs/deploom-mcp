@@ -335,6 +335,7 @@ def _preflight(project, request, plan, admitted, inputs, timeout_seconds):
     if not registry:
         return {"status": "NOT_RUN", "code": "WORKSPACE_PREFLIGHT_HOST_DISABLED"}
 
+    from workspace_npm_obligations import supported_workspace_npmrc
     from workspace_npm_preflight import run_workspace_npm_preflight
 
     if "policy" in plan and plan["policy"]["evidence"]["registryIdentitySha256"] != sha256(registry.encode()).hexdigest():
@@ -349,7 +350,8 @@ def _preflight(project, request, plan, admitted, inputs, timeout_seconds):
         manifests, inputs["package-lock.json"], assignment, frozenset(admitted),
         artifacts=artifacts.resolve(), cache=cache.resolve(), registry=registry,
         reauthor=reauthor, timeout_seconds=timeout_seconds,
-        immutable_instances=frozenset(request.get("immutableInstances", ())))
+        immutable_instances=frozenset(request.get("immutableInstances", ())),
+        root_npmrc=inputs.get(".npmrc") if supported_workspace_npmrc(inputs.get(".npmrc")) else None)
     # Only the local host can resolve the artifact identifier to its owned directory.
     scratch = result.pop("workspace", None)
     if result["status"] == "RESOLUTION_PASSED" and scratch is not None:

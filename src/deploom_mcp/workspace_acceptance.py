@@ -73,7 +73,12 @@ async def audit_workspace_candidate(
         if inputs["package-lock.json"] != resolver_lock:
             raise ValueError("CANDIDATE_AUDIT_LOCK_MISMATCH")
         manifests = {Path(name).parent.as_posix(): raw for name, raw in inputs.items() if name.endswith("package.json")}
-        compile_npm_workspace_obligations(before, resolver_lock, manifests, resolver)
+        plan = compile_npm_workspace_obligations(before, resolver_lock, manifests, resolver)
+        if "rootNpmrcSha256" in plan:
+            from workspace_npm_obligations import supported_workspace_npmrc
+            config = inputs.get(".npmrc")
+            if not supported_workspace_npmrc(config) or hashlib.sha256(config).hexdigest() != plan["rootNpmrcSha256"]:
+                raise ValueError("CANDIDATE_AUDIT_NPMRC_MISMATCH")
         return {name: hashlib.sha256(raw).hexdigest() for name, raw in inputs.items()}
 
     files = observe_npm_workspace(project, plan_snapshot=bind)

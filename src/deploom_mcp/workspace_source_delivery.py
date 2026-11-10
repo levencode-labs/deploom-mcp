@@ -20,6 +20,8 @@ def _authorized_files(resolver, plan, source_repairs):
     if set(before) != set(after):
         raise ValueError("WORKSPACE_DELIVERY_OWNER_SET_MISMATCH")
     files = {"package-lock.json": (plan["baselineLockSha256"], plan["approvedLockSha256"])}
+    if "rootNpmrcSha256" in plan:
+        files[".npmrc"] = (plan["rootNpmrcSha256"],) * 2
     for owner in before:
         path = (PurePosixPath(owner) / "package.json").as_posix()
         files[path] = (before[owner], after[owner])
@@ -73,6 +75,10 @@ def deliver_workspace_source(destination, baseline, project, *, baseline_key, so
             or destination.exists() or related(baseline, project)
             or related(destination, project) or related(destination, baseline)):
         raise ValueError("WORKSPACE_DELIVERY_PATH_INVALID")
+    if "rootNpmrcSha256" in plan:
+        from workspace_npm_obligations import guard_workspace_npmrc
+        guard_workspace_npmrc(baseline, plan)
+        guard_workspace_npmrc(project, plan)
     files = _authorized_files(resolver, plan, source_repairs)
     changes = [{"path": name, "beforeSha256": before, "afterSha256": after}
                for name, (before, after) in sorted(files.items()) if before != after]

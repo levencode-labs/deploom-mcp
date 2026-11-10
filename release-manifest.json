@@ -1,7 +1,7 @@
 {
   "blueprintSchemaVersion": 2,
   "core": {
-    "contentSha256": "b9ddddcad31b4bd79b9c3f56dd4ceeb3233e037d6895ed7c1f15d96091a002c3",
+    "contentSha256": "48a9650c29df3a9029f74ca2394b2a314bc94470dce908efdff57492e0118997",
     "files": {
       "VERSION": "2698c63efcc74d9adc7a29889fc4ecc7fadfb58c4588db3f117f9d87cfaaff40",
       "analyze_verification_telemetry.py": "1ee235ef0b9cf275fe34c22cf16cb4049e88fb19953096ddaecbb73d7a700e6f",
@@ -90,7 +90,7 @@
       "lockfile_preflight.py": "b13ee58c00905c27223062e872f0c3219239b76249a19b3ea6c15e1fd1238924",
       "manual_dependency_audit.py": "27c1d6e512ec46ea7dc8cb2dfb0220272b8d148661905baf4bb839e2389dc6a2",
       "materialization_retention.py": "9e4c37f073de700ef4a0d0fe2a5225a3b71b7e3e814c1fd48ab59189af5f6abf",
-      "materialized_workspace_verifier.py": "491f083de2f162a56397767b0354a18d7d46a716ff6836337160e23931cb70f6",
+      "materialized_workspace_verifier.py": "e0fa96a2e9786ccf0ed037ab32bb508bc63fa7e8e540b789031785f2ed076f9e",
       "migration_documents.py": "8f20583f19aa3bb09454ae3047866f301a50c4b7ab2f3fa8e8d64c0fdda25a19",
       "migration_research.py": "f95a8c7de05a867374f20582838ce7313504c8717b3d36ebf3bdebfd30b8c4d9",
       "migration_validation.py": "aa8cc3395c242a4d4f0f94affe5901fb36f0af7793fb829e696c97258294175b",
@@ -151,14 +151,14 @@
       "workspace_health_policy.py": "6aa0024feb51775e2333f438f84486c18b4fcaaa6d1c7afb0b3d16a24065fe62",
       "workspace_noise.py": "0ed76379a5308cb8a5b053ed92293fdf4bd255c7799c6e77a644db8bac3af27a",
       "workspace_npm_lock_delta.py": "ef343d700b01542cf027b2d2c8f90dbe3cddb4fdcdfca1845e109d194e41b0b8",
-      "workspace_npm_obligations.py": "646ed1b88dde5dccbcf4f5cf379deb8d3cd183dfd391cc0440a3657d4880d912",
-      "workspace_npm_preflight.py": "32a9969b3dd69a3d03d0020748794ed19351fbedc131aea69aecc1c2a3734fa5",
+      "workspace_npm_obligations.py": "c3cc4fa5e3e2319e9d308a812d054161a11ed9f0146f4ce485eeefae272eb1a9",
+      "workspace_npm_preflight.py": "806459b25bc18fcded59d9b3e7c0fa8d558bfd2a15099bf70986e80b5e04fc7a",
       "workspace_npm_transitive_override.py": "4e98f646be73b1b6cc58ec05632754602419887601a2475069a688546a56ceba",
       "workspace_peer_model.py": "c4f488e1a102991cacbb2e7a7257968114ef06bab1b03e6a372d27cc780c0775",
       "yarn_berry.py": "bd769e797823ff99129983f8295a52b5aac1f01f9be2c2a8eac9ffeaf20903d2"
     },
     "repository": "https://github.com/levencode-labs/deploom-core",
-    "revision": "d1e01d944ef916b3f7c3fd52bdfb6ee56bb0733f",
+    "revision": "824eef4c9e07a431ed9fdae5d34a24dcced24120",
     "version": "1.0.0-preview.20"
   },
   "mcpVersion": "0.2.13",
