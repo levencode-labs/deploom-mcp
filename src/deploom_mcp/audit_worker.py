@@ -182,6 +182,12 @@ def _digest(inputs: dict[str, bytes]) -> str:
     return digest_bytes(json.dumps(inventory, sort_keys=True, separators=(",", ":")).encode())
 
 
+GUARDED_PROXY_ENV = frozenset({
+    "http_proxy", "https_proxy", "all_proxy", "ftp_proxy",
+    "npm_config_proxy", "npm_config_https_proxy", "yarn_http_proxy", "yarn_https_proxy",
+})
+
+
 class Runner:
     def __init__(self, private: Path, env: dict[str, str]):
         self.env, self.private = env, private
@@ -388,23 +394,21 @@ def configure(
             if match:
                 registry = metadata_registry = expand(match[1])
     scoped_audit = has_npm_scopes or (manager == "yarn-berry" and bool(yarn_config.get("npmScopes")))
-    if scoped_audit:
-        approved = checked_registry(runner.env.get("DEPLOOM_STANDALONE_AUDIT_EGRESS_REGISTRY"))
-        if requested_registry is None or requested_registry != approved:
-            raise AuditError("standalone-audit-registry-not-approved",
-                             "scoped audit requires an explicit registry matching host approval")
+    if scoped_audit or runner.env.get("DEPLOOM_AUDIT_COVERAGE_REGISTRY"):
+        if scoped_audit:
+            approved = checked_registry(runner.env.get("DEPLOOM_STANDALONE_AUDIT_EGRESS_REGISTRY"))
+            if requested_registry is None or requested_registry != approved:
+                raise AuditError("standalone-audit-registry-not-approved",
+                                 "scoped audit requires an explicit registry matching host approval")
+            runner.scoped_audit_status = runner.private / "scoped-audit-status"
+            registry = metadata_registry = approved
         # Guarded audit uses a direct connection to the approved endpoint.
-        proxy_keys = {"http_proxy", "https_proxy", "all_proxy", "ftp_proxy",
-                      "npm_config_proxy", "npm_config_https_proxy", "yarn_http_proxy", "yarn_https_proxy"}
-        if (any(value for key, value in runner.env.items() if key.lower() in proxy_keys)
+        if (any(value for key, value in runner.env.items() if key.lower() in GUARDED_PROXY_ENV)
                 or any(line.startswith(("proxy=", "https-proxy=")) for line in npm_lines)
                 or any(yarn_config.get(key) for key in ("httpProxy", "httpsProxy"))):
-            raise AuditError("standalone-audit-proxy-unsupported",
-                             "host-approved scoped audit requires a direct registry connection")
-        runner.scoped_audit_status = runner.private / "scoped-audit-status"
-        registry = metadata_registry = approved
-    else:
-        registry, metadata_registry = checked_registry(expand(registry)), checked_registry(expand(metadata_registry))
+            code = "standalone-audit-proxy-unsupported" if scoped_audit else "advisory-coverage-proxy-unsupported"
+            raise AuditError(code, "native guarded audit requires a direct registry connection")
+    registry, metadata_registry = checked_registry(expand(registry)), checked_registry(expand(metadata_registry))
     yarn_config.update({"npmRegistryServer": metadata_registry, "npmAuditRegistry": registry,
         "enableScripts": False, "enableTelemetry": False, "enableColors": False,
         "enableProgressBars": False, "ignorePath": True, "httpRetry": 0,
@@ -509,6 +513,21 @@ def execute(request: dict) -> dict:
         report["coverage"] = {"manifests": manifests, "complete": not issues, "unresolvedEdges": issues,
             "basis": "CANONICAL_LOCKFILE", "installedNodeModulesExamined": False,
             "manifestLockConsistency": "NOT_VERIFIED"}
+        coverage_registry = checked_registry(runner.env.get("DEPLOOM_AUDIT_COVERAGE_REGISTRY"))
+        audit_guard_status = runner.scoped_audit_status
+        if coverage_registry is not None:
+            report["coverage"]["advisoryFeed"] = "UNPROVEN"
+            if request["registry"] != coverage_registry or registry != coverage_registry:
+                raise AuditError("advisory-coverage-registry-mismatch",
+                                 "advisory coverage requires the host's explicit audit registry")
+            if request["includeLag"]:
+                raise AuditError("advisory-coverage-lag-unsupported",
+                                 "guarded audit does not authorize separate lag metadata requests")
+            if candidate is not None and any(
+                value for key, value in runner.env.items() if key.lower() in GUARDED_PROXY_ENV
+            ):
+                raise AuditError("advisory-coverage-proxy-unsupported", "guarded audit requires a direct connection")
+            audit_guard_status = runner.private / "coverage-audit-status"
         # Never materialize external local packages/links or run any package
         # code. Report a capability limit rather than an apparently clean tree.
         for name in manifests:
@@ -583,19 +602,25 @@ def execute(request: dict) -> dict:
                 command.append("--legacy-peer-deps")
             if candidate is not None:
                 command.extend(("--workspaces=true", "--include-workspace-root=true", "--include=prod"))
-        if runner.scoped_audit_status is not None:
+        if audit_guard_status is not None:
             guard = Path(__file__).with_name("standalone_audit_guard.cjs").resolve(strict=True)
             runner.env.update({
                 "NODE_OPTIONS": "--require=" + json.dumps(str(guard), ensure_ascii=False),
                 "DEPLOOM_AUDIT_GUARD_REGISTRY": registry,
-                "DEPLOOM_AUDIT_GUARD_STATUS": str(runner.scoped_audit_status),
+                "DEPLOOM_AUDIT_GUARD_STATUS": str(audit_guard_status),
+                "DEPLOOM_AUDIT_GUARD_COVERAGE": "1" if coverage_registry is not None else "0",
             })
         code, stdout, stderr = runner.run(command, audit_cwd)
-        if runner.scoped_audit_status is not None:
-            if (not runner.scoped_audit_status.is_file()
-                    or runner.scoped_audit_status.read_text(encoding="ascii") != "observed"):
+        if audit_guard_status is not None:
+            observed = audit_guard_status.read_text(encoding="ascii") if audit_guard_status.is_file() else ""
+            if coverage_registry is not None and observed != "denied":
+                if observed == "observed":
+                    report["coverage"]["advisoryFeed"] = "HOST_GATEWAY_ATTESTED"
+                else:
+                    issues.append("ADVISORY_FEED_COVERAGE_UNPROVEN")
+            elif observed != "observed":
                 raise AuditError("standalone-audit-egress-denied",
-                                 "native scoped audit did not complete on the approved endpoint")
+                                 "native guarded audit did not complete on the approved endpoint")
         check_candidate_snapshot()
         # Yarn 4.9.x's --json --no-deprecations emits no JSON when the audit
         # endpoint returned an empty advisory map. Accept the documented CLI

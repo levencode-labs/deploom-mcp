@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path, PurePosixPath
 import re
 
 from deploom_mcp.audit_worker import read_bytes
-from deploom_mcp.dependency_audit import AUDIT_EGRESS_CONFIGURATION
+from deploom_mcp.dependency_audit import AUDIT_EGRESS_CONFIGURATION, checked_registry
 from deploom_mcp.goal_contract import canonical_digest
 from deploom_mcp.goal_report import _plain_under
 from deploom_mcp.workspace_policy_request import validate_workspace_policy, workspace_health_policy
@@ -26,6 +27,11 @@ def load_delivery_policy(audit_path, expected_sha256, policy_path, plan):
     if hashlib.sha256(raw).hexdigest() != expected_sha256:
         raise ValueError("WORKSPACE_DELIVERY_AUDIT_DIGEST_MISMATCH")
     report = json.loads(raw)
+    coverage_registry = checked_registry(os.environ.get("DEPLOOM_AUDIT_COVERAGE_REGISTRY"))
+    if coverage_registry is not None and (
+            hashlib.sha256(coverage_registry.encode()).hexdigest() != plan["registrySha256"]
+            or report["coverage"].get("advisoryFeed") != "HOST_GATEWAY_ATTESTED"):
+        raise ValueError("WORKSPACE_DELIVERY_ADVISORY_COVERAGE_UNPROVEN")
     candidate = report["candidateAudit"]
     if (options.get("securityEvidenceMode") == "REGISTRY_ONLY"
             and candidate.get("egressConfiguration") != AUDIT_EGRESS_CONFIGURATION):

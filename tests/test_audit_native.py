@@ -21,18 +21,21 @@ from deploom_mcp.dependency_audit import audit_dependencies
 
 
 class Registry:
-    def __init__(self, findings=True, fail=False, redirect=None):
+    def __init__(self, findings=True, fail=False, redirect=None, covered=False):
+        self.covered = covered
         self.findings, self.fail, self.redirect = findings, fail, redirect
         self.requests, self.payloads = [], []
 
     def __enter__(self):
         outer = self
         class Handler(BaseHTTPRequestHandler):
-            def emit(self, status, value):
+            def emit(self, status, value, *, coverage=False):
                 raw = json.dumps(value).encode()
                 self.send_response(status)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(raw)))
+                if coverage:
+                    self.send_header("X-DepLoom-Advisory-Coverage", "complete-v1")
                 self.end_headers()
                 self.wfile.write(raw)
             def do_POST(self):
@@ -50,7 +53,9 @@ class Registry:
                     return self.emit(503, {"error": "synthetic audit unavailable"})
                 if self.path.endswith("/advisories/bulk"):
                     advisory = {"id": 123456, "name": "sample-dep", "url": "https://example.invalid/advisory", "title": "Synthetic test advisory", "severity": "high", "vulnerable_versions": "<2.0.0", "cwe": [], "cvss": {"score": 7.5, "vectorString": None}}
-                    return self.emit(200, {"sample-dep": [advisory]} if outer.findings else {})
+                    complete = outer.covered and outer.payloads[-1] == {"sample-dep": ["1.0.0"]}
+                    return self.emit(200, {"sample-dep": [advisory] if outer.findings else []}
+                                     if outer.findings or complete else {}, coverage=complete)
                 self.emit(404, {"error": "unsupported test endpoint"})
             def do_GET(self):
                 outer.requests.append(self.path)
@@ -222,6 +227,33 @@ class NativeAuditTests(unittest.TestCase):
                 self.assertEqual([{"@fixture/sample": ["1.0.0"]}], approved.payloads)
                 self.assertEqual("NO_KNOWN_FINDINGS", report["security"]["verdict"], report)
                 self.assertEqual("HOST_APPROVED_EXPLICIT", report["registry"]["auditSource"])
+                self.assert_preserved(before)
+
+    def test_http_success_with_omitted_held_advisory_is_unknown_when_coverage_required(self):
+        for manager in ("npm", "yarn-classic", "yarn-berry"):
+            with self.subTest(manager=manager), Registry(covered=True) as registry:
+                self.project = self.base / manager
+                self.project.mkdir()
+                before = self.fixture(manager, registry.url)
+                with patch.dict(os.environ, {"DEPLOOM_AUDIT_COVERAGE_REGISTRY": registry.url}):
+                    finding = self.run_audit(manager, registry.url)
+                    self.assertEqual("FINDINGS", finding["security"]["verdict"], finding)
+                    self.assertEqual("HOST_GATEWAY_ATTESTED", finding["coverage"]["advisoryFeed"])
+                    registry.covered, registry.findings = False, False
+                    omitted = self.run_audit(manager, registry.url)
+                    self.assertEqual(0, omitted["security"]["auditExitCode"], omitted)
+                    self.assertEqual("INCOMPLETE", omitted["status"], omitted)
+                    self.assertEqual("UNKNOWN", omitted["security"]["verdict"], omitted)
+                    self.assertFalse(omitted["security"]["complete"], omitted)
+                    self.assertIn("ADVISORY_FEED_COVERAGE_UNPROVEN", omitted["coverage"]["unresolvedEdges"])
+                    registry.covered = True
+                    clean = self.run_audit(manager, registry.url)
+                    self.assertEqual("NO_KNOWN_FINDINGS", clean["security"]["verdict"], clean)
+                    self.assertEqual("HOST_GATEWAY_ATTESTED", clean["coverage"]["advisoryFeed"])
+                registry.covered = False
+                legacy = self.run_audit(manager, registry.url)
+                self.assertEqual("NO_KNOWN_FINDINGS", legacy["security"]["verdict"], legacy)
+                self.assertEqual([{"sample-dep": ["1.0.0"]}] * 4, registry.payloads)
                 self.assert_preserved(before)
 
     def test_npm_finding_real_command_and_read_only(self):

@@ -187,6 +187,13 @@ The receipt records the host declaration. Setting the variable alone does
 not configure or verify a network control. Validate the host rules using a
 synthetic redirect canary before sending private dependency inventory.
 
+A resolver receipt can bind a root `.npmrc` containing the literal
+`save-exact=true`. Preflight, frozen install, candidate audit and policy
+delivery bind its exact bytes, including the line ending. The policy delivery
+baseline must carry the same configuration. This route supports the root
+setting only. It does not authorize scoped registries, authentication
+directives or member configuration files during frozen installation.
+
 ### Observe an approved local trial
 
 The host-only `workspace_acceptance verify` command takes the approved

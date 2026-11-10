@@ -91,6 +91,19 @@ POST routes at the approved endpoint. Redirects and unapproved requests fail
 closed. Proxy routing and `include_lag=true` are unsupported for this path.
 The request guard does not replace OS-level egress controls.
 
+For a trusted audit gateway with an explicit coverage contract, set
+`DEPLOOM_AUDIT_COVERAGE_REGISTRY` to the exact audit registry URL and pass
+that URL explicitly. The gateway may return
+`X-DepLoom-Advisory-Coverage: complete-v1` on a successful bulk response
+only after confirming coverage for every requested package and version.
+Missing confirmation leaves security `UNKNOWN` even if the native command
+exits zero. This is a gateway attestation. Its accuracy depends on the
+gateway and its advisory source. The mode requires a direct connection.
+After a successful bulk response, npm can fetch package metadata at the same
+registry to calculate the impact of reported findings.
+For npm exact-candidate audit, policy and delivery also require the
+coverage evidence while the setting is enabled.
+
 Project/user npm
 registry credentials and declarative Yarn registry/auth settings are used
 only in the disposable snapshot and removed afterward. Credentials are
