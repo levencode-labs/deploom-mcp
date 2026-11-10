@@ -1,7 +1,7 @@
 {
   "blueprintSchemaVersion": 2,
   "core": {
-    "contentSha256": "48a9650c29df3a9029f74ca2394b2a314bc94470dce908efdff57492e0118997",
+    "contentSha256": "e3bfb8f8b31fc3e837679c3f078bb8d66b1d6a1e511a9104345a46b0cd3b7cf2",
     "files": {
       "VERSION": "2698c63efcc74d9adc7a29889fc4ecc7fadfb58c4588db3f117f9d87cfaaff40",
       "analyze_verification_telemetry.py": "1ee235ef0b9cf275fe34c22cf16cb4049e88fb19953096ddaecbb73d7a700e6f",
@@ -154,11 +154,11 @@
       "workspace_npm_obligations.py": "c3cc4fa5e3e2319e9d308a812d054161a11ed9f0146f4ce485eeefae272eb1a9",
       "workspace_npm_preflight.py": "806459b25bc18fcded59d9b3e7c0fa8d558bfd2a15099bf70986e80b5e04fc7a",
       "workspace_npm_transitive_override.py": "4e98f646be73b1b6cc58ec05632754602419887601a2475069a688546a56ceba",
-      "workspace_peer_model.py": "c4f488e1a102991cacbb2e7a7257968114ef06bab1b03e6a372d27cc780c0775",
+      "workspace_peer_model.py": "786053fe5f63ed3aa899b2bbca2d241e215e4fd57c9100b2cb27978650eae00c",
       "yarn_berry.py": "bd769e797823ff99129983f8295a52b5aac1f01f9be2c2a8eac9ffeaf20903d2"
     },
     "repository": "https://github.com/levencode-labs/deploom-core",
-    "revision": "824eef4c9e07a431ed9fdae5d34a24dcced24120",
+    "revision": "a280e69de0cc0690a39c938f45b2f3475ff9db8d",
     "version": "1.0.0-preview.20"
   },
   "mcpVersion": "0.2.13",
@@ -169,5 +169,5 @@
     "contractVersion": "2.0.14"
   },
   "skillManifestSha256": "c5b89655989afcc48f93f2377b8ee01cdd028c8257680eef5264b362f36abcce",
-  "workspaceSchemaSha256": "4ae3832a394c544dd0c6be07e3ca8f1ab3d85d3d697b74731795bfd15df4d096"
+  "workspaceSchemaSha256": "03c0a939a309a557b862b4c52fca6c00a68b5a75af395b94b43b940cde399af0"
 }

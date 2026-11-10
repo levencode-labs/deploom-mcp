@@ -60,6 +60,7 @@ def prepare_workspace_details(compact: dict, plan: dict) -> tuple[dict, bytes]:
                                         "executionReady", "installation", "checks", "runtime", "acceptance", "policy")},
         "constraintModel": constraint_model,
         "constraints": plan.get("constraintEvidence"),
+        "candidateEvidenceGaps": plan.get("domain", {}).get("unprovenCandidates", []),
         "targets": compact["jointAssignment"]["targets"],
         "packageManagerValidation": _native_receipt(validation),
         "search": compact["packageManagerValidation"].get("search"),
@@ -109,6 +110,7 @@ def get_workspace_plan_details(
         return unavailable
 
     constraints = evidence.pop("constraints")
+    candidate_gaps = evidence.pop("candidateEvidenceGaps", [])
     scope = {_key(row) for row in targets}
     page = targets[offset:offset + limit]
     page_keys = {_key(row) for row in page}
@@ -128,6 +130,13 @@ def get_workspace_plan_details(
             })
     for row in page:
         row["modeledDomain"] = constraints["domains"].get(_key(row)) if constraints is not None else None
+        row["unprovenCandidates"] = [
+            {"version": item["version"], "reason": item["reason"].split(":", 1)[0]
+             if re.fullmatch(r"[A-Z][A-Z0-9_]{1,80}", item["reason"].split(":", 1)[0])
+             else "CANDIDATE_REASON_REDACTED"}
+            for item in candidate_gaps
+            if [item["owner"], item["section"], item["name"]] == row["declaration"]
+        ]
     rule_coverage = ("UNAVAILABLE" if constraints is None else
                      "PARTIAL" if constraints["ruleCount"] > len(constraints["rules"]) else "COMPLETE_IN_MODELED_SCOPE")
     payload = {"ok": True, "schemaVersion": 2, "kind": "npm-workspace-plan-details",

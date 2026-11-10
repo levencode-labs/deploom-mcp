@@ -460,6 +460,122 @@ class WorkspaceInventoryTests(unittest.TestCase):
         with self.assertRaisesRegex(GoalContractError, 'MANIFEST_LIMIT'):
             observe_npm_workspace(self.root, max_manifests=1)
 
+    def test_partial_candidate_evidence_reaches_compact_and_scoped_details(self):
+        from deploom_mcp.workspace_plan_details import get_workspace_plan_details
+        self.lock['packages']['node_modules/typescript'] = {'version': '5.0.0'}
+        self.save()
+        packuments = {
+            'typescript': {'versions': {'5.0.0': {'name': 'typescript', 'version': '5.0.0'}}},
+            'kleur': {'versions': {v: {'name': 'kleur', 'version': v} for v in ('3.0.0', '3.0.1', '4.0.0')}},
+        }
+        packuments['kleur']['versions']['3.0.1'].update(
+            peerDependencies={'new-optional': '^1'}, peerDependenciesMeta={'new-optional': {'optional': True}})
+        request = {
+            'schemaVersion': 2, 'goalKind': 'TARGETED_UPGRADE',
+            'inventoryDigest': observe_npm_workspace(self.root)['inventoryDigest'],
+            'targets': [{'selector': {'owner': 'packages/a', 'section': 'dependencies', 'name': 'kleur'},
+                         'approvedLines': [3], 'versions': ['3.0.1', '3.0.0'], 'exactTarget': None}],
+            'environment': {}, 'topology': None, 'packuments': packuments,
+        }
+        plan = plan_workspace_snapshot(self.root, _snapshot_request(request))
+        self.assertEqual(plan['status'], 'SAT_IN_MODELED_DOMAIN')
+        with patch('deploom_mcp.workspace_upgrade.plan_workspace_snapshot_v1',
+                   new_callable=AsyncMock, return_value=json.loads(json.dumps({'ok': True, 'plan': plan}))):
+            wire = asyncio.run(get_workspace_upgrade_plan(str(self.root), request))
+        self.assertTrue(wire['ok'], wire)
+        domain = wire['constraintModel']['domain']
+        self.assertEqual(domain['evidenceCoverage'], 'PARTIAL')
+        self.assertEqual(domain['unprovenCandidateCount'], 1)
+        self.assertNotIn('new-optional', json.dumps(wire))
+        self.assertEqual(wire['constraintModel']['optimality'], 'PROVEN_IN_EVIDENCED_SUBDOMAIN')
+        self.assertEqual(wire['jointAssignment']['targets'][0]['selectedVersion'], '3.0.0')
+        details = get_workspace_plan_details(
+            plan_id=wire['details']['planId'], request_id=wire['requestId'], candidate_id=wire['candidateId'],
+            snapshot_sha256=wire['details']['snapshotSha256'], owner='packages/a', section='dependencies')
+        self.assertTrue(details['ok'], details)
+        self.assertEqual(details['targets'][0]['unprovenCandidates'],
+                         [{'version': '3.0.1', 'reason': 'PEER_PROVIDER_UNKNOWN'}])
+        request['targets'][0]['exactTarget'] = '3.0.1'
+        exact = plan_workspace_snapshot(self.root, _snapshot_request(request))
+        self.assertEqual(exact['status'], 'UNKNOWN')
+        self.assertIsNone(exact['assignment'])
+
+    def test_native_retry_reuses_prepared_model_without_refetching(self):
+        import sys
+        from unittest.mock import Mock
+        from deploom_mcp.distribution import resolve_core_dir
+        from deploom_mcp.workspace_policy_request import bind_workspace_policy_solver
+        from deploom_mcp.workspace_plan_snapshot import _try_workspace_candidates
+        sys.path.insert(0, str(resolve_core_dir()))
+        try:
+            from dependency_live_roadmap_generator import LiveDataClient
+            registry = 'https://registry.example.invalid'
+            client = LiveDataClient(registry, timeout=1, batch_size=16, sleep_sec=0)
+            client.session.close = Mock()
+            client.fetch_npm_metadata = Mock(return_value={'versions': {
+                v: {'name': 'demo', 'version': v, 'dist': {'tarball': registry + '/demo-' + v + '.tgz'}}
+                for v in ('1.0.0', '2.0.0')
+            }})
+            key = ('.', 'dependencies', 'demo')
+            with patch.dict(os.environ, {'DEPLOOM_WORKSPACE_POLICY_REGISTRY': registry}), patch(
+                'dependency_live_roadmap_generator.LiveDataClient', return_value=client,
+            ):
+                solve = bind_workspace_policy_solver(
+                    None, {'node_modules/demo': {'version': '1.0.0'}}, {key: '^1'}, {key: (1, 2)}, {},
+                    {key: ('1.0.0', '2.0.0')}, {}, None)
+                seen = []
+                def verify(plan, timeout):
+                    seen.append(plan)
+                    return ({'status': 'RESOLUTION_FAILED', 'code': 'ERESOLVE'} if len(seen) == 1 else
+                            {'status': 'RESOLUTION_PASSED', 'code': 'RESOLUTION_PASSED'})
+                result = _try_workspace_candidates(solve, verify, 3,
+                    {'mutable': [{'versions': ['1.0.0', '2.0.0'], 'exactTarget': None}]})
+            self.assertEqual(len(seen), 2)
+            self.assertEqual(seen[0]['modelDigest'], seen[1]['modelDigest'])
+            self.assertNotEqual(seen[0]['assignment'], seen[1]['assignment'])
+            self.assertEqual(result['candidateSearch']['stop'], 'RESOLUTION_PASSED')
+            client.fetch_npm_metadata.assert_called_once_with('demo')
+            client.session.close.assert_called_once_with()
+        finally:
+            sys.path.pop(0)
+
+    def test_prefix_discovery_keeps_overlapping_and_nested_members(self):
+        from deploom_mcp.workspace_inventory import _discover
+        for path in ('packages/a/addons/one', 'apps/web', 'apps/api', 'docs/ignored'):
+            folder = self.root / path
+            folder.mkdir(parents=True)
+            (folder / 'package.json').write_text('{"name":"test"}')
+        patterns = ['packages/*', 'packages/a', 'packages/*/addons/*', 'apps/w*']
+        paths = _discover(self.root, patterns, 8, 8)
+        self.assertEqual(paths, ['apps/web/package.json', 'package.json', 'packages/a/addons/one/package.json',
+                                 'packages/a/package.json', 'packages/b/package.json'])
+        with self.assertRaisesRegex(GoalContractError, 'DISCOVERY_LIMIT'):
+            _discover(self.root, ['packages/*', 'apps/*'], 5, 8)
+
+    def test_discovery_budget_ignores_unrelated_and_member_source_subtrees(self):
+        before = observe_npm_workspace(self.root, max_directories=4)
+        for name in ('docs/archive/deep', 'packages/a/src/deep', 'packages/b/dist/deep'):
+            (self.root / name).mkdir(parents=True)
+        after = observe_npm_workspace(self.root, max_directories=4)
+        self.assertEqual(before['inventoryDigest'], after['inventoryDigest'])
+        self.assertEqual(before['owners'], after['owners'])
+
+    def test_irrelevant_reparse_entry_is_neither_followed_nor_statted(self):
+        real_scandir = os.scandir
+        class Entry:
+            name = 'unrelated-link'
+            def stat(self, **kwargs):
+                raise AssertionError('unselected namespace must not be inspected')
+        class Scan:
+            def __init__(self, folder): self.source = real_scandir(folder)
+            def __enter__(self): return iter([Entry(), *self.source.__enter__()])
+            def __exit__(self, *args): return self.source.__exit__(*args)
+        def guarded(folder):
+            selected = (os.fstat(folder).st_ino == self.root.stat().st_ino) if isinstance(folder, int) else Path(folder) == self.root
+            return Scan(folder) if selected else real_scandir(folder)
+        with patch('deploom_mcp.workspace_inventory.os.scandir', side_effect=guarded):
+            self.assertEqual(len(observe_npm_workspace(self.root)['owners']), 3)
+
     def test_reread_detects_stale_lock_even_without_declared_edge_change(self):
         from deploom_mcp.workspace_inventory import _discover
         calls = 0
@@ -517,7 +633,7 @@ class WorkspaceInventoryTests(unittest.TestCase):
     def test_reparse_directory_rejected_without_following_it(self):
         real_scandir = os.scandir
         class Entry:
-            name = 'unsafe'
+            name = 'packages'
             def stat(self, **kwargs):
                 class Info:
                     st_mode = 0o040755

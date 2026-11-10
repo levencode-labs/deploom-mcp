@@ -93,9 +93,11 @@ def _discover(root: Path, patterns: list[str], max_directories: int, max_manifes
     manifests = ["package.json"]
     visited, entries = 0, 0
     matched = set()
-    pending = [root]
+    # Carry only patterns that can still match below this directory.
+    # Source/output trees below a terminal member are not dependency inputs.
+    pending = [(root, tuple(tuple(pattern.split("/")) for pattern in patterns))]
     while pending:
-        folder = pending.pop()
+        folder, suffixes = pending.pop()
         with bound_directory(root, folder, root_handle) as scan_target:
             _safe(folder, directory=True)
             visited += 1
@@ -114,6 +116,8 @@ def _discover(root: Path, patterns: list[str], max_directories: int, max_manifes
                     raise GoalContractError("WORKSPACE_MANIFEST_MISSING")
                 # npm wildcard matches without a manifest are grouping directories.
                 # The lock membership check still rejects an omitted real member.
+            if not any(suffixes):
+                continue
             with os.scandir(scan_target.path if os.name=='nt' else scan_target.fd) as children:
                 for child in children:
                     entries += 1
@@ -121,12 +125,16 @@ def _discover(root: Path, patterns: list[str], max_directories: int, max_manifes
                         raise GoalContractError("WORKSPACE_DISCOVERY_LIMIT")
                     if child.name in _PRUNE:
                         continue
+                    child_suffixes = tuple(parts[1:] for parts in suffixes
+                                           if parts and _glob_match(child.name, parts[0]))
+                    if not child_suffixes:
+                        continue
                     child_path = folder / child.name
                     info = child.stat(follow_symlinks=False)
                     if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
                         raise GoalContractError("WORKSPACE_UNSAFE_INPUT")
                     if stat.S_ISDIR(info.st_mode):
-                        pending.append(child_path)
+                        pending.append((child_path, child_suffixes))
     if matched != set(patterns):
         raise GoalContractError("WORKSPACE_PATTERN_UNMATCHED")
     return sorted(manifests)

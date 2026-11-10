@@ -53,7 +53,7 @@ def bind_workspace_policy_solver(options, packages, declarations, approved, exac
                                  *, effective_peer_ranges=None, metadata_deadline: float | None = None):
     from deploom_mcp.dependency_audit import AuditError, checked_registry
     from dependency_live_roadmap_generator import DeadlineClock, LiveDataClient
-    from workspace_peer_model import plan_workspace_from_registry
+    from workspace_peer_model import prepare_workspace_from_registry
 
     registry_only = options is not None and options.get("securityEvidenceMode") == "REGISTRY_ONLY"
     registry_value = os.environ.get("DEPLOOM_WORKSPACE_POLICY_REGISTRY")
@@ -101,16 +101,33 @@ def bind_workspace_policy_solver(options, packages, declarations, approved, exac
     metadata_seconds = 60 if metadata_deadline is None else min(60, max(0, metadata_deadline - time.monotonic()))
     client.set_deadline(DeadlineClock(metadata_seconds))
 
+    prepared = None
+
     def solve(excluded, timeout_ms):
+        nonlocal prepared
         # The isolated worker reserves stdout for its single JSON result.
         with redirect_stdout(sys.stderr):
-            return plan_workspace_from_registry(
-                packages, declarations, approved, exact, client,
-                environment=environment, topology=topology, candidate_versions=admitted,
-                health_policy=policy, health_lag_months=options["lagPolicyMonths"] if options is not None else 12,
-                osv_allowed_names=allowed, registry_advisory_source=advisory_source,
-                timeout_ms=timeout_ms, excluded_assignments=tuple(excluded), include_constraint_evidence=True,
-                effective_peer_ranges=effective_peer_ranges,
-            )
+            if prepared is None:
+                try:
+                    prepared = prepare_workspace_from_registry(
+                        packages, declarations, approved, exact, client,
+                        environment=environment, topology=topology, candidate_versions=admitted,
+                        health_policy=policy, health_lag_months=options["lagPolicyMonths"] if options is not None else 12,
+                        osv_allowed_names=allowed, registry_advisory_source=advisory_source,
+                        timeout_ms=timeout_ms, include_constraint_evidence=True,
+                        effective_peer_ranges=effective_peer_ranges,
+                    )
+                finally:
+                    client.session.close()
+            remaining_ms = int(client.deadline.remaining * 1000)
+            if remaining_ms < 1:
+                result = {"status": "UNKNOWN", "assignment": None, "reason": "WORKSPACE_EVIDENCE_DEADLINE_EXHAUSTED",
+                          "topology": "PROPOSED_INSTANCE_LAYOUT" if topology else "OBSERVED_LOCK_LAYOUT",
+                          "authority": "PLANNING_ONLY", "verification": "NOT_VERIFIED"}
+                if options is not None:
+                    result["policy"] = {"status": "UNKNOWN", "targetLevel": options["targetLevel"],
+                                        "authority": "DECLARED_DOMAIN_PLANNING_ONLY", "finalAudit": "NOT_RUN"}
+                return result
+            return prepared.solve(tuple(excluded), timeout_ms=min(timeout_ms, remaining_ms))
 
     return solve

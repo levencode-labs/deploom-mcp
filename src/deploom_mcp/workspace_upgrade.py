@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import re
+import json
+from hashlib import sha256
 from typing import Any
 
 from deploom_mcp.blueprint import _validate_blueprint_schema
@@ -73,6 +75,38 @@ def _snapshot_request(request: dict) -> dict:
     return {**snapshot, "mutable": mutable}
 
 
+def _project_domain_evidence(plan: dict) -> dict:
+    domain = plan["domain"]
+    gaps = domain["unprovenCandidates"]
+    if (type(domain["schemaVersion"]) is not int or domain["schemaVersion"] != 1
+            or type(domain["candidateCount"]) is not int or domain["candidateCount"] < 1
+            or type(domain["unprovenCandidateCount"]) is not int
+            or not isinstance(gaps, list) or len(gaps) != domain["unprovenCandidateCount"]
+            or not 0 <= len(gaps) <= domain["candidateCount"]
+            or domain["evidenceCoverage"] != ("PARTIAL" if gaps else "COMPLETE")
+            or gaps and plan["status"] == "UNSAT_IN_MODELED_DOMAIN"):
+        raise ValueError("invalid candidate evidence coverage")
+    identities = set()
+    for row in gaps:
+        if (not isinstance(row, dict) or set(row) != {"owner", "section", "name", "version", "reason"}
+                or any(not isinstance(value, str) or not value for value in row.values())):
+            raise ValueError("invalid candidate evidence gap")
+        identity = tuple(row[field] for field in ("owner", "section", "name", "version"))
+        key = json.dumps(identity[:3], separators=(",", ":"), ensure_ascii=True)
+        if identity in identities or (plan["assignment"] or {}).get(key) == row["version"]:
+            raise ValueError("unproven candidate selected")
+        identities.add(identity)
+    if plan["assignment"] is not None:
+        digest = sha256(json.dumps(plan["assignment"], sort_keys=True,
+                                  separators=(",", ":"), ensure_ascii=True).encode()).hexdigest()
+        if plan.get("assignmentDigest") != digest:
+            raise ValueError("invalid assignment digest")
+    return {key: domain[key] for key in (
+        "schemaVersion", "selection", "candidateSetDigest", "evidenceCoverage",
+        "candidateCount", "unprovenCandidateCount",
+    )}
+
+
 def _compact_workspace_plan(plan: dict, request: dict) -> dict:
     evidence = plan["workspaceEvidence"]
     validation = plan.get("packageManagerValidation", {"status": "NOT_RUN", "code": "WORKSPACE_PREFLIGHT_NOT_REQUESTED"})
@@ -118,6 +152,12 @@ def _compact_workspace_plan(plan: dict, request: dict) -> dict:
         "runtime": {"status": "NOT_RUN"}, "acceptance": {"status": "NOT_RUN"},
         "policy": policy,
     }
+    if "domain" in plan:
+        compact["constraintModel"]["domain"] = _project_domain_evidence(plan)
+        compact["constraintModel"]["optimality"] = plan.get("optimality", "NOT_PROVEN")
+        for field in ("modelDigest", "assignmentDigest"):
+            if field in plan:
+                compact["constraintModel"][field] = plan[field]
     if request["goalKind"] == "MONOREPO_TO_POLICY":
         compact["intent"]["workspacePolicy"] = validate_workspace_policy(request["policy"])
     search = plan.get("candidateSearch")
