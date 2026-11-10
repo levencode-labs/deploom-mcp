@@ -16,6 +16,7 @@ The published wheel bundles the **exact pinned [Deploom Core](https://github.com
 
 ## What you get
 
+- **Route discovery:** `get_project_capabilities` reads local project inputs and reports supported routes and missing host settings without network or command execution. It grants no execution authority.
 - **Planning:** `get_upgrade_plan` returns an inspectable Upgrade Blueprint with authorized scope, target authority, proposed choices, conflicts, and remaining unknowns.
 - **Explanation:** `evaluate_assignment` and `explain_conflict` inspect an existing decision and its evidence; they do not silently re-solve or execute an alternative migration.
 - **Workspace visibility:** dedicated inventory and bounded joint-planning paths have their own coverage and authority limits. An observed workspace is not automatically an executable workspace migration.

@@ -38,11 +38,13 @@ Advice is independently checked against code and tests; it is not runtime eviden
 - [x] Initial Core partial-domain implementation; 10 new regressions pass.
 - [x] Partial-domain evidence propagated through compact/details schemas.
 - [ ] Verify the same contract through an installed candidate wheel.
-- [ ] Goal-driven bounded selection and get_project_capabilities.
+- [x] get_project_capabilities: five read-only/privacy/authority regressions and real stdio pass.
+- [ ] Goal-driven bounded selection.
 - [x] Prepared evidence/model reuse across retries; stable model/evidence digests.
   Core tests and MCP two-attempt ERESOLVE regression prove no refetch.
 - [ ] Bounded metadata prefetch with stateful/deadline tests.
 - [ ] Batched npm-semver with differential and process-bound tests.
+- [x] Source native audit suite: 16 tests pass with npm 11.16.0 and Yarn 4.9.2.
 - [ ] Scoped audit/lag/coverage qualification via installed candidate wheel.
 - [ ] Migration evidence improvements and route documentation.
 - [ ] Independent review with Pro against implementation and test results.

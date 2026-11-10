@@ -25,7 +25,7 @@ class AuditStdioTests(unittest.TestCase):
                     await session.initialize()
                     tools = await session.list_tools()
                     self.assertEqual({
-                        "get_upgrade_plan", "evaluate_assignment", "explain_conflict", "audit_dependencies",
+                        "get_upgrade_plan", "evaluate_assignment", "explain_conflict", "audit_dependencies", "get_project_capabilities",
                         "get_goal_plan", "get_goal_report", "verify_goal_candidate", "apply_goal_candidate",
                         "get_goal_checkpoint", "observe_workspace_inventory_v1", "plan_workspace_snapshot_v1",
                         "get_workspace_plan_details", "model_workspace_upgrade_v1",

@@ -1108,6 +1108,20 @@ async def explain_conflict_tool(
     ))
 
 
+@server.tool(
+    name="get_project_capabilities",
+    title="Discover project planning and verification routes",
+    description=("Read one explicit project root to identify npm/Yarn, lock and workspace support, "
+                 "inventory binding and missing host configuration. No network, subprocess or project writes. "
+                 "Configuration presence is not validated authorization; discovery grants no execution rights. "
+                 "Use the returned route with get_upgrade_plan or the existing host-authorized tools."),
+    annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=False),
+)
+async def get_project_capabilities_tool(project_path: str) -> CallToolResult:
+    from deploom_mcp.project_capabilities import get_project_capabilities
+    return _result(await asyncio.to_thread(get_project_capabilities, project_path))
+
+
 class WorkspaceModelEnvironment(TypedDict, total=False):
     node: str
     npm: str
