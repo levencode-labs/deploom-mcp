@@ -19,13 +19,20 @@ public official sources.
 
 The transition must match the observed root version and the proposal's selected
 target. This does not authorize that transition, source repair or execution.
-The first explicit providers cover `strip-json-comments` 3.1.1 to 5.0.0 and
-Vite 6.4.5 to 7.0.0. The latter includes plugin-react 4.5.2 as a **reference**, not
-an automatically selected companion. Other exact transitions return UNSUPPORTED;
+The explicit providers cover `strip-json-comments` 3.1.1 to 5.0.0,
+Vite 6.4.5 to 7.0.0 and ESLint 8.57.1 to 9.0.0. Vite includes plugin-react
+4.5.2 as a **reference**, not an automatically selected companion. ESLint
+includes the tagged official migration guide and before/after package metadata. Other exact transitions return UNSUPPORTED;
 rename/alias mappings are not guessed. No-transition performs no HTTP requests.
 Prerelease targets require a separate policy and are not admitted here.
 
 ## Authority and conflicts
+
+`reference.suggestedChecks` links recommendations to source IDs. Every check
+remains RECOMMENDATION_ONLY, NOT_RUN and localApplicability=UNKNOWN. Examples
+include configuration linting/conditional RuleTester, Vite build/runtime and
+JSON comment handling. `codemodApplicability=NOT_ESTABLISHED`; none of these
+references runs a command or establishes a local acceptance profile.
 
 References are REFERENCE_ONLY; local syntax observations are PLANNING_ONLY.
 `verificationAuthority` and local `executionAuthority` remain NONE. No section

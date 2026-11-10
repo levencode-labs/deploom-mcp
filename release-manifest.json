@@ -167,9 +167,9 @@
   "schemaSha256": "974ea52175ea09928cddae9694b5eb750cc1024520e758e64f23ed967fe81627",
   "schemaVersion": 1,
   "skill": {
-    "bundleSha256": "a53da310f610d680cd1982b824118d33c93502af8f43e9e3519df9eeaa6043c6",
-    "contractVersion": "2.0.14"
+    "bundleSha256": "855e289b4552dbe1f24c7b07c774b82d27c2ed2170b1ac60b922f2fd5bb9b76f",
+    "contractVersion": "2.0.15"
   },
-  "skillManifestSha256": "c5b89655989afcc48f93f2377b8ee01cdd028c8257680eef5264b362f36abcce",
+  "skillManifestSha256": "d992138350ddafcbb27f8a5e974bb639ae3e8a828a1d362f6e0825ab5a3e4867",
   "workspaceSchemaSha256": "4676374a734e2a826702a112db9210841ff949b0a71f379a85a9fa61a66985c1"
 }

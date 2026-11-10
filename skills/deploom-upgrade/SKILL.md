@@ -5,7 +5,7 @@ description: Plan and execute JavaScript and TypeScript dependency upgrades with
 
 # deploom-upgrade
 
-**Contract version: 2.0.14.** Canonical file hashes are in `contract.json`.
+**Contract version: 2.0.15.** Canonical file hashes are in `contract.json`.
 
 Use `get_upgrade_plan` for health/policy planning evidence. For an explicitly
 agreed functional-maintenance or finite coupled goal, use `get_goal_plan` and
@@ -51,15 +51,19 @@ Advisory mode changes recommendations, never proven peers/engines or user pins.
 1. **Preflight.** Record baseline and existing changes, package manager, Node,
    registry, all manifests/workspaces, allowed checkout and check scripts.
    Reuse an isolated worktree already supplied by the user. Load
-   `references/preflight.md` for details. Missing MCP is an infrastructure
-   limitation; do not fabricate a DepLoom plan.
-2. **Plan.** In PLAN_ONLY for npm workspaces, use `model_workspace_upgrade_v1`
-   when available and the task permits registry-only planning against a
-   host-approved registry. Otherwise use `get_upgrade_plan` with
-   `workspace_request` v2. With `get_upgrade_plan`, send only
-   `project_path` and `workspace_request` at the top level. Read [the workspace route](references/npm-workspaces.md) for
-   the required workspace fields, selectors and lock-only boundary. A policy call
-   with empty targets observes a held baseline. Its feasibility status does
+   `references/preflight.md` for details. If the route is unclear, use
+   `get_project_capabilities` when available; skip it when the route is already
+   established. Discovery grants no network or execution authority. Missing MCP
+   is an infrastructure limitation; do not fabricate a DepLoom plan.
+2. **Plan.** For supported npm lock-v3 workspaces with a host-approved registry,
+   prefer `get_upgrade_plan` with `workspace_request` v3 when the installed tool
+   supports it: send the authorized goal and scope, and let Core select bounded
+   candidates. Omit preflight in PLAN_ONLY. Use explicit v2 for frozen domains
+   or caller metadata; retain `model_workspace_upgrade_v1` when its separate
+   registry-only route is required. Send only `project_path` and
+   `workspace_request` at the top level. Read [the workspace route](references/npm-workspaces.md)
+   for selectors, v3 limitations and the lock-only boundary. A policy call
+   with empty scope/targets observes a held baseline. Its feasibility status does
    not establish a version change. If it gives no actionable assignment and
    version choice is authorized, follow the targeted recovery in the workspace
    reference, including its planning-only route when audit is unavailable.

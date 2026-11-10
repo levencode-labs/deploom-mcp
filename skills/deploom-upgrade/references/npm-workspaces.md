@@ -1,5 +1,56 @@
 # npm workspace upgrades
 
+## Goal-driven v3 route
+
+When the installed tool supports v3, the project has an npm lock-v3 workspace
+and the registry is host-approved, use `get_upgrade_plan` with only
+`project_path` and `workspace_request` at the outer level. Inventory and finite
+candidate selection happen inside the request; do not separately enumerate
+versions or fetch packuments just to construct it.
+
+```json
+{
+  "project_path": "<absolute lockfile-root path>",
+  "workspace_request": {
+    "schemaVersion": 3,
+    "goalKind": "TARGETED_UPGRADE",
+    "registry": "https://registry.example.invalid/npm",
+    "scope": [{
+      "selector": {"owner": "packages/example", "section": "dependencies", "name": "example"},
+      "approvedLines": [3],
+      "exactTarget": "3.2.1"
+    }],
+    "candidateLimit": 8,
+    "environment": {}
+  }
+}
+```
+
+Use the authorized actual target and observed environment, not these example
+values. TARGETED_UPGRADE requires at least one advancing exactTarget; companions
+may omit exactTarget and remain unchanged. WORKSPACE_TARGET_ALREADY_SATISFIED
+means the exact target is already present, not a newly completed migration.
+For MONOREPO_TO_POLICY add the agreed policy and use scope to identify mutable
+declarations. Empty scope holds the entire baseline. Name-only selectors are
+accepted when unique; resolve AMBIGUOUS_SCOPE using returned validSelectors
+and the existing user scope, without authorizing another owner.
+
+Omit preflight for planning. Unselected declarations and lock versions stay
+held. Do not send inventoryDigest, topology, versions or packuments in v3;
+use the explicit route below when those inputs are required. A registry URL
+is an assertion of the approved route, not permission to contact it.
+
+Read intent.candidateSelection and constraintModel.domain. K defaults to 8
+and accepts 2..32; selection keeps latest stable versions and an admitted
+baseline. A truncated-domain UNSAT does not prove the goal impossible.
+EXPAND_SELECTED_DOMAIN permits a new bounded search inside existing version
+and time authority, or an explicit v2 domain informed by relevant constraints.
+Do not repeat an unchanged exhausted request. PARTIAL evidence may still have
+a complete proven witness; exhaustion with unknown candidates stays UNKNOWN.
+Preserve exact pins and the NOT_RUN installation/checks/runtime/audit states.
+
+## Explicit domains and compatibility routes
+
 1. Observe the lockfile root with `observe_workspace_inventory_v1`. Reuse its
    `inventoryDigest`. Select exact `{owner, section, name}` declarations, where
    `.` identifies the root. Keep same-name declarations in different owners
@@ -45,7 +96,7 @@
 
 For Yellow or Green across the workspace, use `goalKind: MONOREPO_TO_POLICY`
 and `policy.targetLevel`. Omit caller packuments. Use lowercase yellow or green.
-For baseline observation use targets: []. The supported optional policy fields
+For baseline observation use scope: [] in v3 or targets: [] in v2. The supported optional policy fields
 are minLagOkPct, lagPolicyMonths, maxKnownHigh, maxKnownModerate and maxKnownLow.
 For a private workspace whose host approved registry advisories, request
 `policy.securityEvidenceMode: REGISTRY_ONLY`. The host must authorize the same
@@ -86,7 +137,7 @@ the top-level flat-project options at their defaults.
 }
 ```
 
-Both workspace goals require schemaVersion, goalKind, inventoryDigest,
+In v2, both workspace goals require schemaVersion, goalKind, inventoryDigest,
 targets, environment and topology. Use topology: null for the observed lock
 layout. Supply the observed Node and npm versions when known. If neither
 is known, send environment: {} and report the limitation. Use observed

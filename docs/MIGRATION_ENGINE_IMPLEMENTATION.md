@@ -34,22 +34,34 @@ Advice is independently checked against code and tests; it is not runtime eviden
 - [x] Isolated Core/MCP worktrees; upstream candidate fixes preserved.
 - [x] Workspace discovery prefix pruning; 42 inventory/boundary tests pass.
 - [x] Overlapping/nested/literal/star prefix and selected-path budget regressions.
-- [ ] Large noisy-tree measurement against the prior traversal.
+- [x] Noisy-tree measurement: 3610 to 4 scandir calls; same inventory digest.
+  A 2100-noise-directory tree no longer exhausts the irrelevant traversal budget.
 - [x] Initial Core partial-domain implementation; 10 new regressions pass.
 - [x] Partial-domain evidence propagated through compact/details schemas.
-- [ ] Verify the same contract through an installed candidate wheel.
+- [x] Installed final wheel: partial-domain contract through real MCP stdio.
 - [x] get_project_capabilities: five read-only/privacy/authority regressions and real stdio pass.
-- [ ] Goal-driven bounded selection.
+- [x] Goal-driven v3 scope binding and bounded selection; explicit v2 preserved.
+  Ambiguity, drift, unknown exact target, already-satisfied target and K=2/K=3
+  selected-domain exhaustion are covered.
 - [x] Prepared evidence/model reuse across retries; stable model/evidence digests.
   Core tests and MCP two-attempt ERESOLVE regression prove no refetch.
-- [ ] Bounded metadata prefetch with stateful/deadline tests.
-- [ ] Batched npm-semver with differential and process-bound tests.
-- [x] Source native audit suite: 16 tests pass with npm 11.16.0 and Yarn 4.9.2.
-- [ ] Scoped audit/lag/coverage qualification via installed candidate wheel.
-- [ ] Migration evidence improvements and route documentation.
-- [ ] Independent review with Pro against implementation and test results.
-- [ ] Final Core pin, manifest, wheel/distribution validation.
-- [ ] Reproducible paired migration pilot; no superiority claim without evidence.
+- [x] Bounded metadata prefetch: isolated workers, private/stateful fallback,
+  deadline and real HTTP cookie/no-store replay checks.
+- [x] Batched npm-semver: strict batch/ID protocol, bounds, shared deadline
+  and differential checks against the native scalar engine.
+- [x] Source and installed native audit suite: 18 tests pass with npm 11.16.0
+  and Yarn 4.9.2; npm, Classic and Berry fixtures/adapters covered.
+- [x] Scoped lag rejection before egress and same-origin redirect denial.
+- [x] Exact ESLint references, source-linked NOT_RUN checks and route docs.
+- [x] Packaged skill 2.0.15 uses v3 when supported; capability discovery only
+  when the route is unclear. Skill content/packaging validation passes.
+- [x] Pro reviewed implementation description and counterexamples; findings
+  independently checked. Pro did not inspect or execute the local code.
+- [x] Core 36586b7 pinned, final wheel built/installed offline; 187 checks pass
+  with zero errors, failures or skips. See MIGRATION_ENGINE_RESULTS.md.
+- [x] Paired comparison protocol documented; no-model doctor and fake dry-run.
+- [ ] Actual balanced agent A/B measurement: NOT_MEASURED, separate follow-up.
+  See MIGRATION_PILOT_PROTOCOL.md; component timings are not agent superiority.
 
 ## Acceptance boundaries
 

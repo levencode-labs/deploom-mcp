@@ -57,11 +57,17 @@ fit the evidence provider. Reuse adequate prior evidence. A genuinely necessary
 second call has a real planning cost; record it and preserve the original budget
 and lineage rather than claiming the plan was free or silently rebinding it.
 
-The initial official_migration_evidence.v1 catalog covers only:
+The current official_migration_evidence.v1 catalog covers these exact pairs:
 
 - strip-json-comments 3.1.1 → 5.0.0;
 - Vite 6.4.5 → 7.0.0, including plugin-react 4.5.2 as a reference, never an
-  automatically selected companion.
+  automatically selected companion;
+- ESLint 8.57.1 → 9.0.0, including the official migration guide.
+
+Source-linked suggestedChecks are recommendations with NOT_RUN status and
+UNKNOWN local applicability. Check their relevance to the authorized project
+before adding them to a verification profile. Codemod applicability remains
+NOT_ESTABLISHED; a reference does not authorize execution.
 
 Use the installed contract for any later catalog expansion, not an assumed
 package-to-repository or alias mapping. Versions come from the observed lock and

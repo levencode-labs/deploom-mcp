@@ -74,7 +74,8 @@ missing dependencies or authorization to normalize a project lockfile.
 ## Migration references and performance claims
 
 [Official migration evidence](OFFICIAL_MIGRATION_EVIDENCE.md) is optional and
-reference-only. The initial catalog covers two exact transitions. Syntax
+reference-only. The catalog covers three exact transitions, including ESLint
+8.57.1 to 9.0.0. Source-linked suggested checks remain NOT_RUN recommendations. Syntax
 observations are not semantic applicability; unknown coverage stays explicit.
 Cached immutable documents can avoid HTTP, but the strong baseline receives the
 same documents. Unique migration, time, token and business value is not proven.
