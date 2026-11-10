@@ -139,6 +139,38 @@
         },
         "workspacePolicy": {
           "$ref": "#/$defs/workspacePolicyOptions"
+        },
+        "candidateSelection": {
+          "type": "object",
+          "required": [
+            "rule",
+            "limit",
+            "truncated",
+            "proofScope"
+          ],
+          "properties": {
+            "rule": {
+              "const": "LATEST_STABLE_PLUS_BASELINE_V1"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 32
+            },
+            "truncated": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "proofScope": {
+              "enum": [
+                "SELECTED_DOMAIN_ONLY",
+                "NOT_ESTABLISHED"
+              ]
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -421,6 +453,7 @@
             "REVIEW_FOR_AUTHORIZED_ISOLATED_TRIAL",
             "REVIEW_FOR_AUTHORIZED_PREFLIGHT",
             "REVIEW_HELD_BASELINE",
+            "EXPAND_SELECTED_DOMAIN",
             "INSPECT_BLOCKER"
           ]
         },
@@ -539,7 +572,7 @@
           }
         },
         "versions": {
-          "type": "array",
+          "type": ["array", "null"],
           "minItems": 1,
           "maxItems": 32,
           "items": {

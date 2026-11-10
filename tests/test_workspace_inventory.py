@@ -143,7 +143,7 @@ class WorkspaceInventoryTests(unittest.TestCase):
             host = {"DEPLOOM_WORKSPACE_POLICY_REGISTRY": registry,
                     "DEPLOOM_WORKSPACE_POLICY_OSV_PACKAGES": "kleur,typescript"}
             with patch.dict(os.environ, host, clear=True), patch.object(
-                LiveDataClient, "fetch_npm_metadata", side_effect=packument,
+                LiveDataClient, "_fetch_npm_metadata_result", side_effect=lambda name: (packument(name), True),
             ) as metadata, patch.object(
                 LiveDataClient, "query_registry_advisory_evidence", side_effect=advisory,
             ) as bulk, patch.object(LiveDataClient, "query_osv_versions") as osv, patch(

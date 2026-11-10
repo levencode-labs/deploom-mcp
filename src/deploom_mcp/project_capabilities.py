@@ -73,9 +73,10 @@ def get_project_capabilities(project_path: str) -> dict:
                        preconditions=("HOST_CHECK_PROFILE", "BOUND_RESOLVER_RECEIPT", "EXPLICIT_HOST_AUTHORIZATION")),
             ]
             goals = ["TARGETED_UPGRADE", "MONOREPO_TO_POLICY"]
-            next_action = "USE_WORKSPACE_REQUEST_V2"
+            next_action = "USE_WORKSPACE_REQUEST_V3"
         else:
-            routes = [_route("PLAN", "get_upgrade_plan")]
+            routes = [_route("PLAN", "get_upgrade_plan", support="CONDITIONAL" if has_workspaces else "SUPPORTED",
+                             preconditions=("FLAT_ROUTE_WORKSPACE_COVERAGE_REQUIRES_REVIEW",) if has_workspaces else ())]
             goals = ["DEPENDENCY_HEALTH_PLAN"]
             next_action = "USE_FLAT_UPGRADE_REQUEST"
             if manager == "npm" and not has_workspaces and lock_version in (2, 3):

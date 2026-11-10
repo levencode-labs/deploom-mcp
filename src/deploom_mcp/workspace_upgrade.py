@@ -158,6 +158,13 @@ def _compact_workspace_plan(plan: dict, request: dict) -> dict:
         for field in ("modelDigest", "assignmentDigest"):
             if field in plan:
                 compact["constraintModel"][field] = plan[field]
+    if "candidateSelection" in request:
+        compact["intent"]["candidateSelection"] = plan.get("candidateSelection", {
+            **request["candidateSelection"], "truncated": None, "proofScope": "NOT_ESTABLISHED"})
+        selected = {tuple(row["declaration"]): row["versions"] for row in plan.get("selectedCandidates", [])}
+        compact["intent"]["targets"] = [
+            {**row, "versions": selected.get(tuple(row["selector"][key] for key in ("owner", "section", "name")))}
+            for row in request["targets"]]
     if request["goalKind"] == "MONOREPO_TO_POLICY":
         compact["intent"]["workspacePolicy"] = validate_workspace_policy(request["policy"])
     search = plan.get("candidateSearch")
@@ -171,7 +178,10 @@ def _compact_workspace_plan(plan: dict, request: dict) -> dict:
                 for entry in search["attempts"]
             ],
         }
-    if validation["status"] == "RESOLUTION_PASSED":
+    if (plan["status"] == "UNSAT_IN_MODELED_DOMAIN"
+            and plan.get("candidateSelection", {}).get("truncated") is True):
+        compact["action"] = {"kind": "EXPAND_SELECTED_DOMAIN", "code": "BOUNDED_DOMAIN_EXHAUSTED"}
+    elif validation["status"] == "RESOLUTION_PASSED":
         compact["action"] = {"kind": "REVIEW_FOR_AUTHORIZED_ISOLATED_TRIAL", "code": validation["code"]}
     elif candidate is not None and validation["code"] == "WORKSPACE_PREFLIGHT_NOT_REQUESTED":
         if request["goalKind"] == "MONOREPO_TO_POLICY" and not request["targets"]:
@@ -188,7 +198,14 @@ async def get_workspace_upgrade_plan(
 ) -> dict[str, Any]:
     """Run the isolated owning workspace worker and project a targeted plan."""
     try:
-        snapshot = _snapshot_request(request)
+        if isinstance(request, dict) and type(request.get("schemaVersion")) is int and request["schemaVersion"] == 3:
+            from deploom_mcp.workspace_goal_request import resolve_goal_request
+            resolved = await resolve_goal_request(project_path, request)
+            if not resolved["ok"]:
+                return resolved
+            request, snapshot = resolved["request"], resolved["snapshot"]
+        else:
+            snapshot = _snapshot_request(request)
     except GoalContractError as exc:
         error = {"code": exc.code}
         detail = str(exc).partition(": ")[2]

@@ -1,7 +1,7 @@
 {
   "blueprintSchemaVersion": 2,
   "core": {
-    "contentSha256": "e3bfb8f8b31fc3e837679c3f078bb8d66b1d6a1e511a9104345a46b0cd3b7cf2",
+    "contentSha256": "c3501f438d50a1af072042e4268a356866f6169b850c3072f1af92cf6c6bd0bc",
     "files": {
       "VERSION": "2698c63efcc74d9adc7a29889fc4ecc7fadfb58c4588db3f117f9d87cfaaff40",
       "analyze_verification_telemetry.py": "1ee235ef0b9cf275fe34c22cf16cb4049e88fb19953096ddaecbb73d7a700e6f",
@@ -49,7 +49,7 @@
       "dependency_audit_branch.py": "c556a4ce33f105eb10763e0d874e4f2a03043bb94744ab68336a063a5d779f15",
       "dependency_compatibility_evidence.py": "6233e7d8bedca194fd030fa883aac57d9c3d51e79a342cec21420b04f757d192",
       "dependency_interaction.py": "af9f4e3b2458f2d58e557b3e241aaf4bab4596c6fbf59a0b355d46bb7215196c",
-      "dependency_live_roadmap_generator.py": "7be8b04f45a1bfc05c5a3027f4582e97b9c125bee0e5a736190209d47554343a",
+      "dependency_live_roadmap_generator.py": "b987887d794550f68c93e1899a263fca6daf583b7efe66c05ac7beae3ca2565d",
       "dependency_live_roadmap_worker.py": "1b76e6403c2964a45fd0fbca46031a0baa40bb5c3e4c6afdc943940973359aac",
       "dependency_release_branch.py": "072cec1182cf8d801fb9c727cd1266f0711f5eff49cb8799a304647ff17c87fe",
       "deploom_failure.py": "0f3d75cb02e3440379b736ab709cd916634a60e9f14d03b4be3cd14c162e8687",
@@ -96,6 +96,7 @@
       "migration_validation.py": "aa8cc3395c242a4d4f0f94affe5901fb36f0af7793fb829e696c97258294175b",
       "npm_bundle_obligations.py": "ce0f0c5508f4a8c1424e81966a65d3c95ca7d421b3e54c68bf085b3cdc0c73e1",
       "npm_platform_obligations.py": "fdaba7da89ac26a7922bb24ecc7bb654cef28610a10bde3773b8769eb34ec269",
+      "npm_semver_batch.py": "d4f648a15fa8a93abc0d9377593266cda0b94f7f591d04851faa71af642863db",
       "npm_shared_transition.py": "98758ee57a3cecb5ea3d2354287fd51ebd7505173caa255cf5222dd0bae3b167",
       "package_manager_profile.py": "17c0aa5f01cd6d73b5bfee2c468fd36b42696b09e2f1c2d54c54f34a75e74efe",
       "package_manager_telemetry.py": "03dcb08777e3865113e91fdc04058b6298cc2ca165ff1516652e31d989740ec5",
@@ -109,7 +110,7 @@
       "project_runtime.py": "569ac405ce88c013e159d1fec411656981981ba6cb3ebea7d272b7296b6bb1b5",
       "project_topology.py": "2ff960672379ec74264980e7fdea2fc95cf7570c95dd6362d01cb03bb7bf6772",
       "proven_dependency_state.py": "675591dce5dcd8b59f301811ed1e8b4e12183289844369ce4a1ba0e4b27fc119",
-      "registry_advisory_evidence.py": "8063edf6cb5168120240a2d58467acbafd2eebec9b37fd03667c76817243650a",
+      "registry_advisory_evidence.py": "38e85bb756e92c2239458590bdc95070f3a97367a7f8f511c1370722d51017f2",
       "registry_candidate_diagnostics.py": "57cd6d3bf6298588ccd1e5136f5c5ea7465c9b2439a63eb0e50c27bb47defdf6",
       "registry_metadata_cache.py": "71599efd302a915173c01afd303b1f43de6d5535a77874699bece32a369b36e2",
       "registry_request_context.py": "7525882369e1754ec2fee364623c7ac10ec87d9c379b477534b5c04b1646e80a",
@@ -154,11 +155,12 @@
       "workspace_npm_obligations.py": "c3cc4fa5e3e2319e9d308a812d054161a11ed9f0146f4ce485eeefae272eb1a9",
       "workspace_npm_preflight.py": "806459b25bc18fcded59d9b3e7c0fa8d558bfd2a15099bf70986e80b5e04fc7a",
       "workspace_npm_transitive_override.py": "4e98f646be73b1b6cc58ec05632754602419887601a2475069a688546a56ceba",
-      "workspace_peer_model.py": "786053fe5f63ed3aa899b2bbca2d241e215e4fd57c9100b2cb27978650eae00c",
+      "workspace_peer_model.py": "7eab0a51f40a68886fed857a58b1a49bc79068021a39fe8e87a6a512f146acda",
+      "workspace_registry_metadata.py": "1b56d5cd9aec892e59ef5f9df73e1b5567c2a85f36bbda1a897bebe367777d60",
       "yarn_berry.py": "bd769e797823ff99129983f8295a52b5aac1f01f9be2c2a8eac9ffeaf20903d2"
     },
     "repository": "https://github.com/levencode-labs/deploom-core",
-    "revision": "a280e69de0cc0690a39c938f45b2f3475ff9db8d",
+    "revision": "36586b7abd91a4be17e96d9a60d6fe7626810aa0",
     "version": "1.0.0-preview.20"
   },
   "mcpVersion": "0.2.13",
@@ -169,5 +171,5 @@
     "contractVersion": "2.0.14"
   },
   "skillManifestSha256": "c5b89655989afcc48f93f2377b8ee01cdd028c8257680eef5264b362f36abcce",
-  "workspaceSchemaSha256": "03c0a939a309a557b862b4c52fca6c00a68b5a75af395b94b43b940cde399af0"
+  "workspaceSchemaSha256": "4676374a734e2a826702a112db9210841ff949b0a71f379a85a9fa61a66985c1"
 }

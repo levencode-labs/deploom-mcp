@@ -50,7 +50,7 @@ def workspace_health_policy(options):
 
 
 def bind_workspace_policy_solver(options, packages, declarations, approved, exact, admitted, environment, topology,
-                                 *, effective_peer_ranges=None, metadata_deadline: float | None = None):
+                                 *, effective_peer_ranges=None, metadata_deadline: float | None = None, candidate_selection=None):
     from deploom_mcp.dependency_audit import AuditError, checked_registry
     from dependency_live_roadmap_generator import DeadlineClock, LiveDataClient
     from workspace_peer_model import prepare_workspace_from_registry
@@ -111,7 +111,11 @@ def bind_workspace_policy_solver(options, packages, declarations, approved, exac
                 try:
                     prepared = prepare_workspace_from_registry(
                         packages, declarations, approved, exact, client,
-                        environment=environment, topology=topology, candidate_versions=admitted,
+                        environment=environment, topology=topology,
+                        candidate_versions=None if candidate_selection else admitted,
+                        bounded_selection=candidate_selection is not None,
+                        candidate_limit=candidate_selection["limit"] if candidate_selection else 32,
+                        prefetch_metadata=True,
                         health_policy=policy, health_lag_months=options["lagPolicyMonths"] if options is not None else 12,
                         osv_allowed_names=allowed, registry_advisory_source=advisory_source,
                         timeout_ms=timeout_ms, include_constraint_evidence=True,

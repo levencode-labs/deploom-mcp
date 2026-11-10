@@ -87,7 +87,7 @@ def plan_workspace_snapshot(project: Path, request: dict, *, model_only: bool = 
     online_metadata = health_goal or registry_target
     evidence_key = "policy" if health_goal else "registry" if registry_target else "packuments"
     required = {"inventoryDigest", "mutable", "environment", "topology", evidence_key}
-    if (not isinstance(request, dict) or not required <= request.keys() <= required | {"preflight", "registry"}
+    if (not isinstance(request, dict) or not required <= request.keys() <= required | {"preflight", "registry", "candidateSelection", "requireUpgrade"}
             or not isinstance(request["inventoryDigest"], str)
             or not re.fullmatch(r"[0-9a-f]{64}", request["inventoryDigest"])
             or not isinstance(request["mutable"], list)
@@ -101,6 +101,15 @@ def plan_workspace_snapshot(project: Path, request: dict, *, model_only: bool = 
     if model_only and ("preflight" in request or "packuments" in request or "registry" not in request):
         raise GoalContractError("WORKSPACE_MODEL_ONLY_REQUIRES_APPROVED_REGISTRY")
 
+    selection = request.get("candidateSelection")
+    if "candidateSelection" in request and (
+            not online_metadata or not isinstance(selection, dict) or set(selection) != {"rule", "limit"}
+            or selection["rule"] != "LATEST_STABLE_PLUS_BASELINE_V1"
+            or type(selection["limit"]) is not int or not 2 <= selection["limit"] <= 32
+            or request["topology"] is not None):
+        raise GoalContractError("INVALID_WORKSPACE_CANDIDATE_SELECTION")
+    if "requireUpgrade" in request and (selection is None or type(request["requireUpgrade"]) is not bool):
+        raise GoalContractError("INVALID_WORKSPACE_CANDIDATE_SELECTION")
     health_options = None
     if health_goal:
         from deploom_mcp.workspace_policy_request import validate_workspace_policy
@@ -146,8 +155,13 @@ def plan_workspace_snapshot(project: Path, request: dict, *, model_only: bool = 
             key = _key(entry["declaration"])
             versions = entry["versions"]
             target = entry["exactTarget"]
+            if selection is not None:
+                if versions is not None:
+                    raise GoalContractError("INVALID_WORKSPACE_CANDIDATE_SELECTION")
+                # Empty values carry scope keys only; Core selects actual domains.
+                versions = [target] if target is not None else []
             if (key not in declarations or key in admitted or not isinstance(versions, list)
-                    or not 1 <= len(versions) <= 32 or any(not isinstance(v, str) or
+                    or not (0 if selection is not None else 1) <= len(versions) <= 32 or any(not isinstance(v, str) or
                         not re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", v) for v in versions)
                     or len(set(versions)) != len(versions) or (target is not None and target not in versions)):
                 raise GoalContractError("INVALID_WORKSPACE_PLAN_SCOPE")
@@ -172,6 +186,19 @@ def plan_workspace_snapshot(project: Path, request: dict, *, model_only: bool = 
         try:
             from resolution_inventory import npm_lock_resolved_instance
             from workspace_peer_model import WorkspaceTopology, declaration_id, plan_workspace_upgrade
+
+            if request.get("requireUpgrade"):
+                from semantic_version import Version
+                advances = False
+                for key, target in exact.items():
+                    current = npm_lock_resolved_instance(packages, key[2], "" if key[0] == "." else key[0])
+                    if current is None:
+                        raise GoalContractError("WORKSPACE_EXACT_BASELINE_UNPROVEN")
+                    if Version(target) < Version(current[1]):
+                        raise GoalContractError("WORKSPACE_EXACT_DOWNGRADE_UNSUPPORTED")
+                    advances |= Version(target) > Version(current[1])
+                if not advances:
+                    raise GoalContractError("WORKSPACE_TARGET_ALREADY_SATISFIED")
 
             if raw_topology is not None:
                 if (not isinstance(raw_topology, dict) or set(raw_topology) != {"instanceGroups", "providers"}
@@ -231,7 +258,7 @@ def plan_workspace_snapshot(project: Path, request: dict, *, model_only: bool = 
                 solve = bind_workspace_policy_solver(health_options, packages, declarations, approved, exact,
                                                      admitted, request["environment"], topology,
                                                      effective_peer_ranges=effective_peer_ranges,
-                                                     metadata_deadline=metadata_deadline)
+                                                     metadata_deadline=metadata_deadline, candidate_selection=selection)
             else:
                 def solve(excluded, timeout_ms):
                     return plan_workspace_upgrade(
@@ -303,7 +330,8 @@ def _try_workspace_candidates(solve, verify, limit, request):
                 or native["code"] not in {"ERESOLVE", "EBADENGINE", "LOCK_PEER_MISMATCH"}):
             stop = native["status"]
             break
-        if not any(len(row["versions"]) > 1 and row["exactTarget"] is None for row in request["mutable"]):
+        if not any((row["versions"] is None or len(row["versions"]) > 1)
+                   and row["exactTarget"] is None for row in request["mutable"]):
             stop = "NO_DISTINCT_MODELED_CANDIDATE"
             break
     if result is None:

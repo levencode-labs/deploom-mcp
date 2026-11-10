@@ -56,7 +56,7 @@ class ProjectCapabilitiesTests(unittest.TestCase):
         self.assertEqual(route['hostConfiguration'], 'PRESENT_NOT_VALIDATED')
         self.assertEqual(route['authorization'], 'NOT_GRANTED_BY_DISCOVERY')
         self.assertNotIn('registry.example.invalid', json.dumps(result))
-        self.assertEqual(result['nextAction'], 'USE_WORKSPACE_REQUEST_V2')
+        self.assertEqual(result['nextAction'], 'USE_WORKSPACE_REQUEST_V3')
 
     def test_configs_are_digest_bound_without_echoing_credentials(self):
         first = get_project_capabilities(str(self.root))
