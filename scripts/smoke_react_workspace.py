@@ -158,12 +158,12 @@ def main():
         ((rroot, rapp), *((key,) for key in declarations if key not in fixed)),
     )
     domains = {rroot: ("19.0.0",), rapp: ("19.0.0",), dapp: ("18.3.1", "19.0.0")}
-    plan = plan_workspace_upgrade(lock["packages"], declarations, domains, fixed, fixture["packuments"],
-                                  environment={"node": node_version, "npm": npm_version}, topology=topology)
-    if plan["status"] != "SAT_IN_MODELED_DOMAIN" or plan["assignment"][declaration_id(dapp)] != "19.0.0":
-        raise RuntimeError("joint plan failed")
-    if plan["assignment"][declaration_id(dlegacy)] != "18.3.1":
-        raise RuntimeError("held legacy renderer changed")
+    environment = {"node": node_version, "npm": npm_version}
+    held_plan = plan_workspace_upgrade(lock["packages"], declarations, domains, fixed, fixture["packuments"],
+                                       environment=environment, topology=topology)
+    if (held_plan["status"] != "UNKNOWN"
+            or held_plan.get("reason") != "PROPOSED_LAYOUT_OWNER_PEERS_UNPROVEN"):
+        raise RuntimeError(f"held UI peer was not guarded: {held_plan}")
 
     manifests = {owner: files[(Path(owner) / "package.json").as_posix()] for owner in (root, app, legacy, ui)}
     split_files = dict(files)
@@ -175,16 +175,7 @@ def main():
     place(split, split_files)
     run("independent-vector", [*npm, "install", "--package-lock-only", *WORKSPACE_NPM_POLICY, *npm_options],
         cwd=split, environment=env, expected="ERESOLVE")
-    assignments = {tuple(json.loads(key)): value for key, value in plan["assignment"].items()}
-    held_peer = run_workspace_npm_preflight(
-        manifests, (baseline / "package-lock.json").read_bytes(), assignments,
-        frozenset(domains), artifacts=out / "held-peer", cache=cache, registry=registry, reauthor=dlegacy,
-    )
-    if held_peer.get("lockDelta") != {
-        "status": "RESOLUTION_FAILED", "code": "HELD_LOCK_PROVIDER_CHANGED",
-        "path": ui, "dependency": "react", "section": "peerDependencies",
-    }:
-        raise RuntimeError(f"held UI peer control differs: {held_peer.get('lockDelta') or held_peer['code']}")
+    held_lock = (baseline / "package-lock.json").read_bytes()
 
     # In the positive fixture the app owns React and injects it into the UI.
     # This keeps SSR meaningful without giving the upgrade authority over a held peer.
@@ -198,6 +189,24 @@ def main():
         b'require("deploom-control-ui");', b'require("deploom-control-ui")(React);',
     )
     del lock["packages"][ui]["peerDependencies"]
+    plan = plan_workspace_upgrade(lock["packages"], declarations, domains, fixed, fixture["packuments"],
+                                  environment=environment, topology=topology)
+    if plan["status"] != "SAT_IN_MODELED_DOMAIN" or plan["assignment"][declaration_id(dapp)] != "19.0.0":
+        raise RuntimeError(f"joint plan failed: {plan}")
+    if plan["assignment"][declaration_id(dlegacy)] != "18.3.1":
+        raise RuntimeError("held legacy renderer changed")
+
+    assignments = {tuple(json.loads(key)): value for key, value in plan["assignment"].items()}
+    held_peer = run_workspace_npm_preflight(
+        manifests, held_lock, assignments,
+        frozenset(domains), artifacts=out / "held-peer", cache=cache, registry=registry, reauthor=dlegacy,
+    )
+    if held_peer.get("lockDelta") != {
+        "status": "RESOLUTION_FAILED", "code": "HELD_LOCK_PROVIDER_CHANGED",
+        "path": ui, "dependency": "react", "section": "peerDependencies",
+    }:
+        raise RuntimeError(f"held UI peer control differs: {held_peer.get('lockDelta') or held_peer['code']}")
+
     baseline = out / "injected-ui-baseline"
     place(baseline, {**files, "package-lock.json": dump(lock)})
     baseline_hashes = {name: sha(baseline / name) for name in (*files, "package-lock.json")}
