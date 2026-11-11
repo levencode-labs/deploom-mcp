@@ -115,8 +115,12 @@ async def plan_workspace_edits(project_path: str, request: dict) -> dict:
     include_card = request.get("migrationCard", False)
     if type(include_card) is not bool:
         return {"ok": False, "error": {"code": "INVALID_WORKSPACE_MIGRATION_CARD_OPTION"}}
+    compact = request.get("compactEdits", False)
+    if type(compact) is not bool:
+        return {"ok": False, "error": {"code": "INVALID_WORKSPACE_COMPACT_EDITS_OPTION"}}
     plan = await get_workspace_upgrade_plan(
-        project_path, {key: value for key, value in request.items() if key not in {"responseMode", "migrationCard"}},
+        project_path, {key: value for key, value in request.items()
+                       if key not in {"responseMode", "migrationCard", "compactEdits"}},
     )
     if not plan["ok"]:
         return plan
@@ -158,6 +162,13 @@ async def plan_workspace_edits(project_path: str, request: dict) -> dict:
         "changeCount": len(edits), "patch": patch,
         "action": action,
     }
+    if compact and patch:
+        response = {key: response[key] for key in (
+            "ok", "kind", "schemaVersion", "inventoryDigest", "requestId", "candidateId",
+            "authority", "verification", "executionReady", "changeCount", "patch", "action",
+        )}
+        response["constraintModel"] = {"status": model["status"]}
+        response["compactEdits"] = True
     if include_card:
         from deploom_mcp.workspace_migration_card import build_migration_card
 

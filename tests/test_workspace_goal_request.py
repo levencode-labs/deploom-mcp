@@ -84,6 +84,30 @@ class WorkspaceGoalRequestTests(unittest.TestCase):
             with self.assertRaises(GoalContractError):
                 check_workspace_patch(self.root, result["inventoryDigest"], artifact, result["patch"]["sha256"])
 
+    def test_compact_edits_reuses_manifest_patch_and_keeps_blocker_details(self):
+        request = {**self.request, "responseMode": "EDITS"}
+        with tempfile.TemporaryDirectory() as directory:
+            with patch("deploom_mcp.workspace_edits.configured_state_root", return_value=Path(directory)):
+                full = self.run_plan(request)
+                compact = self.run_plan({**request, "compactEdits": True})
+            self.assertTrue(compact["compactEdits"])
+            for key in ("inventoryDigest", "action", "verification", "executionReady", "changeCount"):
+                self.assertEqual(compact[key], full[key])
+            self.assertEqual(compact["patch"]["sha256"], full["patch"]["sha256"])
+            self.assertEqual(Path(compact["patch"]["path"]).read_bytes(), Path(full["patch"]["path"]).read_bytes())
+            self.assertNotIn("details", compact)
+
+        blocked = json.loads(json.dumps(request))
+        blocked["scope"][0]["exactTarget"] = "3.0.9"
+        full = self.run_plan(blocked)
+        compact = self.run_plan({**blocked, "compactEdits": True})
+        self.assertEqual(compact["constraintModel"], full["constraintModel"])
+        self.assertEqual(compact["action"], full["action"])
+        self.assertNotIn("compactEdits", compact)
+        self.assertIsNone(compact["patch"])
+        self.assertEqual(self.run_plan({**request, "compactEdits": "true"})["error"]["code"],
+                         "INVALID_WORKSPACE_COMPACT_EDITS_OPTION")
+
     def test_edits_mode_does_not_emit_patch_for_unknown(self):
         request = json.loads(json.dumps(self.request))
         request["responseMode"] = "EDITS"

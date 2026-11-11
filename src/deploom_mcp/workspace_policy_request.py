@@ -120,6 +120,8 @@ def bind_workspace_policy_solver(options, packages, declarations, approved, exac
                         osv_allowed_names=allowed, registry_advisory_source=advisory_source,
                         timeout_ms=timeout_ms, include_constraint_evidence=True,
                         effective_peer_ranges=effective_peer_ranges,
+                        propose_nested_slot=options is None and candidate_selection is not None
+                        and len(exact) == len(admitted) == 1,
                     )
                 finally:
                     client.session.close()

@@ -1,7 +1,7 @@
 {
   "blueprintSchemaVersion": 2,
   "core": {
-    "contentSha256": "6f80c03a4bda4f7b7e38c563e2dc7ba2dafe76090de20264a41c1b24c7b1fe95",
+    "contentSha256": "dc1706287faa2a77898c2879a8198a52d76a99b013925aa72388b1aa7ba72644",
     "files": {
       "VERSION": "2698c63efcc74d9adc7a29889fc4ecc7fadfb58c4588db3f117f9d87cfaaff40",
       "analyze_verification_telemetry.py": "1ee235ef0b9cf275fe34c22cf16cb4049e88fb19953096ddaecbb73d7a700e6f",
@@ -155,21 +155,21 @@
       "workspace_npm_obligations.py": "c3cc4fa5e3e2319e9d308a812d054161a11ed9f0146f4ce485eeefae272eb1a9",
       "workspace_npm_preflight.py": "806459b25bc18fcded59d9b3e7c0fa8d558bfd2a15099bf70986e80b5e04fc7a",
       "workspace_npm_transitive_override.py": "4e98f646be73b1b6cc58ec05632754602419887601a2475069a688546a56ceba",
-      "workspace_peer_model.py": "507d30a348a89fbf7ef3d489e861476acc60ad20b6836ae494c2a7f0be701872",
+      "workspace_peer_model.py": "0fccef2f3c0e65cde7ae2f278df09cabc005568861d053581216b8a4595341df",
       "workspace_registry_metadata.py": "1b56d5cd9aec892e59ef5f9df73e1b5567c2a85f36bbda1a897bebe367777d60",
       "yarn_berry.py": "bd769e797823ff99129983f8295a52b5aac1f01f9be2c2a8eac9ffeaf20903d2"
     },
     "repository": "https://github.com/levencode-labs/deploom-core",
-    "revision": "e70aad45cb66588ca227968791bb46b4f5a17527",
+    "revision": "1643dd2627f33225fd7a4b734d31d49086816030",
     "version": "1.0.0-preview.20"
   },
-  "mcpVersion": "0.2.16.dev4",
+  "mcpVersion": "0.2.15",
   "schemaSha256": "974ea52175ea09928cddae9694b5eb750cc1024520e758e64f23ed967fe81627",
   "schemaVersion": 1,
   "skill": {
-    "bundleSha256": "f349d88b08141db30a9eb0ff4420eea04df6938bc622690466d5f007203b885a",
-    "contractVersion": "2.0.17"
+    "bundleSha256": "49951cb3b5d987f2d80e35fac75b2507743ee83646d58feecf6082c219876b89",
+    "contractVersion": "2.0.18"
   },
-  "skillManifestSha256": "c506fd9de5bf4706e01d5542a6907ae22ad0b3ba93fb0ad71f6d496930ef5925",
+  "skillManifestSha256": "9648f8ea56be437c3cca42c59dbeb22b8fabe15d2ef8b67afd176c0564d77725",
   "workspaceSchemaSha256": "7bdd327b9f2fe86295600f7d95c3169cb5c2e4b5c8dbd50b9c406b163b67afa1"
 }

@@ -5,7 +5,7 @@ description: Plan and execute JavaScript and TypeScript dependency upgrades with
 
 # deploom-upgrade
 
-**Contract version: 2.0.17.** Canonical file hashes are in `contract.json`.
+**Contract version: 2.0.18.** Canonical file hashes are in `contract.json`.
 
 Use `get_upgrade_plan` for health/policy planning evidence. For an explicitly
 agreed functional-maintenance or finite coupled goal, use `get_goal_plan` and
@@ -23,19 +23,17 @@ a Core verdict. This workflow is client-neutral.
   path when the user has left the tool choice open. Run the same final checks.
 - For a targeted npm lock-v3 workspace with an approved registry and a shared
   filesystem, use one `get_upgrade_plan` call. Set `workspace_request` to
-  `{schemaVersion: 3, goalKind: "TARGETED_UPGRADE", responseMode: "EDITS", registry, scope}`.
+  `{schemaVersion: 3, goalKind: "TARGETED_UPGRADE", responseMode: "EDITS", compactEdits: true, registry, scope}`.
   Each scope row has `selector: {name, owner?, section?}`, `approvedLines: [major]`
   and `exactTarget` for a user pin. Give observed `environment: {node, npm}`
   if available. Omit preflight. This route needs no preliminary reference reads
   when the scope and inputs are known.
-- For an authorized edit, use the returned patch directly. From the project root
-  run `deploom-workspace check PROJECT INVENTORY_DIGEST PATCH_PATH PATCH_SHA256`,
-  then `git apply --check --unidiff-zero PATCH_PATH` before
-  `git apply --unidiff-zero PATCH_PATH`. Keep the commands conditional on success.
-  Reuse the plan while inputs and evidence are current. Stop on drift or a blocker.
-  The patch changes manifests only. Resolve the lock and verify final install,
-  checks, and affected runtime as required. Use detailed routes below for policy,
-  uncertainty, or separately authorized preflight or execution.
+- For an authorized edit, apply the returned patch in one shell call from the
+  project root. Run `deploom-workspace check PROJECT INVENTORY_DIGEST PATCH_PATH PATCH_SHA256`,
+  `git apply --check --unidiff-zero PATCH_PATH`, then `git apply --unidiff-zero PATCH_PATH`.
+  Continue only after each command succeeds. Resolve the lock and run the required
+  install, checks, and runtime verification. Stop on drift or a blocker.
+  Use detailed routes below for policy, uncertainty, or separate preflight.
 
 ## Establish the task contract
 
