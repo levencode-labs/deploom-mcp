@@ -68,14 +68,18 @@ def validate_report(report: Any) -> list[str]:
         errors.append("mode must be PLAN_ONLY or EXECUTE")
     if report.get("targetMode") not in ("pinned", "advisory"):
         errors.append("targetMode must be pinned or advisory")
-    if report.get("objective") not in ("minimum-change-to-policy", "latest-compatible-in-approved-lines"):
-        errors.append("objective must state policy-minimal or latest-compatible intent")
+    objective = report.get("objective")
+    if objective not in ("minimum-change-to-policy", "latest-compatible-in-approved-lines", "explicit-version-targets"):
+        errors.append("objective must state policy-minimal, latest-compatible or explicit-version intent")
     if report.get("completion") not in ("COMPLETED", "IN_PROGRESS", "INTERRUPTED", "CANCELLED"):
         errors.append("completion must describe the session, separately from outcome")
     if not isinstance(report.get("outcome"), str) or report["outcome"] not in OUTCOMES:
         errors.append("invalid outcome")
-    if report.get("targetLevel") not in ("yellow", "green"):
-        errors.append("targetLevel must be yellow or green")
+    target_level = report.get("targetLevel")
+    if target_level not in (None, "yellow", "green"):
+        errors.append("targetLevel must be yellow, green or null when no policy goal was requested")
+    if objective == "minimum-change-to-policy" and target_level not in ("yellow", "green"):
+        errors.append("minimum-change-to-policy requires a yellow or green targetLevel")
 
     final_inputs = report.get("finalInputs") or {}
     acceptance, results = report.get("acceptance"), report.get("results")

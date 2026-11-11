@@ -59,6 +59,31 @@ class EvidenceContractTests(unittest.TestCase):
         report["deliverables"][0]["status"] = "PRESENT"
         self.assertEqual(validate(report), [])
 
+    def test_targeted_migration_without_policy_still_requires_final_checks(self):
+        report = passed_record()
+        report.update(objective="explicit-version-targets", targetLevel=None)
+        report["acceptance"]["policy"] = []
+        report["results"]["policy"] = "NOT_RUN"
+        report["verification"] = [row for row in report["verification"] if row["kind"] != "policy"]
+        self.assertEqual(validate(report), [])
+        report["verification"] = [row for row in report["verification"] if row["kind"] != "runtime"]
+        self.assertTrue(any("runtime/affected-runtime" in e for e in validate(report)))
+
+    def test_optional_policy_target_does_not_erase_requested_policy_acceptance(self):
+        report = passed_record()
+        report.update(objective="explicit-version-targets", targetLevel="green")
+        report["verification"] = [row for row in report["verification"] if row["kind"] != "policy"]
+        self.assertTrue(any("policy/installed-policy" in e for e in validate(report)))
+        report["targetLevel"] = None
+        self.assertTrue(any("policy/installed-policy" in e for e in validate(report)))
+
+    def test_policy_minimal_objective_cannot_omit_policy_target(self):
+        report = plan_record()
+        report.update(objective="minimum-change-to-policy", targetLevel=None)
+        self.assertTrue(any("requires a yellow or green" in e for e in validate(report)))
+        report["objective"] = "latest-compatible-in-approved-lines"
+        self.assertEqual(validate(report), [])
+
     def test_lock_resync_invalidates_prior_clean_install(self):
         report = passed_record()
         new_lock = hashlib.sha256(b"resynchronized lock").hexdigest()

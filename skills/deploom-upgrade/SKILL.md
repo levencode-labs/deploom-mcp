@@ -5,7 +5,7 @@ description: Plan and execute JavaScript and TypeScript dependency upgrades with
 
 # deploom-upgrade
 
-**Contract version: 2.0.15.** Canonical file hashes are in `contract.json`.
+**Contract version: 2.0.16.** Canonical file hashes are in `contract.json`.
 
 Use `get_upgrade_plan` for health/policy planning evidence. For an explicitly
 agreed functional-maintenance or finite coupled goal, use `get_goal_plan` and
@@ -46,12 +46,35 @@ Keep four kinds of information distinct: hard compatibility constraints,
 user requirements, planner recommendations, and evidence/search limitations.
 Advisory mode changes recommendations, never proven peers/engines or user pins.
 
+## Keep the routine path short
+
+Scale the process to the requested outcome, not the number of available tools.
+For an authorized targeted upgrade with an established project route, use one
+baseline read, one applicable plan, the required edits and final checks. Batch
+independent reads and checks. Reuse evidence from the current unchanged inputs;
+do not repeat discovery or enumerate registry versions just to prepare a v3 call.
+Read only the applicable reference sections when a decision needs their detail.
+Do not read every reference or the validator's source as a preliminary step.
+
+A concise final summary is the default record: changed targets and their
+planner/manual origin, material conflicts or failed attempts, actual install,
+checks, runtime and policy status, and remaining work. Create and validate a
+separate JSON report only when the user, evaluation protocol or execution
+workflow requires that artifact. An evaluation with its own independent ledger
+does not by itself require another agent-written JSON report. Required project
+checks, runtime verification and existing deliverables remain mandatory.
+
+Complex coupling, unknown coverage, policy goals or host-managed goal execution
+require the relevant detailed route below. A small package count never proves
+compatibility. Preserve peer/engine/scope constraints and final-state checks.
+
 ## Workflow
 
 1. **Preflight.** Record baseline and existing changes, package manager, Node,
    registry, all manifests/workspaces, allowed checkout and check scripts.
    Reuse an isolated worktree already supplied by the user. Load
-   `references/preflight.md` for details. If the route is unclear, use
+   `references/preflight.md` when project discovery or input identity is unclear.
+   If the route is unclear, use
    `get_project_capabilities` when available; skip it when the route is already
    established. Discovery grants no network or execution authority. Missing MCP
    is an infrastructure limitation; do not fabricate a DepLoom plan.
@@ -83,7 +106,8 @@ Advisory mode changes recommendations, never proven peers/engines or user pins.
    `PROPOSED` target and a blocked final `postPlanGoal` can coexist.
    Preserve original blockers, required/actual/shortfall, and an unavailable
    per-package lag status; never infer per-package lag thresholds from `latest`.
-   Read `references/blueprint-contract.md`. **Untruncated rows do not mean complete
+   Read `references/blueprint-contract.md` when interpreting unfamiliar fields
+   or incomplete evidence. **Untruncated rows do not mean complete
    decision evidence.** Open the full artifact when critical evidence is absent,
    ambiguous or marked incomplete, even if `truncation.truncated=false`.
    In `PLAN_ONLY`, treat Core execution instructions as future guidance; do not
@@ -94,22 +118,30 @@ Advisory mode changes recommendations, never proven peers/engines or user pins.
    global incompatibility from a peer absent only in a child manifest.
 4. **Decide.** Write one short decision record per change or unresolved target:
    original verdict, evidence, chosen target, origin (`planner`/`manual`),
-   authority, and verification required. Use the template in
-   `references/evidence-report.md`. Resolve known blockers before asking the
+   authority, and verification required. Keep this in the final summary unless
+   a structured artifact is required; then use `references/evidence-report.md`.
+   Resolve known blockers before asking the
    user to approve an option. `POLICY_SATISFIED` is not `ALREADY_AT_LATEST`.
-5. **Apply when authorized.** Follow `references/execution-policy.md` in the
-   agreed checkout. In pinned mode, re-plan or obtain an explicit revised
+5. **Apply when authorized.** Edit only inside the agreed checkout and scope,
+   preserve existing changes and follow required host execution steps. Read
+   `references/execution-policy.md` for host-managed execution or unresolved
+   permission, target-authority or recovery details. In pinned mode, re-plan or
+   obtain an explicit revised
    target decision before deviating. In advisory mode, validate and record an
    alternative within existing authority. Keep exclusions and known constraints.
-6. **Verify the final state.** Follow `references/verification-policy.md`.
+6. **Verify the final state.** Run the agreed clean/frozen install, project
+   checks and affected runtime cases. Keep blocked checks NOT_RUN; do not claim
+   installation or runtime from a plan. Read `references/verification-policy.md`
+   for evidence freshness, workspace coverage or check-design questions.
    Bind install evidence to the final manifests, lockfile and environment;
    bind checks to their relevant source/config state. A later install, downgrade
    or lockfile edit invalidates earlier clean-install evidence for the new state.
    Test affected runtime behavior locally; build/unit success is not a substitute.
 7. **Report.** For `PLAN_ONLY`, give a concise decision and uncertainty summary;
    no execution checklist or evidence file is required unless requested. For
-   `EXECUTE` or an explicit evaluation, use the acceptance record in
-   `references/evidence-report.md` and validate its JSON with
+   `EXECUTE`, summarize changed targets, failures and actual verification. When
+   a structured report is explicitly required by the task or execution workflow,
+   use `references/evidence-report.md` and validate its JSON with
    `python scripts/validate_evidence.py <report.json>` from the Skill directory.
    Use it as an index of logs and applicable user/Core execution deliverables,
    including required migration guides/reports; avoid duplicating their content.
@@ -137,6 +169,10 @@ separate from compatibility evidence.
 
 ## Recovery rules
 
+- Correct a diagnosed invalid tool argument inside the same authorized scope;
+  an argument-validation error is not a permission denial. In workspace v3,
+  environment keys are `node` and `npm`, not `nodeVersion` or `npmVersion`.
+  Do not retry a denied action or repeat an unchanged invalid request.
 - Stop affected execution for changed input/policy identity, hash mismatch,
   denied permission, a hard conflict, or unreconciled workspace assignments.
   Independent work may continue only if its constraints and authority are

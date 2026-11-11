@@ -1,8 +1,11 @@
 # Evidence report
 
-For executed migrations or explicitly requested evaluations, keep one concise
-decision/acceptance record and link existing logs; do not duplicate them across
-reports. The record indexes applicable deliverables required by the user or the
+For executed migrations, keep a concise decision/acceptance summary and link
+existing logs. Use the structured JSON record below when the user, evaluation
+protocol or host execution workflow requires that artifact. An external
+evaluation ledger does not itself require another agent-written report. Avoid
+duplicating evidence across reports. The record indexes applicable deliverables
+required by the user or the
 Core execution workflow, including migration guides/reports; it does not replace
 them or repeat their full text. User instructions govern the task scope. Ordinary
 `PLAN_ONLY` work needs only a concise decision summary and does not execute Core
@@ -12,6 +15,14 @@ Validate its logical consistency with the bundled
 `scripts/validate_evidence.py`. The validator checks claims and input identities;
 it cannot prove that a reported command actually ran or that a supplied hash is
 correct. Retain the real logs and covered input files for review.
+
+For a targeted migration without a policy goal, use
+`objective=explicit-version-targets`, `targetLevel=null`, `acceptance.policy=[]`
+and `results.policy=NOT_RUN`. `latest-compatible-in-approved-lines` also permits
+no policy goal. `minimum-change-to-policy` always requires Yellow or Green.
+An explicit version target can coexist with a requested Yellow/Green target;
+preserve that target and its policy acceptance checks. Do not remove requested
+criteria to satisfy the validator.
 
 ## Before execution
 
