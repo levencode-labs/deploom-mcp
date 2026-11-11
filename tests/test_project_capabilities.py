@@ -1,6 +1,7 @@
 """Discovery must not fetch evidence, execute tools or infer host permission."""
 import json
 import os
+import secrets
 from pathlib import Path
 import tempfile
 import unittest
@@ -60,10 +61,11 @@ class ProjectCapabilitiesTests(unittest.TestCase):
 
     def test_configs_are_digest_bound_without_echoing_credentials(self):
         first = get_project_capabilities(str(self.root))
-        (self.root / '.npmrc').write_text('//example.invalid/:_authToken=fixture-secret\n')
+        credential = secrets.token_urlsafe(24)
+        (self.root / '.npmrc').write_text(f'//example.invalid/:_authToken={credential}\n')
         second = get_project_capabilities(str(self.root))
         self.assertNotEqual(first['inputDigest'], second['inputDigest'])
-        self.assertNotIn('fixture-secret', json.dumps(second))
+        self.assertNotIn(credential, json.dumps(second))
         self.assertNotIn('example.invalid', json.dumps(second))
 
     def test_ambiguous_and_unsupported_inputs_fail_before_routing(self):
