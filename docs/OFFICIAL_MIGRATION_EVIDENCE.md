@@ -112,3 +112,17 @@ an independent blind holdout. Warm-cache measurements do not prove an advantage
 over another equally cached client, and no agent token, repair success or ROI
 claim follows from a smaller response. Skill behavior requires its own loaded
 client validation. Existing closed project trials are not repeated by this feature.
+
+## Migration cards in workspace EDITS
+
+In a v3 TARGETED_UPGRADE request, set `responseMode: "EDITS"` and
+`migrationCard: true` to include guidance for the selected transition.
+The initial card covers ESLint 8.57.1 to 9.0.0. The source version comes from
+the observed lockfile and the destination comes from the computed plan.
+
+The card reads known ESLint config files in the selected owner. It reports
+the observed filenames and whether their text references CI. It links to
+the official guidance and suggests checks marked NOT_RUN. Config discovery
+is scoped to the selected owner and does not resolve the effective ESLint
+configuration. The card uses local guidance and adds no registry or
+documentation requests.

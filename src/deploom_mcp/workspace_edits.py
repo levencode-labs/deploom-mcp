@@ -112,8 +112,11 @@ async def plan_workspace_edits(project_path: str, request: dict) -> dict:
     if (request.get("schemaVersion") != 3 or request.get("goalKind") != "TARGETED_UPGRADE"
             or request.get("responseMode") != "EDITS" or "preflight" in request):
         return {"ok": False, "error": {"code": "WORKSPACE_EDITS_REQUIRES_V3_TARGETED_PLAN"}}
+    include_card = request.get("migrationCard", False)
+    if type(include_card) is not bool:
+        return {"ok": False, "error": {"code": "INVALID_WORKSPACE_MIGRATION_CARD_OPTION"}}
     plan = await get_workspace_upgrade_plan(
-        project_path, {key: value for key, value in request.items() if key != "responseMode"},
+        project_path, {key: value for key, value in request.items() if key not in {"responseMode", "migrationCard"}},
     )
     if not plan["ok"]:
         return plan
@@ -146,7 +149,7 @@ async def plan_workspace_edits(project_path: str, request: dict) -> dict:
         action = {"kind": "REVIEW_MANIFEST_PATCH"}
     elif model["status"] == "SAT_IN_MODELED_DOMAIN":
         action = {"kind": "NO_MANIFEST_CHANGES"}
-    return {
+    response = {
         **{key: plan[key] for key in ("ok", "goalKind", "inventoryDigest", "requestId", "candidateId", "authority",
                                      "verification", "executionReady", "details", "packageManagerValidation",
                                      "installation", "checks", "runtime", "acceptance", "policy")},
@@ -155,6 +158,13 @@ async def plan_workspace_edits(project_path: str, request: dict) -> dict:
         "changeCount": len(edits), "patch": patch,
         "action": action,
     }
+    if include_card:
+        from deploom_mcp.workspace_migration_card import build_migration_card
+
+        response["migrationCard"] = await asyncio.to_thread(
+            build_migration_card, Path(project_path), plan["jointAssignment"]["targets"], model["status"],
+        )
+    return response
 
 
 def check_workspace_patch(project: Path, inventory_digest: str, patch: Path, sha256: str) -> None:

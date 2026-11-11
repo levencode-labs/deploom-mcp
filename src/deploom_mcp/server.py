@@ -988,6 +988,7 @@ def get_upgrade_plan(
         "to 8 (2..32); latest candidates plus an admitted baseline, no global optimality claim. "
         "For one local manifest patch and a short answer, set responseMode=EDITS on v3 "
         "TARGETED_UPGRADE and omit preflight. The patch is bound to the observed inventory. "
+        "Optional migrationCard=true in EDITS returns local migration guidance for supported exact transitions. "
         "Omit preflight for planning. Ambiguous scope returns validSelectors; held declarations "
         "and lock versions remain fixed. environment is optional; missing engine facts stay UNKNOWN. "
         "Legacy workspace_request schemaVersion=2 and goalKind=TARGETED_UPGRADE select "
