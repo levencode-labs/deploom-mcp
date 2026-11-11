@@ -281,6 +281,7 @@ def plan_workspace_snapshot(project: Path, request: dict, *, model_only: bool = 
             result["workspaceEvidence"] = {
                 "owners": owners, "declarationCount": len(rows),
                 "constraintDeclarationCount": len(declarations),
+                "ownerPeerConstraintCount": result.get("ownerPeerConstraintCount", 0),
                 "targets": [
                     {"declaration": list(key), "declaredSpec": declarations[key],
                      "baselineLock": npm_lock_resolved_instance(packages, key[2], "" if key[0] == "." else key[0]),

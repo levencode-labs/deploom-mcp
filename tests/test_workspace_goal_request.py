@@ -54,6 +54,37 @@ class WorkspaceGoalRequestTests(unittest.TestCase):
             'workspace_npm_preflight.observe_workspace_peer_overrides', return_value={}):
             return asyncio.run(get_workspace_upgrade_plan(str(self.root), request or self.request))
 
+    def test_held_workspace_owner_peer_limits_root_provider(self):
+        self.fixture.manifests['packages/b/package.json']['peerDependencies']['typescript'] = '>=5 <5.0.5'
+        self.fixture.lock['packages']['packages/b']['peerDependencies']['typescript'] = '>=5 <5.0.5'
+        self.fixture.save()
+
+        def metadata(name):
+            versions = ['5.0.0', '5.0.4', '5.0.5'] if name == 'typescript' else ['3.0.0', '3.0.1', '4.0.0']
+            rows = {v: {'name': name, 'version': v, 'dist': {
+                'tarball': f'{REGISTRY}/{name}/-/{name}-{v}.tgz'}} for v in versions}
+            if name == 'kleur':
+                rows['3.0.1']['peerDependencies'] = {'typescript': '>=5.0.4'}
+            return {'versions': rows}, True
+
+        result = self.run_plan(metadata_source=metadata)
+        self.assertTrue(result['ok'], result)
+        self.assertEqual(result['constraintModel']['status'], 'SAT_IN_MODELED_DOMAIN')
+        versions = {row['declaration'][2]: row['selectedVersion'] for row in result['jointAssignment']['targets']}
+        self.assertEqual(versions['typescript'], '5.0.4')
+        self.assertEqual(result['coverage']['ownerPeerConstraintCount'], 1)
+        self.assertEqual(result['coverage']['constraintDeclarationCount'], 3)
+
+        def stale_manifest():
+            path = self.root / 'packages/b/package.json'
+            manifest = json.loads(path.read_text(encoding='utf-8'))
+            manifest['peerDependencies']['typescript'] = '<5'
+            path.write_text(json.dumps(manifest), encoding='utf-8')
+
+        stale = self.run_plan(metadata_source=metadata, before_worker=stale_manifest)
+        self.assertFalse(stale['ok'])
+        self.assertEqual(stale['error']['code'], 'WORKSPACE_MANIFEST_LOCK_MISMATCH')
+
     def test_resolves_scope_selects_bounded_candidates_and_holds_other_owner(self):
         result = self.run_plan()
         self.assertTrue(result['ok'], result)

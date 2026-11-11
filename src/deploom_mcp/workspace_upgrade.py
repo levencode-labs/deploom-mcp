@@ -125,6 +125,7 @@ def _compact_workspace_plan(plan: dict, request: dict) -> dict:
             "discoveredOwnerCount": len(evidence["owners"]),
             "discoveredDeclarationCount": evidence["declarationCount"],
             "constraintDeclarationCount": evidence["constraintDeclarationCount"],
+            "ownerPeerConstraintCount": evidence.get("ownerPeerConstraintCount", 0),
             "selectedDeclarationCount": len(evidence["targets"]),
             "heldDeclarationCount": evidence["constraintDeclarationCount"] - len(evidence["targets"]),
             "evaluatedOwnerCoverage": "UNKNOWN" if plan["status"] == "UNKNOWN" else "MODELED_DOMAIN_ONLY",
