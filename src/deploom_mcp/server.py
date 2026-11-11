@@ -44,13 +44,14 @@ import os
 import re
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple, TypedDict
+from typing import Annotated, Any, Dict, List, Literal, Optional, Tuple, TypedDict
 from deploom_mcp.dependency_audit import AuditError
 from deploom_mcp.planning_registry import planning_registry
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.context import Context
 from mcp_types import CallToolResult, TextContent, ToolAnnotations
+from pydantic import Field
 
 from deploom_mcp import __version__
 from deploom_mcp.blueprint import (
@@ -1192,7 +1193,9 @@ async def model_workspace_upgrade_tool(
 )
 async def get_workspace_plan_details_tool(
     plan_id: str, request_id: str, candidate_id: str | None, snapshot_sha256: str,
-    owner: str, section: str, offset: int = 0, limit: int = 8,
+    owner: str, section: Literal["dependencies", "devDependencies", "optionalDependencies"],
+    offset: Annotated[int, Field(strict=True, ge=0, le=64)] = 0,
+    limit: Annotated[int, Field(strict=True, ge=1, le=16)] = 8,
 ) -> CallToolResult:
     return _result(get_workspace_plan_details(
         plan_id=plan_id, request_id=request_id, candidate_id=candidate_id, snapshot_sha256=snapshot_sha256,

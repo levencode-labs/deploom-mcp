@@ -39,6 +39,45 @@ class AuditStdioTests(unittest.TestCase):
                     self.assertEqual("UNKNOWN", result.structured_content["security"]["verdict"])
         asyncio.run(scenario())
 
+    def test_workspace_details_schema_matches_page_guards(self):
+        async def scenario():
+            env = os.environ.copy()
+            env["PYTHONPATH"] = str(Path(deploom_mcp.__file__).resolve().parent.parent)
+            parameters = StdioServerParameters(command=sys.executable,
+                args=["-m", "deploom_mcp.audit_server"], env=env)
+            async with stdio_client(parameters) as (read, write):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    tools = await session.list_tools()
+                    tool = next(t for t in tools.tools if t.name == "get_workspace_plan_details")
+                    properties = tool.input_schema["properties"]
+                    self.assertEqual(properties["section"]["enum"],
+                                     ["dependencies", "devDependencies", "optionalDependencies"])
+                    for name, minimum, maximum, default in (("offset", 0, 64, 0), ("limit", 1, 16, 8)):
+                        self.assertEqual({key: properties[name][key] for key in
+                                          ("type", "minimum", "maximum", "default")},
+                                         {"type": "integer", "minimum": minimum,
+                                          "maximum": maximum, "default": default})
+                    arguments = {"plan_id": "a" * 43, "request_id": "b" * 64,
+                        "candidate_id": None, "snapshot_sha256": "c" * 64,
+                        "owner": "packages/app", "section": "dependencies"}
+                    for name, value in (("limit", 0), ("limit", 100), ("offset", -1),
+                                        ("offset", 65), ("section", "peerDependencies"),
+                                        ("limit", True), ("offset", True)):
+                        with self.subTest(argument=name, value=value):
+                            result = await session.call_tool(tool.name, {**arguments, name: value})
+                            self.assertTrue(result.is_error)
+                            text = "\n".join(c.text for c in result.content if c.type == "text")
+                            self.assertIn(name, text)
+                            self.assertNotIn("WORKSPACE_DETAILS_UNAVAILABLE", text)
+                    # Valid paging still reaches the capability guard; schema
+                    # constraints must never grant access to an unissued handle.
+                    result = await session.call_tool(tool.name, {**arguments, "offset": 64, "limit": 16})
+                    self.assertTrue(result.is_error)
+                    self.assertEqual(result.structured_content["error"]["code"],
+                                     "WORKSPACE_DETAILS_UNAVAILABLE")
+        asyncio.run(scenario())
+
     def test_partial_workspace_contract_through_real_stdio(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
