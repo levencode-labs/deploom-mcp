@@ -573,8 +573,10 @@ class WorkspaceInventoryTests(unittest.TestCase):
         def guarded(folder):
             selected = (os.fstat(folder).st_ino == self.root.stat().st_ino) if isinstance(folder, int) else Path(folder) == self.root
             return Scan(folder) if selected else real_scandir(folder)
-        with patch('deploom_mcp.workspace_inventory.os.scandir', side_effect=guarded):
-            self.assertEqual(len(observe_npm_workspace(self.root)['owners']), 3)
+        with patch('deploom_mcp.workspace_inventory.os.scandir', side_effect=guarded) as scan:
+            # The wrapper still accepts real directory descriptors on POSIX.
+            with patch.object(os, 'supports_fd', os.supports_fd | {scan}):
+                self.assertEqual(len(observe_npm_workspace(self.root)['owners']), 3)
 
     def test_reread_detects_stale_lock_even_without_declared_edge_change(self):
         from deploom_mcp.workspace_inventory import _discover
