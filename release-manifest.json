@@ -160,7 +160,7 @@
       "yarn_berry.py": "bd769e797823ff99129983f8295a52b5aac1f01f9be2c2a8eac9ffeaf20903d2"
     },
     "repository": "https://github.com/levencode-labs/deploom-core",
-    "revision": "36586b7abd91a4be17e96d9a60d6fe7626810aa0",
+    "revision": "76cc53813839bb290d24efb914a651a2ce524abc",
     "version": "1.0.0-preview.20"
   },
   "mcpVersion": "0.2.13",
