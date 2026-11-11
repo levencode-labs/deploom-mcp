@@ -1,9 +1,12 @@
 """Bounded migration guidance for exact transitions selected by EDITS."""
+from itertools import islice
 from pathlib import Path
 import hashlib
+import os
 import re
 
 from deploom_mcp.goal_contract import GoalContractError
+from deploom_mcp.workspace_input_io import bound_directory
 from deploom_mcp.workspace_inventory import _read_bytes
 
 ESLINT_TRANSITION = ("eslint", "8.57.1", "9.0.0")
@@ -61,6 +64,65 @@ def _eslint_card(project: Path, owner: str, section: str) -> dict:
     }
 
 
+_STRIP_TRANSITION = ("strip-json-comments", "3.1.1", "5.0.0")
+_REQUIRE_STRIP = re.compile(r"""\brequire\s*\(\s*['"]strip-json-comments['"]\s*\)""")
+
+
+def _strip_card(project: Path, owner: str, section: str) -> dict:
+    observations = []
+    incomplete = False
+    for directory in (project / owner, project / owner / "src"):
+        try:
+            with bound_directory(project, directory) as binding:
+                target = directory if os.name == "nt" else binding.fd
+                with os.scandir(target) as entries:
+                    names = list(islice(entries, 65))
+        except FileNotFoundError:
+            continue
+        except (OSError, GoalContractError):
+            incomplete = True
+            continue
+        incomplete |= len(names) > 64
+        for entry in sorted(names[:64], key=lambda item: item.name):
+            path = directory / entry.name
+            if path.suffix not in {".js", ".cjs", ".mjs"}:
+                continue
+            try:
+                raw = _read_bytes(path, 64 * 1024, root=project)
+                source = raw.decode("utf-8-sig")
+            except (OSError, UnicodeError, GoalContractError):
+                incomplete = True
+                continue
+            for match in islice(_REQUIRE_STRIP.finditer(source), 4):
+                observations.append({
+                    "path": path.relative_to(project).as_posix(),
+                    "line": source.count("\n", 0, match.start()) + 1,
+                    "sha256": hashlib.sha256(raw).hexdigest(),
+                    "kind": "REQUIRE_SYNTAX",
+                })
+            if len(observations) >= 8:
+                incomplete = True
+                break
+        if len(observations) >= 8:
+            break
+    return {
+        "package": _STRIP_TRANSITION[0], "from": _STRIP_TRANSITION[1], "to": _STRIP_TRANSITION[2],
+        "owner": owner, "section": section, "status": "REVIEW_REQUIRED",
+        "observationScope": "OWNER_AND_SRC_DIRECT_JS_FILES_REQUIRE_SYNTAX",
+        "localObservation": "PARTIAL" if incomplete else "OBSERVED",
+        "observations": observations[:8],
+        "guidance": ("Version 5 uses an ESM default export. Follow each observed binding to its callers. "
+                     "On Node versions that support require(esm), a direct require can yield a namespace "
+                     "whose default is callable. Check whether existing interop already handles it. "
+                     "Use an import or normalize the binding where needed for the project's supported runtime."),
+        "sources": [
+            "https://github.com/sindresorhus/strip-json-comments/blob/v5.0.0/index.js",
+            "https://nodejs.org/download/release/v24.0.0/docs/api/modules.html#loading-ecmascript-modules-using-require",
+        ],
+        "checks": [{"status": "NOT_RUN", "instruction": "Run the existing CLI and compare its JSON output and exit status."}],
+    }
+
+
 def build_migration_card(project: Path, targets: list[dict], model_status: str) -> dict:
     result = {"schemaVersion": 1, "authority": "RECOMMENDATION_ONLY",
               "status": "NO_SELECTED_TRANSITION", "transitions": [], "uncoveredCount": 0}
@@ -73,10 +135,11 @@ def build_migration_card(project: Path, targets: list[dict], model_status: str) 
         after = row["selectedVersion"]
         if before == after:
             continue
-        if (package, before, after) != ESLINT_TRANSITION or len(result["transitions"]) == 4:
+        provider = {ESLINT_TRANSITION: _eslint_card, _STRIP_TRANSITION: _strip_card}.get((package, before, after))
+        if provider is None or len(result["transitions"]) == 4:
             result["uncoveredCount"] += 1
             continue
-        result["transitions"].append(_eslint_card(project, owner, section))
+        result["transitions"].append(provider(project, owner, section))
     if result["transitions"]:
         result["status"] = "PARTIAL" if result["uncoveredCount"] else "AVAILABLE"
     elif result["uncoveredCount"]:
