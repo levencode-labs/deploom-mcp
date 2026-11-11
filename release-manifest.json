@@ -163,13 +163,13 @@
     "revision": "e70aad45cb66588ca227968791bb46b4f5a17527",
     "version": "1.0.0-preview.20"
   },
-  "mcpVersion": "0.2.16.dev1",
+  "mcpVersion": "0.2.16.dev2",
   "schemaSha256": "974ea52175ea09928cddae9694b5eb750cc1024520e758e64f23ed967fe81627",
   "schemaVersion": 1,
   "skill": {
-    "bundleSha256": "5d08400a2d77a40ba63207330686036c756b0a8c4e861174a740b27938bb06cb",
-    "contractVersion": "2.0.16"
+    "bundleSha256": "f349d88b08141db30a9eb0ff4420eea04df6938bc622690466d5f007203b885a",
+    "contractVersion": "2.0.17"
   },
-  "skillManifestSha256": "f49e6559867e61eb290e3c6848087edd345d1fcfa891d9cd98c304793a7c1340",
+  "skillManifestSha256": "c506fd9de5bf4706e01d5542a6907ae22ad0b3ba93fb0ad71f6d496930ef5925",
   "workspaceSchemaSha256": "7bdd327b9f2fe86295600f7d95c3169cb5c2e4b5c8dbd50b9c406b163b67afa1"
 }

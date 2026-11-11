@@ -77,6 +77,7 @@ from deploom_mcp.goal_contract import GoalContractError
 from deploom_mcp.workspace_inventory import SECTIONS as DECLARATION_SECTIONS, _read_bytes
 from deploom_mcp.workspace_plan_details import get_workspace_plan_details
 from deploom_mcp.workspace_tools import register_workspace_tools
+from deploom_mcp.workspace_edits import plan_workspace_edits
 from deploom_mcp.workspace_upgrade import get_workspace_upgrade_plan
 
 SERVER_NAME = "deploom-mcp"
@@ -931,6 +932,8 @@ def get_upgrade_plan(
     if workspace_request is not None:
         if _workspace_mixes_flat_options(locals()):
             return {"ok": False, "error": {"code": "WORKSPACE_MIXED_FLAT_OPTIONS"}}
+        if isinstance(workspace_request, dict) and workspace_request.get("responseMode") == "EDITS":
+            return asyncio.run(plan_workspace_edits(project_path, workspace_request))
         return asyncio.run(get_workspace_upgrade_plan(project_path, workspace_request))
     error, req = _build_request(
         project_path=project_path,
@@ -983,6 +986,8 @@ def get_upgrade_plan(
         "TARGETED_UPGRADE requires at least one exactTarget; MONOREPO_TO_POLICY also needs policy. "
         "Inventory/topology and bounded stable candidates are server-owned. candidateLimit defaults "
         "to 8 (2..32); latest candidates plus an admitted baseline, no global optimality claim. "
+        "For one local manifest patch and a short answer, set responseMode=EDITS on v3 "
+        "TARGETED_UPGRADE and omit preflight. The patch is bound to the observed inventory. "
         "Omit preflight for planning. Ambiguous scope returns validSelectors; held declarations "
         "and lock versions remain fixed. environment is optional; missing engine facts stay UNKNOWN. "
         "Legacy workspace_request schemaVersion=2 and goalKind=TARGETED_UPGRADE select "
@@ -1026,6 +1031,8 @@ async def get_upgrade_plan_tool(
     if workspace_request is not None:
         if _workspace_mixes_flat_options(locals()):
             return _result({"ok": False, "error": {"code": "WORKSPACE_MIXED_FLAT_OPTIONS"}})
+        if isinstance(workspace_request, dict) and workspace_request.get("responseMode") == "EDITS":
+            return _result(await plan_workspace_edits(project_path, workspace_request))
         return _result(await get_workspace_upgrade_plan(project_path, workspace_request))
     error, req = _build_request(
         project_path=project_path,

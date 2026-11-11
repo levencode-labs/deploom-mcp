@@ -1,7 +1,9 @@
 import asyncio
 import json
 import os
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 import unittest
 from unittest.mock import AsyncMock, patch
@@ -9,6 +11,7 @@ from unittest.mock import AsyncMock, patch
 import test_workspace_inventory as fixture_module
 from deploom_mcp.distribution import resolve_core_dir
 from deploom_mcp.goal_contract import GoalContractError
+from deploom_mcp.workspace_edits import check_workspace_patch, plan_workspace_edits
 from deploom_mcp.workspace_goal_request import validate_goal_request
 from deploom_mcp.workspace_inventory import observe_npm_workspace
 from deploom_mcp.workspace_plan_snapshot import plan_workspace_snapshot
@@ -52,7 +55,42 @@ class WorkspaceGoalRequestTests(unittest.TestCase):
             os.environ, {'DEPLOOM_WORKSPACE_POLICY_REGISTRY': REGISTRY}, clear=True), patch.object(
             LiveDataClient, '_fetch_npm_metadata_result', side_effect=metadata_source or metadata), patch(
             'workspace_npm_preflight.observe_workspace_peer_overrides', return_value={}):
-            return asyncio.run(get_workspace_upgrade_plan(str(self.root), request or self.request))
+            request = request or self.request
+            planner = plan_workspace_edits if request.get("responseMode") == "EDITS" else get_workspace_upgrade_plan
+            return asyncio.run(planner(str(self.root), request))
+
+    def test_manifest_patch_applies_exact_target_and_refuses_drift(self):
+        manifest = self.root / "packages/a/package.json"
+        original = manifest.read_bytes()
+        request = {**self.request, "responseMode": "EDITS"}
+        with tempfile.TemporaryDirectory() as directory:
+            with patch("deploom_mcp.workspace_edits.configured_state_root", return_value=Path(directory)):
+                result = self.run_plan(request)
+            self.assertTrue(result["ok"], result)
+            self.assertEqual(result["changeCount"], 1)
+            self.assertEqual(result["installation"]["status"], "NOT_RUN")
+            self.assertFalse(result["executionReady"])
+            self.assertEqual(manifest.read_bytes(), original)
+            artifact = Path(result["patch"]["path"])
+            check_workspace_patch(self.root, result["inventoryDigest"], artifact, result["patch"]["sha256"])
+            with self.assertRaisesRegex(GoalContractError, "WORKSPACE_PATCH_DIGEST_MISMATCH"):
+                check_workspace_patch(self.root, result["inventoryDigest"], artifact, "0" * 64)
+            subprocess.run(["git", "init", "-q"], cwd=self.root, check=True)
+            subprocess.run(["git", "apply", "--check", "--unidiff-zero", str(artifact)], cwd=self.root, check=True)
+            subprocess.run(["git", "apply", "--unidiff-zero", str(artifact)], cwd=self.root, check=True)
+            expected = json.loads(original)
+            expected["dependencies"]["kleur"] = "3.0.1"
+            self.assertEqual(json.loads(manifest.read_bytes()), expected)
+            with self.assertRaises(GoalContractError):
+                check_workspace_patch(self.root, result["inventoryDigest"], artifact, result["patch"]["sha256"])
+
+    def test_edits_mode_does_not_emit_patch_for_unknown(self):
+        request = json.loads(json.dumps(self.request))
+        request["responseMode"] = "EDITS"
+        request["scope"][0]["exactTarget"] = "3.0.9"
+        result = self.run_plan(request)
+        self.assertEqual(result["constraintModel"]["status"], "UNKNOWN")
+        self.assertIsNone(result["patch"])
 
     def test_held_workspace_owner_peer_limits_root_provider(self):
         self.fixture.manifests['packages/b/package.json']['peerDependencies']['typescript'] = '>=5 <5.0.5'
