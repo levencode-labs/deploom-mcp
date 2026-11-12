@@ -11,7 +11,7 @@
 Комплект должен подходить **точной версии Python, ОС и архитектуре CPU** получателя. Зависимости могут иметь платформенные wheel. В отдельном пустом каталоге через разрешённый Python index/proxy:
 
 ```powershell
-$release = '0.2.18'
+$release = '0.2.19'
 $bundle = Join-Path $PWD 'deploom-trial'
 $house = Join-Path $bundle 'wheelhouse'
 New-Item -ItemType Directory -Force $house | Out-Null
@@ -40,7 +40,7 @@ Get-ChildItem $house -File | Get-FileHash -Algorithm SHA256 |
 ```powershell
 # Из каталога распакованного комплекта:
 python -m venv .venv  # Версия Python должна соответствовать wheelhouse
-& .\.venv\Scripts\python.exe -m pip install --no-index --find-links .\wheelhouse deploom-mcp==0.2.18
+& .\.venv\Scripts\python.exe -m pip install --no-index --find-links .\wheelhouse deploom-mcp==0.2.19
 if ($LASTEXITCODE -ne 0) { throw 'Ошибка автономной установки' }
 & .\.venv\Scripts\python.exe -m pip check
 & .\.venv\Scripts\deploom-install-skill.exe --client codex --scope user --dry-run

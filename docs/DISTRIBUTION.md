@@ -23,13 +23,13 @@ These commands may rewrite generated integrity metadata; run them only in a revi
 
 ## Install or test the current release
 
-The examples use the wheel built for version **0.2.18**.
+The examples use the wheel built for version **0.2.19**.
 
 ```bash
-python -m pip install dist/deploom_mcp-0.2.18-py3-none-any.whl
+python -m pip install dist/deploom_mcp-0.2.19-py3-none-any.whl
 python -m pip check
 python scripts/smoke_stdio.py
-python scripts/smoke_wheel.py dist/deploom_mcp-0.2.18-py3-none-any.whl
+python scripts/smoke_wheel.py dist/deploom_mcp-0.2.19-py3-none-any.whl
 ```
 
 Use the actual newly built filename for future versions. The smoke wheel test uses an isolated environment and verifies bundled resources and basic startup; it does **not** validate a migrated application, general performance, or a new version's release acceptance. Also test a wheel rebuilt from the sdist and record hashes/toolchain versions for release evidence.

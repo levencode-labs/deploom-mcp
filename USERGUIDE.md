@@ -4,7 +4,7 @@
 
 This guide describes a **local MCP client + released wheel** workflow. It does not require Deploom Desktop, a source checkout, or a separate Core installation. First use a public/synthetic project; decide separately whether your private project and its dependency inventory may contact the configured services.
 
-> **Release pinned in examples:** Deploom MCP **0.2.18**, including canonical Skill contract **2.0.27**. For newer releases, use the exact files and checksums from [GitHub Releases](https://github.com/levencode-labs/deploom-mcp/releases/latest) rather than mixing versions.
+> **Release pinned in examples:** Deploom MCP **0.2.19**, including canonical Skill contract **2.0.27**. For newer releases, use the exact files and checksums from [GitHub Releases](https://github.com/levencode-labs/deploom-mcp/releases/latest) rather than mixing versions.
 
 ## 1. Install the release
 
@@ -16,8 +16,8 @@ This guide describes a **local MCP client + released wheel** workflow. It does n
 $deploomHome = Join-Path $env:LOCALAPPDATA 'Deploom'
 python -m venv "$deploomHome\venv"  # Use a Python 3.12 interpreter
 $py = Join-Path $deploomHome 'venv\Scripts\python.exe'
-$wheel = 'deploom_mcp-0.2.18-py3-none-any.whl'
-$base = 'https://github.com/levencode-labs/deploom-mcp/releases/download/v0.2.18'
+$wheel = 'deploom_mcp-0.2.19-py3-none-any.whl'
+$base = 'https://github.com/levencode-labs/deploom-mcp/releases/download/v0.2.19'
 New-Item -ItemType Directory -Force "$deploomHome\downloads" | Out-Null
 Invoke-WebRequest "$base/$wheel" -OutFile "$deploomHome\downloads\$wheel"
 Invoke-WebRequest "$base/SHA256SUMS.txt" -OutFile "$deploomHome\downloads\SHA256SUMS.txt"
@@ -39,7 +39,7 @@ If `python` is not the intended version, invoke your installed Python 3.12 binar
 ```bash
 python3.12 -m venv "$HOME/.local/share/deploom/venv"
 PY="$HOME/.local/share/deploom/venv/bin/python"
-"$PY" -m pip install 'https://github.com/levencode-labs/deploom-mcp/releases/download/v0.2.18/deploom_mcp-0.2.18-py3-none-any.whl'
+"$PY" -m pip install 'https://github.com/levencode-labs/deploom-mcp/releases/download/v0.2.19/deploom_mcp-0.2.19-py3-none-any.whl'
 "$PY" -m pip check
 "$PY" -c 'import importlib.metadata as m; print(m.version("deploom-mcp"))'
 ```

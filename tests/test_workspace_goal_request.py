@@ -408,7 +408,7 @@ class WorkspaceGoalRequestTests(unittest.TestCase):
         payload = json.dumps(recipe).encode()
         digest = sha256(payload).hexdigest()
         with tempfile.TemporaryDirectory() as directory:
-            outside = Path(directory) / "recipe.json"
+            outside = Path(directory).resolve(strict=True) / "recipe.json"
             outside.write_bytes(payload)
             settings = {"DEPLOOM_MCP_MIGRATION_RECIPE_PATH": str(outside),
                         "DEPLOOM_MCP_MIGRATION_RECIPE_SHA256": digest}

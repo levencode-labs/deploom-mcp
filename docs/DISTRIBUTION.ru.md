@@ -23,13 +23,13 @@ python -m build --no-isolation
 
 ## Установка и проверка релиза
 
-В примерах используется wheel версии **0.2.18**.
+В примерах используется wheel версии **0.2.19**.
 
 ```bash
-python -m pip install dist/deploom_mcp-0.2.18-py3-none-any.whl
+python -m pip install dist/deploom_mcp-0.2.19-py3-none-any.whl
 python -m pip check
 python scripts/smoke_stdio.py
-python scripts/smoke_wheel.py dist/deploom_mcp-0.2.18-py3-none-any.whl
+python scripts/smoke_wheel.py dist/deploom_mcp-0.2.19-py3-none-any.whl
 ```
 
 Для будущих версий используйте **реальное** имя собранного файла. Smoke установленного wheel проверяет ресурсы и базовый запуск, но не доказывает поведение мигрированного приложения, ускорение или полную приёмку нового релиза. Отдельно проверьте wheel, восстановленный из sdist, и зафиксируйте SHA/toolchain.

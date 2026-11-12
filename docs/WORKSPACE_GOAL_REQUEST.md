@@ -75,8 +75,8 @@ dependencies and project checks using npm. A stale inventory rejects the patch.
 
 Set `migrationCard: true` for transition-specific observations and acceptance
 checks. For the ESLint 8.57.1 to 9.0.0 pilot, a host may opt into a donor
-recipe by setting `DEPLOOM_MCP_MIGRATION_RECIPE_PATH` to an absolute file
-outside the project and `DEPLOOM_MCP_MIGRATION_RECIPE_SHA256` to its exact
+recipe by setting `DEPLOOM_MCP_MIGRATION_RECIPE_PATH` to the canonical absolute
+path of a file outside the project and `DEPLOOM_MCP_MIGRATION_RECIPE_SHA256` to its exact
 digest. A missing or mismatched recipe is omitted. Check each offered
 recipe part against the recipient before use and verify the final result
 on the recipient. The server does not collect or publish recipes automatically.
