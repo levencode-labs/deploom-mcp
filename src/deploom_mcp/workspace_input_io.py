@@ -1,6 +1,7 @@
 """Handle-bound reads for the read-only npm workspace inventory."""
 from contextlib import contextmanager, ExitStack
 from dataclasses import dataclass
+from functools import cache
 import os
 from pathlib import Path
 import stat
@@ -16,18 +17,33 @@ def _same_object(left, right):
     return left.st_dev == right.st_dev and left.st_ino == right.st_ino and left.st_ino != 0
 
 
+@cache
+def _windows_file_api():
+    import ctypes
+    from ctypes import wintypes
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    create = kernel.CreateFileW
+    create.argtypes = [
+        wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p,
+        wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
+    ]
+    create.restype = wintypes.HANDLE
+    close = kernel.CloseHandle
+    close.argtypes = [wintypes.HANDLE]
+    close.restype = wintypes.BOOL
+    final = kernel.GetFinalPathNameByHandleW
+    final.argtypes = [wintypes.HANDLE, wintypes.LPWSTR, wintypes.DWORD, wintypes.DWORD]
+    final.restype = wintypes.DWORD
+    return create, close, final
+
+
 @contextmanager
 def _windows_fd(path, directory):
     import ctypes
     import msvcrt
-    from ctypes import wintypes
-    kernel=ctypes.WinDLL('kernel32',use_last_error=True)
-    create=kernel.CreateFileW
-    create.argtypes=[wintypes.LPCWSTR,wintypes.DWORD,wintypes.DWORD,ctypes.c_void_p,wintypes.DWORD,wintypes.DWORD,wintypes.HANDLE]
-    create.restype=wintypes.HANDLE
-    close=kernel.CloseHandle;close.argtypes=[wintypes.HANDLE];close.restype=wintypes.BOOL
-    final=kernel.GetFinalPathNameByHandleW
-    final.argtypes=[wintypes.HANDLE,wintypes.LPWSTR,wintypes.DWORD,wintypes.DWORD];final.restype=wintypes.DWORD
+
+    create, close, final = _windows_file_api()
     before=path.lstat()
     if not _plain(before,directory):raise GoalContractError('WORKSPACE_UNSAFE_INPUT')
     flags=0x00200000 | (0x02000000 if directory else 0)  # OPEN_REPARSE_POINT, BACKUP_SEMANTICS
@@ -35,9 +51,13 @@ def _windows_fd(path, directory):
     if handle == ctypes.c_void_p(-1).value:raise ctypes.WinError(ctypes.get_last_error())
     fd=None
     try:
-        buffer=ctypes.create_unicode_buffer(32768)
-        length=final(handle,buffer,len(buffer),0)
-        if not length or length >= len(buffer):raise GoalContractError('WORKSPACE_UNSAFE_INPUT')
+        buffer = ctypes.create_unicode_buffer(min(32768, max(256, len(str(path)) + 16)))
+        length = final(handle, buffer, len(buffer), 0)
+        if len(buffer) <= length < 32768:
+            buffer = ctypes.create_unicode_buffer(length + 1)
+            length = final(handle, buffer, len(buffer), 0)
+        if not length or length >= len(buffer):
+            raise GoalContractError('WORKSPACE_UNSAFE_INPUT')
         actual=buffer.value
         if actual.startswith('\\\\?\\UNC\\'):actual='\\\\'+actual[8:]
         elif actual.startswith('\\\\?\\'):actual=actual[4:]

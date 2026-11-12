@@ -58,3 +58,25 @@ One prepared evidence/model snapshot is reused for native attempts. A failed
 complete assignment is excluded only within that request; npm error text never
 becomes a new hard dependency constraint. Core candidate/model digests and the
 MCP request/candidate identifiers support inspection of this distinction.
+
+## Manifest edits and migration cards
+
+Use `responseMode: "EDITS"` and `compactEdits: true` for a compact
+workspace response. For an authorized exact-pin npm lock-v3 upgrade, also
+set `editsStrategy: "NATIVE_INTENT"` and give the full owner, section,
+name and version for each target. `operation: "ADD"` adds an explicitly
+authorized exact companion in an existing dependency section in the same
+patch as an upgrade. Leave the operation unset on ordinary upgrade rows.
+
+`MANIFEST_INTENT_ONLY` gives a manifest patch bound to the inventory
+digest and patch SHA-256. The client applies it with `deploom-workspace apply`
+on a shared filesystem, then resolves the lock and verifies peers, held
+dependencies and project checks using npm. A stale inventory rejects the patch.
+
+Set `migrationCard: true` for transition-specific observations and acceptance
+checks. For the ESLint 8.57.1 to 9.0.0 pilot, a host may opt into a donor
+recipe by setting `DEPLOOM_MCP_MIGRATION_RECIPE_PATH` to an absolute file
+outside the project and `DEPLOOM_MCP_MIGRATION_RECIPE_SHA256` to its exact
+digest. A missing or mismatched recipe is omitted. Check each offered
+recipe part against the recipient before use and verify the final result
+on the recipient. The server does not collect or publish recipes automatically.

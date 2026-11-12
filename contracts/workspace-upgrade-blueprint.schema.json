@@ -303,6 +303,9 @@
           "type": "string",
           "pattern": "^workspace-npm-[a-z0-9_]{8}$"
         },
+        "heldRootPeers": {
+          "$ref": "#/$defs/heldRootPeers"
+        },
         "learningAllowed": {
           "const": false
         },
@@ -647,6 +650,67 @@
       },
       "additionalProperties": false
     },
+    "heldDependencyNames": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(?:@[a-zA-Z0-9._-]+/)?[a-zA-Z0-9._-]+$",
+        "maxLength": 214
+      }
+    },
+    "heldRootPeers": {
+      "type": "object",
+      "required": ["conflictCount", "conflicts"],
+      "properties": {
+        "conflictCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "conflicts": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "required": ["consumer", "dependency", "beforeVersion", "requestedVersion"],
+            "properties": {
+              "consumer": {
+                "type": "string",
+                "pattern": "^(?:@[a-zA-Z0-9._-]+/)?[a-zA-Z0-9._-]+$",
+                "maxLength": 214
+              },
+              "dependency": {
+                "type": "string",
+                "pattern": "^(?:@[a-zA-Z0-9._-]+/)?[a-zA-Z0-9._-]+$",
+                "maxLength": 214
+              },
+              "beforeVersion": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "requestedVersion": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "requestedVersions": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 32,
+                "uniqueItems": true,
+                "items": {"type": "string", "minLength": 1, "maxLength": 64}
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "nativeReceipt": {
       "type": "object",
       "required": [
@@ -685,6 +749,9 @@
         },
         "learningAllowed": {
           "const": false
+        },
+        "heldRootPeers": {
+          "$ref": "#/$defs/heldRootPeers"
         },
         "commands": {
           "type": "array",
@@ -745,6 +812,13 @@
             "unrelatedCount": {
               "type": "integer",
               "minimum": 0
+            },
+            "heldConflictCount": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "heldDependencies": {
+              "$ref": "#/$defs/heldDependencyNames"
             }
           },
           "additionalProperties": false
@@ -1155,7 +1229,8 @@
                 "enum": [
                   "workspace-modeled-peer-range",
                   "workspace-modeled-engine-range",
-                  "workspace-proposed-instance"
+                  "workspace-proposed-instance",
+                  "workspace-observed-instance"
                 ]
               }
             },
@@ -1282,6 +1357,9 @@
               "learningAllowed": {
                 "const": false
               },
+              "heldRootPeers": {
+                "$ref": "#/$defs/heldRootPeers"
+              },
               "commands": {
                 "type": "array",
                 "maxItems": 3,
@@ -1341,6 +1419,13 @@
                   "unrelatedCount": {
                     "type": "integer",
                     "minimum": 0
+                  },
+                  "heldConflictCount": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "heldDependencies": {
+                    "$ref": "#/$defs/heldDependencyNames"
                   }
                 },
                 "additionalProperties": false

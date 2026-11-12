@@ -15,7 +15,7 @@
 - [Архитектура](ARCHITECTURE.md) · [Skill](SKILL_CONTRACT_V2.md)
 - [Решения планировщика](DECISION_CONTRACT.md) · [Follow-up](DECISION_FOLLOWUPS.md)
 - [Полномочия Goal](GOAL_CONTRACT.md) · [Матрица выполнения](GOAL_EXECUTION_SUPPORT.md) · [Совместные цели](COUPLED_GOAL_BRIDGE.md)
-- [Инвентарь npm workspaces](NPM_WORKSPACE_INVENTORY_V1.md) · [Допуск к выполнению](NPM_WORKSPACE_EXECUTION_ADMISSION_V0.md)
+- [Инвентарь npm workspaces](NPM_WORKSPACE_INVENTORY_V1.md) · [EDITS](WORKSPACE_GOAL_REQUEST.md#manifest-edits-and-migration-cards) · [Допуск к выполнению](NPM_WORKSPACE_EXECUTION_ADMISSION_V0.md)
 - [Аудит зависимостей](DEPENDENCY_AUDIT.md) · [Registry](REGISTRY_DIAGNOSTICS_PROJECTION.md) · [Proxy](SYSTEM_PROXY.md)
 - [Официальные источники](OFFICIAL_MIGRATION_EVIDENCE.md) · [Квитанции outputs](STANDALONE_OUTPUT_RECEIPTS.md)
 

@@ -15,7 +15,7 @@
 - [Architecture](ARCHITECTURE.md) · [Skill contract](SKILL_CONTRACT_V2.md)
 - [Planner decisions](DECISION_CONTRACT.md) · [Follow-up tools](DECISION_FOLLOWUPS.md)
 - [Goal authority](GOAL_CONTRACT.md) · [Execution support matrix](GOAL_EXECUTION_SUPPORT.md) · [Coupled choices](COUPLED_GOAL_BRIDGE.md)
-- [npm workspace inventory](NPM_WORKSPACE_INVENTORY_V1.md) · [Execution admission](NPM_WORKSPACE_EXECUTION_ADMISSION_V0.md)
+- [npm workspace inventory](NPM_WORKSPACE_INVENTORY_V1.md) · [EDITS](WORKSPACE_GOAL_REQUEST.md#manifest-edits-and-migration-cards) · [Execution admission](NPM_WORKSPACE_EXECUTION_ADMISSION_V0.md)
 - [Dependency audit](DEPENDENCY_AUDIT.md) · [Registry diagnostics](REGISTRY_DIAGNOSTICS_PROJECTION.md) · [System proxy](SYSTEM_PROXY.md)
 - [Official migration references](OFFICIAL_MIGRATION_EVIDENCE.md) · [Output receipts](STANDALONE_OUTPUT_RECEIPTS.md)
 

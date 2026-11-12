@@ -11,7 +11,7 @@ Do **not** share a virtual environment, machine-specific agent config, tokens, c
 Prepare a separate kit for each target **Python version, OS and CPU architecture**; dependency wheels (especially solver/SDK components) may be platform-specific. From a clean working directory, with the approved Python index/proxy:
 
 ```powershell
-$release = '0.2.11'
+$release = '0.2.18'
 $bundle = Join-Path $PWD 'deploom-trial'
 $house = Join-Path $bundle 'wheelhouse'
 New-Item -ItemType Directory -Force $house | Out-Null
@@ -40,7 +40,7 @@ Include this guide and the exact `USERGUIDE.md` revision. The wheelhouse CSV cov
 ```powershell
 # From the unpacked bundle directory:
 python -m venv .venv  # Python version must match the wheelhouse
-& .\.venv\Scripts\python.exe -m pip install --no-index --find-links .\wheelhouse deploom-mcp==0.2.11
+& .\.venv\Scripts\python.exe -m pip install --no-index --find-links .\wheelhouse deploom-mcp==0.2.18
 if ($LASTEXITCODE -ne 0) { throw 'Offline install failed' }
 & .\.venv\Scripts\python.exe -m pip check
 & .\.venv\Scripts\deploom-install-skill.exe --client codex --scope user --dry-run

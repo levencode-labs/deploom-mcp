@@ -172,7 +172,8 @@ def _declarations(manifest: dict, owner: str) -> list[dict]:
     return rows
 
 
-def observe_npm_workspace(project: Path, *, max_directories: int = 2048, max_manifests: int = 256, lock_resolver=None, plan_snapshot=None) -> dict:
+def observe_npm_workspace(project: Path, *, max_directories: int = 2048, max_manifests: int = 256,
+                          lock_resolver=None, plan_snapshot=None, allow_root_only: bool = False) -> dict:
     """Observe an explicit root only. COMPLETE refers to declarations, never resolution."""
     if (type(max_directories) is not int or not 1 <= max_directories <= 2048
             or type(max_manifests) is not int or not 1 <= max_manifests <= 256):
@@ -184,16 +185,19 @@ def observe_npm_workspace(project: Path, *, max_directories: int = 2048, max_man
     for component in project.parents:
         _safe(component, directory=True)
     with selected_root(project, original_root) as root_handle:
-        return _observe_npm_workspace_bound(project, root_handle, max_directories, max_manifests, lock_resolver, plan_snapshot)
+        return _observe_npm_workspace_bound(
+            project, root_handle, max_directories, max_manifests, lock_resolver, plan_snapshot, allow_root_only,
+        )
 
 
-def _observe_npm_workspace_bound(root, root_handle, max_directories, max_manifests, lock_resolver, plan_snapshot):
+def _observe_npm_workspace_bound(root, root_handle, max_directories, max_manifests,
+                                 lock_resolver, plan_snapshot, allow_root_only):
     if any((root / name).exists() for name in ("npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml")):
         raise GoalContractError("WORKSPACE_LOCK_OWNER_UNSUPPORTED")
     root_raw, manifest = _read(root / "package.json", 2 * 1024 * 1024, root=root, root_handle=root_handle)
     if not isinstance(manifest.get("packageManager", "npm"), str) or manifest.get("packageManager", "npm").split("@")[0] != "npm":
         raise GoalContractError("UNSUPPORTED_WORKSPACE_OR_MANAGER")
-    patterns = _patterns(manifest)
+    patterns = [] if allow_root_only and "workspaces" not in manifest else _patterns(manifest)
     lock_raw, lock = _read(root / "package-lock.json", 32 * 1024 * 1024, root=root, root_handle=root_handle)
     if type(lock.get("lockfileVersion")) is not int or lock["lockfileVersion"] != 3:
         raise GoalContractError("WORKSPACE_LOCK_V3_REQUIRED")
@@ -254,7 +258,7 @@ def _observe_npm_workspace_bound(root, root_handle, max_directories, max_manifes
     if paths != _discover(root, patterns, max_directories, max_manifests, root_handle):
         raise GoalContractError("WORKSPACE_INPUT_CHANGED")
     for path, raw in inputs.items():
-        if _read(root / path, 32 * 1024 * 1024, root=root, root_handle=root_handle)[0] != raw:
+        if _read_bytes(root / path, 32 * 1024 * 1024, root=root, root_handle=root_handle) != raw:
             raise GoalContractError("WORKSPACE_INPUT_CHANGED")
     identity = {"manifestInputs": {p: hashlib.sha256(b).hexdigest() for p, b in sorted(inputs.items())},
                 "workspaceOwners": [o["owner"] for o in owners], "patterns": patterns}

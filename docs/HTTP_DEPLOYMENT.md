@@ -20,13 +20,23 @@ From a clean source checkout, initialize the exact pinned Core first:
 
 ```sh
 git submodule update --init --recursive
-docker build -t deploom-mcp:0.2.11 .
+docker build -t deploom-mcp:0.2.18 .
 docker run --rm -p 127.0.0.1:8000:8000 \
   --mount type=bind,src=/absolute/host/projects,dst=/projects,readonly \
-  deploom-mcp:0.2.11
+  deploom-mcp:0.2.18
 ```
 
 `project_path` must be a **server/container path** such as `/projects/example-app`. A read-only bind mount supports planning; any explicitly authorized execution involving writes requires a separately reviewed deployment and permissions. The container's unprivileged user must be able to read mounted paths. State, output and caches live server-side and require deliberate persistence where necessary.
+
+## Pilot sizing and state
+
+For an initial planning-only pilot with one concurrent request and one or two
+public checkouts, start with a Linux host with 2 vCPU, 4 GiB RAM and 30 GiB SSD.
+Measure peak memory, storage growth and request latency before increasing
+concurrency. Allow outbound access to the approved registry and advisory
+services used by the selected route. Use a writable persistent volume for
+`DEPLOOM_MCP_STATE_DIR` when state must survive restarts. Keep writable worktrees
+and native install/test jobs in a separately scoped runner.
 
 ## Security boundary
 

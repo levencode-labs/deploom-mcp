@@ -201,10 +201,16 @@ async def plan_workspace_snapshot_v1(project_path: str, request: dict, *, model_
                     raise GoalContractError("WORKSPACE_WORKER_INVALID_RESULT")
             elif "resolverArtifactId" in receipt:
                 raise GoalContractError("WORKSPACE_WORKER_INVALID_RESULT")
+            blocked_before_model = (
+                plan["status"] == "UNKNOWN" and plan.get("reason") == "WORKSPACE_HELD_ROOT_PEER_DOMAIN_BLOCKED"
+                and receipt["status"] == "RESOLUTION_FAILED" and receipt.get("code") == "HELD_LOCK_PROVIDER_CHANGED"
+                and receipt.get("phase") == "BASELINE_ROOT_PEER_CHECK" and receipt.get("attempts") == []
+                and plan.get("candidateSearch", {}).get("attempts") == []
+            )
             if receipt["status"] == "NOT_RUN":
                 if set(receipt) != {"status", "code"}:
                     raise GoalContractError("WORKSPACE_WORKER_INVALID_RESULT")
-            elif (plan["status"] != "SAT_IN_MODELED_DOMAIN"
+            elif (plan["status"] != "SAT_IN_MODELED_DOMAIN" and not blocked_before_model
                   or receipt.get("authority") != "LOCKFILE_ONLY"
                   or receipt.get("installation") != "NOT_RUN"
                   or receipt.get("runtime") != "NOT_RUN"

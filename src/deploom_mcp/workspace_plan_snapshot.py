@@ -21,7 +21,7 @@ def _key(value):
     return tuple(value)
 
 
-def _project_registry(inputs):
+def _project_registry(inputs, *, native_intent=False):
     """Interpret only settings whose behavior the isolated npm command preserves."""
     if any(path.endswith("/.npmrc") for path in inputs):
         raise GoalContractError("WORKSPACE_PREFLIGHT_MEMBER_NPMRC_UNSUPPORTED")
@@ -29,6 +29,10 @@ def _project_registry(inputs):
     fixed_flags = {"engine-strict": "true", "strict-peer-deps": "true",
                    "legacy-peer-deps": "false", "force": "false"}
     allowed_keys = {"registry", "save-exact"} | fixed_flags.keys()
+    native_flags = {"package-lock", "ignore-scripts", "min-release-age", "allow-git"}
+    if native_intent:
+        # Manifest intent binds these settings in the inventory. It runs no npm command.
+        allowed_keys |= native_flags
     options = {}
     try:
         for raw in inputs.get(".npmrc", b"").decode("utf-8-sig").splitlines():
@@ -42,6 +46,11 @@ def _project_registry(inputs):
             options[key] = value
         if "save-exact" in options and options["save-exact"] not in {"true", "false"}:
             raise ValueError
+        if (any(key in options and options[key] not in {"true", "false"}
+                for key in ("package-lock", "ignore-scripts"))
+                or "min-release-age" in options and not re.fullmatch(r"[0-9]+", options["min-release-age"])
+                or options.get("allow-git", "none") != "none"):
+            raise ValueError
         registry = checked_registry(options.get("registry"))
         if registry and (not registry.startswith("https://") or any(char in registry for char in ";$`{}")):
             raise ValueError
@@ -50,9 +59,9 @@ def _project_registry(inputs):
         raise GoalContractError("WORKSPACE_PREFLIGHT_PROJECT_NPMRC_UNSUPPORTED") from None
 
 
-def _workspace_registry(configured, inputs, requested=None):
+def _workspace_registry(configured, inputs, requested=None, *, native_intent=False):
     registry = checked_registry(configured)
-    project_registry = _project_registry(inputs)
+    project_registry = _project_registry(inputs, native_intent=native_intent)
     if registry and project_registry and registry != project_registry:
         raise GoalContractError("WORKSPACE_PREFLIGHT_PROJECT_REGISTRY_MISMATCH")
     allowed = project_registry or registry
@@ -76,6 +85,23 @@ def _requested_registry(request, online_metadata):
     if not registry or not registry.startswith("https://") or any(char in registry for char in ";$`{}"):
         raise GoalContractError("WORKSPACE_REQUEST_REGISTRY_INVALID")
     return registry
+
+
+def _early_root_domain_conflicts(packages, inputs, admitted, exact):
+    import workspace_npm_lock_delta
+
+    checker = getattr(workspace_npm_lock_delta, "forced_root_peer_domain_conflicts", None)
+    if checker is None or json.loads(inputs["package.json"]).get("overrides"):
+        return []
+    root_domains = {}
+    for key, versions in admitted.items():
+        owner, _, name = key
+        if owner != ".":
+            continue
+        if name in root_domains:
+            return []
+        root_domains[name] = (exact[key],) if key in exact else versions
+    return checker(packages, root_domains)
 
 
 def plan_workspace_snapshot(project: Path, request: dict, *, model_only: bool = False) -> dict:
@@ -224,17 +250,25 @@ def plan_workspace_snapshot(project: Path, request: dict, *, model_only: bool = 
                 topology = WorkspaceTopology(providers, tuple(groups))
             from workspace_npm_preflight import WorkspacePeerEvidenceError, observe_workspace_peer_overrides
 
+            conflicts = []
+            if preflight is not None and preflight["reauthor"] is None and not health_goal and topology is None:
+                conflicts = _early_root_domain_conflicts(packages, inputs, admitted, exact)
             peer_failure = None
-            try:
-                effective_peer_ranges = observe_workspace_peer_overrides(
-                    inputs, packages, admitted, timeout_seconds=20 if model_only else 10,
-                )
-            except WorkspacePeerEvidenceError as exc:
-                peer_failure = str(exc)
-            else:
-                if topology is not None and effective_peer_ranges:
-                    peer_failure = "PROPOSED_LAYOUT_OVERRIDE_UNSUPPORTED"
-            if peer_failure:
+            if not conflicts:
+                try:
+                    effective_peer_ranges = observe_workspace_peer_overrides(
+                        inputs, packages, admitted, timeout_seconds=20 if model_only else 10,
+                    )
+                except WorkspacePeerEvidenceError as exc:
+                    peer_failure = str(exc)
+                else:
+                    if topology is not None and effective_peer_ranges:
+                        peer_failure = "PROPOSED_LAYOUT_OVERRIDE_UNSUPPORTED"
+            if conflicts:
+                def solve(_excluded, _timeout):
+                    return {"status": "UNKNOWN", "assignment": None, "reason": "WORKSPACE_HELD_ROOT_PEER_DOMAIN_BLOCKED",
+                            "authority": "PLANNING_ONLY", "verification": "NOT_VERIFIED", "topology": "OBSERVED_LOCK_LAYOUT"}
+            elif peer_failure:
                 def solve(_excluded, _timeout):
                     result = {"status": "UNKNOWN", "assignment": None,
                               "reason": f"WORKSPACE_EFFECTIVE_PEER_{peer_failure}",
@@ -271,6 +305,13 @@ def plan_workspace_snapshot(project: Path, request: dict, *, model_only: bool = 
                 result = solve((), 5000)
             else:
                 def verify(candidate, timeout_seconds):
+                    if conflicts:
+                        return {"status": "RESOLUTION_FAILED", "code": "HELD_LOCK_PROVIDER_CHANGED",
+                                "phase": "BASELINE_ROOT_PEER_CHECK", "authority": "LOCKFILE_ONLY",
+                                "baselineLockSha256": sha256(inputs["package-lock.json"]).hexdigest(),
+                                "installation": "NOT_RUN", "runtime": "NOT_RUN",
+                                "learningAllowed": False, "attempts": [],
+                                "conflictCount": len(conflicts), "heldConflicts": conflicts[:8]}
                     return _preflight(project, preflight, candidate, admitted, inputs, timeout_seconds)
 
                 result = _try_workspace_candidates(solve, verify, limit, request)

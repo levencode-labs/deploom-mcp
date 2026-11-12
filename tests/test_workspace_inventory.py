@@ -10,6 +10,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+from deploom_mcp import workspace_inventory
 from deploom_mcp.goal_contract import GoalContractError
 from deploom_mcp.workspace_inventory import observe_npm_workspace
 from deploom_mcp.workspace_plan_snapshot import _workspace_registry, plan_workspace_snapshot
@@ -49,6 +50,22 @@ class WorkspaceInventoryTests(unittest.TestCase):
     def fails(self, code):
         with self.assertRaisesRegex(GoalContractError, code):
             observe_npm_workspace(self.root)
+
+    def test_continuity_read_rejects_bytes_changed_after_json_validation(self):
+        read_bytes = workspace_inventory._read_bytes
+        lock_reads = 0
+
+        def changed_lock(path, *args, **kwargs):
+            nonlocal lock_reads
+            if path.name == "package-lock.json":
+                lock_reads += 1
+                if lock_reads == 2:
+                    path.write_bytes(b"{")
+            return read_bytes(path, *args, **kwargs)
+
+        with patch.object(workspace_inventory, "_read_bytes", side_effect=changed_lock):
+            self.fails("WORKSPACE_INPUT_CHANGED")
+        self.assertEqual(lock_reads, 2)
 
     def test_project_npmrc_is_bound_without_exposing_its_contents(self):
         config = self.root / ".npmrc"

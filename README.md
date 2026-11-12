@@ -62,4 +62,4 @@ The last command starts a protocol server on stdio, **not** a web UI. For reprod
 | Remote transport and security | [HTTP deployment](docs/HTTP_DEPLOYMENT.md) |
 | Sharing an installation | [Colleague guide](docs/SHARING_WITH_COLLEAGUES.md) |
 
-**Release reference:** [`v0.2.11`](https://github.com/levencode-labs/deploom-mcp/releases/tag/v0.2.11) was the latest published release verified on 2026-11-08. Use [latest releases](https://github.com/levencode-labs/deploom-mcp/releases/latest) for subsequent versions. Neither a plan nor a release tag is a claim of universal migration quality or speedup.
+Download MCP and the matching checksums from [GitHub Releases](https://github.com/levencode-labs/deploom-mcp/releases/latest). For supported npm upgrades, [request a snapshot-bound patch and migration card](docs/WORKSPACE_GOAL_REQUEST.md#manifest-edits-and-migration-cards), then verify the resulting project.

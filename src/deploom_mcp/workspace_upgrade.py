@@ -10,7 +10,7 @@ from deploom_mcp.blueprint import _validate_blueprint_schema
 from deploom_mcp.distribution import blueprint_schema_path
 from deploom_mcp.goal_contract import GoalContractError, canonical_digest
 from deploom_mcp.workspace_policy_request import validate_workspace_policy
-from deploom_mcp.workspace_plan_details import prepare_workspace_details, retain_workspace_details
+from deploom_mcp.workspace_plan_details import prepare_workspace_details, retain_workspace_details, root_peer_evidence
 from deploom_mcp.workspace_tools import plan_workspace_snapshot_v1
 
 _KIND = "npm-workspace-upgrade-blueprint"
@@ -153,6 +153,7 @@ def _compact_workspace_plan(plan: dict, request: dict) -> dict:
         "runtime": {"status": "NOT_RUN"}, "acceptance": {"status": "NOT_RUN"},
         "policy": policy,
     }
+    compact["packageManagerValidation"].update(root_peer_evidence(validation))
     if "domain" in plan:
         compact["constraintModel"]["domain"] = _project_domain_evidence(plan)
         compact["constraintModel"]["optimality"] = plan.get("optimality", "NOT_PROVEN")
@@ -190,7 +191,9 @@ def _compact_workspace_plan(plan: dict, request: dict) -> dict:
         else:
             compact["action"] = {"kind": "REVIEW_FOR_AUTHORIZED_PREFLIGHT", "code": validation["code"]}
     else:
-        compact["action"] = {"kind": "INSPECT_BLOCKER", "code": validation["code"] if candidate is not None else plan["status"]}
+        code = (validation["code"] if candidate is not None or validation.get("phase") == "BASELINE_ROOT_PEER_CHECK"
+                else plan["status"])
+        compact["action"] = {"kind": "INSPECT_BLOCKER", "code": code}
     return compact
 
 

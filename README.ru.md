@@ -62,4 +62,4 @@ python -m deploom_mcp
 | HTTP и безопасность | [HTTP deployment](docs/HTTP_DEPLOYMENT.md) |
 | Установка для коллег | [Как передать Deploom](docs/SHARING_WITH_COLLEAGUES.ru.md) |
 
-**Релиз-ориентир:** [`v0.2.11`](https://github.com/levencode-labs/deploom-mcp/releases/tag/v0.2.11) был последним опубликованным релизом на 8 ноября 2026 года. Проверяйте [новые релизы](https://github.com/levencode-labs/deploom-mcp/releases/latest). Ускорение миграции и качество на любых проектах не считаются доказанными без независимого сравнения и выполнения необходимых проверок.
+Скачайте MCP и контрольные суммы из [GitHub Releases](https://github.com/levencode-labs/deploom-mcp/releases/latest). Для поддерживаемых обновлений npm [запросите патч, привязанный к снимку проекта, и карточку миграции](docs/WORKSPACE_GOAL_REQUEST.md#manifest-edits-and-migration-cards), затем проверьте итоговое состояние проекта.

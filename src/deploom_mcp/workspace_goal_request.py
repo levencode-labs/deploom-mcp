@@ -11,7 +11,7 @@ _FIELDS = ('owner', 'section', 'name')
 _SECTIONS = {'dependencies', 'devDependencies', 'optionalDependencies'}
 
 
-def validate_goal_request(request):
+def validate_goal_request(request, *, allow_additions=False):
     if (not isinstance(request, dict) or type(request.get('schemaVersion')) is not int
             or request['schemaVersion'] != 3):
         raise GoalContractError('INVALID_WORKSPACE_REQUEST_VERSION')
@@ -29,9 +29,13 @@ def validate_goal_request(request):
         raise GoalContractError('INVALID_WORKSPACE_GOAL_SCOPE')
     if health:
         validate_workspace_policy(request['policy'])
+    allowed = {'selector', 'approvedLines', 'exactTarget'}
+    if allow_additions and not health:
+        allowed.add('operation')
     for row in scope:
-        if (not isinstance(row, dict) or not {'selector', 'approvedLines'} <= row.keys()
-                <= {'selector', 'approvedLines', 'exactTarget'}):
+        if not isinstance(row, dict) or not {'selector', 'approvedLines'} <= row.keys() <= allowed:
+            raise GoalContractError('INVALID_WORKSPACE_GOAL_SCOPE')
+        if 'operation' in row and (row['operation'] != 'ADD' or row.get('exactTarget') is None):
             raise GoalContractError('INVALID_WORKSPACE_GOAL_SCOPE')
         selector = row['selector']
         if (not isinstance(selector, dict) or not {'name'} <= selector.keys() <= set(_FIELDS)

@@ -24,10 +24,25 @@ def _key(row: dict) -> str:
     return json.dumps(row["declaration"], ensure_ascii=True, separators=(",", ":"))
 
 
+def root_peer_evidence(receipt: dict) -> dict:
+    if receipt.get("phase") != "BASELINE_ROOT_PEER_CHECK":
+        return {}
+    return {"heldRootPeers": {
+        "conflictCount": receipt["conflictCount"],
+        "conflicts": [
+            {"consumer": row["path"].removeprefix("node_modules/"), "dependency": row["dependency"],
+             "beforeVersion": row["beforeVersion"], "requestedVersion": row["requestedVersion"],
+             **({"requestedVersions": row["requestedVersions"]} if "requestedVersions" in row else {})}
+            for row in receipt["heldConflicts"][:8]
+        ],
+    }}
+
+
 def _native_receipt(receipt: dict) -> dict:
     fields = ("status", "code", "authority", "npmExitCode", "resolverIdentitySha256",
               "baselineLockSha256", "candidateLockSha256", "learningAllowed", "immutableInstanceCount")
     result = {key: receipt[key] for key in fields if key in receipt}
+    result.update(root_peer_evidence(receipt))
     if "attempts" in receipt:
         result["commands"] = [
             {key: row[key] for key in ("phase", "npmExitCode", "outputSha256", "status", "code") if key in row}
@@ -35,9 +50,17 @@ def _native_receipt(receipt: dict) -> dict:
         ]
     if "lockDelta" in receipt:
         delta = receipt["lockDelta"]
-        result["lockDelta"] = {key: delta[key] for key in (
+        summary = {key: delta[key] for key in (
             "status", "code", "changedPackageCount", "changedEdgeCount", "impactedInstanceCount", "unrelatedCount"
         ) if key in delta}
+        blocked = delta.get("heldConflict", delta)
+        if blocked["code"] in {"HELD_LOCK_PROVIDER_CHANGED", "HELD_LOCK_TRANSITIVE_ARTIFACT_CHANGED"}:
+            names = sorted({row["dependency"] for row in blocked.get("heldConflicts", [blocked])[:8]
+                            if re.fullmatch(r"(?:@[a-zA-Z0-9._-]+/)?[a-zA-Z0-9._-]+", row["dependency"])
+                            and len(row["dependency"]) <= 214})
+            if names:
+                summary.update(heldConflictCount=blocked.get("heldConflictCount", 1), heldDependencies=names)
+        result["lockDelta"] = summary
     return result
 
 

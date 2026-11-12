@@ -5,7 +5,7 @@ description: Plan and execute JavaScript and TypeScript dependency upgrades with
 
 # deploom-upgrade
 
-**Contract version: 2.0.18.** Canonical file hashes are in `contract.json`.
+**Contract version: 2.0.27.** Canonical file hashes are in `contract.json`.
 
 Use `get_upgrade_plan` for health/policy planning evidence. For an explicitly
 agreed functional-maintenance or finite coupled goal, use `get_goal_plan` and
@@ -18,21 +18,58 @@ a Core verdict. This workflow is client-neutral.
 
 ## Quick paths
 
-- For a fully specified, authorized exact update with no unresolved companion,
-  workspace peer, or policy decision, use the project's native package-manager
-  path when the user has left the tool choice open. Run the same final checks.
+- An explicit invocation of this Skill for a supported npm lock-v3 upgrade
+  selects the DepLoom planning route below. For exact pins, use the single
+  native-intent call even when one declaration changes. If the user requests
+  the native package-manager route, honor that choice and run the agreed checks.
 - For a targeted npm lock-v3 workspace with an approved registry and a shared
-  filesystem, use one `get_upgrade_plan` call. Set `workspace_request` to
+  filesystem, use one `get_upgrade_plan` call with the absolute checkout path
+  as `project_path`. Set `workspace_request` to
   `{schemaVersion: 3, goalKind: "TARGETED_UPGRADE", responseMode: "EDITS", compactEdits: true, registry, scope}`.
   Each scope row has `selector: {name, owner?, section?}`, `approvedLines: [major]`
   and `exactTarget` for a user pin. Give observed `environment: {node, npm}`
   if available. Omit preflight. This route needs no preliminary reference reads
   when the scope and inputs are known.
-- For an authorized edit, apply the returned patch in one shell call from the
-  project root. Run `deploom-workspace check PROJECT INVENTORY_DIGEST PATCH_PATH PATCH_SHA256`,
-  `git apply --check --unidiff-zero PATCH_PATH`, then `git apply --unidiff-zero PATCH_PATH`.
-  Continue only after each command succeeds. Resolve the lock and run the required
-  install, checks, and runtime verification. Stop on drift or a blocker.
+- When the user authorizes exact versions for all external npm dependency
+  upgrades in scope and the project has an approved native verification route, add
+  `editsStrategy: "NATIVE_INTENT"` to request a manifest patch directly from
+  the observed npm lock. Give the full owner, section and package selector for each pin.
+  A group with at least one upgrade can also pin a range to its current locked version.
+  For an explicitly requested new companion pin in an existing dependency section,
+  include its exact scope row with `operation: "ADD"`. Keep update rows unchanged.
+  This route returns `MANIFEST_INTENT_ONLY`. After authorized edits, resolve
+  the lock with `npm install --package-lock-only --package-lock=true` and the
+  approved npm options. Audit peers with
+  `npm ls --all --package-lock-only --package-lock=true` and check the
+  held graph before installation. Use one clean `npm ci` for checks assigned
+  to you. A lock-only success can still contain an invalid peer.
+  A `HELD_LOCK_PROVIDER_CHANGED` response
+  with `heldRootPeers` identifies root peers blocked by the current scope.
+  For a single-package project with a prepared npm lockfile v3, use owner "." in
+  each selector with this native-intent route.
+  Report the listed consumers and versions before staging any patch. Use ordinary
+  EDITS for a peer assignment, companion selection, or policy verdict.
+- Set `migrationCard: true` for a breaking transition where local migration
+  guidance may help, such as ESLint 8.57.1 to 9.0.0. The card guides any authorized
+  config or source repair and identifies behavior to verify. If it includes a
+  donor recipe, use each part only when the recipient's baseline satisfies
+  its probe. Check the recipient again after applying the migration.
+- For an authorized execution, apply a returned `SAT_IN_MODELED_DOMAIN` patch
+  immediately. Stage a `MANIFEST_INTENT_ONLY` patch in the authorized
+  verification copy before native resolution. Run
+  `deploom-workspace apply PROJECT INVENTORY_DIGEST PATCH_PATH PATCH_SHA256`
+  with the returned inventory digest and patch fields. When `action.argv` is
+  present, use its arguments directly. In PowerShell invoke a quoted executable
+  with the call operator `&`, and pass each argument separately. This checks the current
+  inventory, artifact digest, and Git applicability before writing.
+- Once the patch is applied, make any necessary authorized migration repairs,
+  update the lock, and run the acceptance checks assigned to you without another planning
+  call. If the user assigns named checks to an independent verifier, hand off
+  the result and report those checks as pending until the verifier supplies evidence.
+  For ESLint, preserve an already working flat config and verify both CI
+  modes when behavior depends on CI. If a check fails, repair the specific issue
+  and rerun the affected checks. If the patch is stale or missing, stop this route
+  and inspect the evidence before choosing how to continue.
   Use detailed routes below for policy, uncertainty, or separate preflight.
 
 ## Establish the task contract

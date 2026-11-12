@@ -4,7 +4,7 @@
 
 Это руководство для установки **опубликованного wheel и подключения локального MCP**. Deploom Desktop, отдельная установка Core и клонирование исходников не нужны. Для первой пробы лучше использовать публичный/синтетический проект; работу с приватными зависимостями и сетевыми источниками нужно разрешать отдельно.
 
-> **Версия в примерах:** Deploom MCP **0.2.11** (релиз 7 ноября 2026 года), канонический Skill **2.0.14**. При переходе на новый релиз берите wheel и суммы из [одного выпуска](https://github.com/levencode-labs/deploom-mcp/releases/latest), не смешивая версии.
+> **Версия в примерах:** Deploom MCP **0.2.18**, канонический Skill **2.0.27**. При переходе на новый релиз берите wheel и суммы из [одного выпуска](https://github.com/levencode-labs/deploom-mcp/releases/latest), не смешивая версии.
 
 ## 1. Установите релиз
 
@@ -16,8 +16,8 @@
 $deploomHome = Join-Path $env:LOCALAPPDATA 'Deploom'
 python -m venv "$deploomHome\venv"  # Здесь должен вызываться Python 3.12
 $py = Join-Path $deploomHome 'venv\Scripts\python.exe'
-$wheel = 'deploom_mcp-0.2.11-py3-none-any.whl'
-$base = 'https://github.com/levencode-labs/deploom-mcp/releases/download/v0.2.11'
+$wheel = 'deploom_mcp-0.2.18-py3-none-any.whl'
+$base = 'https://github.com/levencode-labs/deploom-mcp/releases/download/v0.2.18'
 New-Item -ItemType Directory -Force "$deploomHome\downloads" | Out-Null
 Invoke-WebRequest "$base/$wheel" -OutFile "$deploomHome\downloads\$wheel"
 Invoke-WebRequest "$base/SHA256SUMS.txt" -OutFile "$deploomHome\downloads\SHA256SUMS.txt"
@@ -39,7 +39,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Ошибка установки' }
 ```bash
 python3.12 -m venv "$HOME/.local/share/deploom/venv"
 PY="$HOME/.local/share/deploom/venv/bin/python"
-"$PY" -m pip install 'https://github.com/levencode-labs/deploom-mcp/releases/download/v0.2.11/deploom_mcp-0.2.11-py3-none-any.whl'
+"$PY" -m pip install 'https://github.com/levencode-labs/deploom-mcp/releases/download/v0.2.18/deploom_mcp-0.2.18-py3-none-any.whl'
 "$PY" -m pip check
 "$PY" -c 'import importlib.metadata as m; print(m.version("deploom-mcp"))'
 ```
