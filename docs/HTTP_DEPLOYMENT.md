@@ -50,8 +50,11 @@ Use the exact `Host` header forwarded by Archestra.
     DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE=1
     DEPLOOM_MCP_USE_SYSTEM_PROXY=false
 
-Mount `/projects/sample` read-only with a `package.json` and supported lockfile,
-both regular files. For a Kubernetes ConfigMap, use individual file subPath
+Mount a frozen, trusted `/projects/sample` read-only with a `package.json`
+and supported lockfile, both regular files. The pilot rechecks the input
+digest before planning. Replace the sample by redeploying the pod, and keep
+the mount immutable for the lifetime of the process. For a Kubernetes
+ConfigMap, use individual file subPath
 mounts or copy the files in an init container. A direct ConfigMap directory
 mount presents symlinks that project discovery rejects. Mount a dedicated
 writable PVC at `/data/deploom-mcp`. Restrict pod ingress to Archestra and

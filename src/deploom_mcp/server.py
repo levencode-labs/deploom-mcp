@@ -123,6 +123,7 @@ PILOT_TOOLS = frozenset({"get_project_capabilities", TOOL_NAME})
 
 class DepLoomServer(MCPServer):
     pilot_project: Path | None = None
+    pilot_input_digest: str | None = None
 
     async def list_tools(self):
         tools = await super().list_tools()
@@ -143,6 +144,13 @@ class DepLoomServer(MCPServer):
                 if any(arguments.get(key) is not None for key in managed):
                     return _result({"ok": False, "error": _error(
                         "pilot-options-denied", "Use flat planning with the pilot's registry, proxy and output settings",
+                    )})
+                from deploom_mcp.project_capabilities import get_project_capabilities
+
+                observed = await asyncio.to_thread(get_project_capabilities, str(self.pilot_project))
+                if not observed.get("ok") or observed.get("inputDigest") != self.pilot_input_digest:
+                    return _result({"ok": False, "error": _error(
+                        "pilot-input-changed", "The configured pilot inputs are unavailable or have changed",
                     )})
         return await super().call_tool(name, arguments, context)
 
@@ -1308,6 +1316,7 @@ def main() -> int:
             except (AuditError, OSError, ValueError):
                 parser.error("--pilot-project could not bind the project, registry or state directory")
             server.pilot_project = project
+            server.pilot_input_digest = capabilities["inputDigest"]
 
         from mcp.server.transport_security import TransportSecuritySettings
         security = TransportSecuritySettings(

@@ -121,6 +121,35 @@ class TransportTests(unittest.TestCase):
                         result = await session.call_tool("get_upgrade_plan", valid)
                         self.assertFalse(result.is_error, result.structured_content)
                         self.assertEqual(result.structured_content["status"]["authority"], "PLANNING_ONLY")
+                        artifacts = set((state / "artifacts").iterdir())
+
+                        lock.write_text(json.dumps({**package, "lockfileVersion": 2, "packages": {"": package}}),
+                                        encoding="utf-8")
+                        result = await session.call_tool("get_upgrade_plan", valid)
+                        self.assertTrue(result.is_error)
+                        self.assertEqual(result.structured_content["error"]["code"], "pilot-input-changed")
+                        self.assertEqual(set((state / "artifacts").iterdir()), artifacts)
+                        lock.write_bytes(snapshot[lock.name])
+
+                        with self.subTest("symlinked manifest is refused by both tools"):
+                            outside = base / "outside.json"
+                            outside.write_text(json.dumps({"name": "outside-marker", "version": "1.0.0"}), encoding="utf-8")
+                            manifest.unlink()
+                            try:
+                                try:
+                                    manifest.symlink_to(outside)
+                                except OSError as exc:
+                                    if getattr(exc, "winerror", None) != 1314:
+                                        raise
+                                    self.skipTest("Windows symbolic link privilege is unavailable")
+                                for tool in ("get_project_capabilities", "get_upgrade_plan"):
+                                    result = await session.call_tool(tool, valid)
+                                    self.assertTrue(result.is_error)
+                                    self.assertNotIn("outside-marker", json.dumps(result.structured_content))
+                                self.assertEqual(set((state / "artifacts").iterdir()), artifacts)
+                            finally:
+                                manifest.unlink(missing_ok=True)
+                                manifest.write_bytes(snapshot[manifest.name])
 
             with self.http_server("--pilot-project", str(project), settings=settings) as url:
                 asyncio.run(exercise(url))
