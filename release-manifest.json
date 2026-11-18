@@ -1,7 +1,7 @@
 {
   "blueprintSchemaVersion": 2,
   "core": {
-    "contentSha256": "9aa76e82e58bfe28538552e8e7238c970a51b72724720730e1fd298105b23c83",
+    "contentSha256": "b926fef333803d7de6f98bdddc333a9dc975bd6a95ab2da1bab1de5e571f9c85",
     "files": {
       "VERSION": "2698c63efcc74d9adc7a29889fc4ecc7fadfb58c4588db3f117f9d87cfaaff40",
       "analyze_verification_telemetry.py": "1ee235ef0b9cf275fe34c22cf16cb4049e88fb19953096ddaecbb73d7a700e6f",
@@ -49,7 +49,7 @@
       "dependency_audit_branch.py": "c556a4ce33f105eb10763e0d874e4f2a03043bb94744ab68336a063a5d779f15",
       "dependency_compatibility_evidence.py": "6233e7d8bedca194fd030fa883aac57d9c3d51e79a342cec21420b04f757d192",
       "dependency_interaction.py": "af9f4e3b2458f2d58e557b3e241aaf4bab4596c6fbf59a0b355d46bb7215196c",
-      "dependency_live_roadmap_generator.py": "b987887d794550f68c93e1899a263fca6daf583b7efe66c05ac7beae3ca2565d",
+      "dependency_live_roadmap_generator.py": "11733b5ebdaa0d1e6a67d9aae63d09224a3e041cc06eadc2501991c73ad3f0ff",
       "dependency_live_roadmap_worker.py": "1b76e6403c2964a45fd0fbca46031a0baa40bb5c3e4c6afdc943940973359aac",
       "dependency_release_branch.py": "072cec1182cf8d801fb9c727cd1266f0711f5eff49cb8799a304647ff17c87fe",
       "deploom_failure.py": "0f3d75cb02e3440379b736ab709cd916634a60e9f14d03b4be3cd14c162e8687",
@@ -113,7 +113,7 @@
       "registry_advisory_evidence.py": "38e85bb756e92c2239458590bdc95070f3a97367a7f8f511c1370722d51017f2",
       "registry_candidate_diagnostics.py": "57cd6d3bf6298588ccd1e5136f5c5ea7465c9b2439a63eb0e50c27bb47defdf6",
       "registry_metadata_cache.py": "71599efd302a915173c01afd303b1f43de6d5535a77874699bece32a369b36e2",
-      "registry_request_context.py": "7525882369e1754ec2fee364623c7ac10ec87d9c379b477534b5c04b1646e80a",
+      "registry_request_context.py": "8c21506247e61b9ffa05df3d74532e0e78d31ac0301a850f1c0dc781592ebeda",
       "reparse_materialization.py": "f617cee356d171ef306d44911f971b3a77b8a8ca00464c4f22a2c056aa24be9a",
       "resolution_inventory.py": "f0582528ee1336c582efde773ed7b7a9cd1f405856430b60b1b27439c54f57df",
       "resolved_dependency_state.py": "ae74ade0f5c4f8c39370259eea3be3e156be1205a1be1f8a9afef48cc7b81f50",
@@ -156,11 +156,11 @@
       "workspace_npm_preflight.py": "1971c49e1b3768d6a2281af2a5ae7d47990f6b5de584ba19a7e6bdf8548895d7",
       "workspace_npm_transitive_override.py": "4e98f646be73b1b6cc58ec05632754602419887601a2475069a688546a56ceba",
       "workspace_peer_model.py": "852401f4291a7eff8bcd10bfdacea4adda21ff65bcc75d5e091e37f93adb933c",
-      "workspace_registry_metadata.py": "30436864ff2315d101eb804678c3c6dadbda714063603b0f7a6e25966b95d07f",
+      "workspace_registry_metadata.py": "31e5be41e0f547c80cab70d2db90b9c289a565fe878e828f864433ae43c06520",
       "yarn_berry.py": "bd769e797823ff99129983f8295a52b5aac1f01f9be2c2a8eac9ffeaf20903d2"
     },
     "repository": "https://github.com/levencode-labs/deploom-core",
-    "revision": "d9f3e15b5c6f1b73573d3089454015d54367d73a",
+    "revision": "4db7324962b4d64214c367f024184e3e8ef59daa",
     "version": "1.0.0-preview.20"
   },
   "mcpVersion": "0.2.19",

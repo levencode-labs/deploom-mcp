@@ -118,7 +118,36 @@ PLANNING_BOUNDARY_NOTE = (
     "PROJECT_VERIFIED are reserved for the verified pipeline and never produced here."
 )
 
-server = MCPServer(name=SERVER_NAME, version=__version__)
+PILOT_TOOLS = frozenset({"get_project_capabilities", TOOL_NAME})
+
+
+class DepLoomServer(MCPServer):
+    pilot_project: Path | None = None
+
+    async def list_tools(self):
+        tools = await super().list_tools()
+        return tools if self.pilot_project is None else [tool for tool in tools if tool.name in PILOT_TOOLS]
+
+    async def call_tool(self, name, arguments, context=None):
+        if self.pilot_project is not None:
+            if name not in PILOT_TOOLS:
+                return _result({"ok": False, "error": _error("pilot-tool-disabled", "Tool is disabled for this pilot")})
+            path = arguments.get("project_path")
+            if not isinstance(path, str) or Path(path) != self.pilot_project:
+                return _result({"ok": False, "error": _error("pilot-project-denied", "Use the configured pilot project path")})
+            if name == TOOL_NAME:
+                ttl = arguments.get("registry_metadata_ttl", 3600)
+                if type(ttl) not in (int, float) or not 0 <= ttl <= 3600:
+                    return _result({"ok": False, "error": _error("pilot-options-denied", "Cache TTL must be between 0 and 3600 seconds")})
+                managed = {"workspace_request", "registry", "output_dir", "use_system_proxy"}
+                if any(arguments.get(key) is not None for key in managed):
+                    return _result({"ok": False, "error": _error(
+                        "pilot-options-denied", "Use flat planning with the pilot's registry, proxy and output settings",
+                    )})
+        return await super().call_tool(name, arguments, context)
+
+
+server = DepLoomServer(name=SERVER_NAME, version=__version__)
 
 
 def _state_dir() -> Path:
@@ -137,6 +166,8 @@ def _ensure_state_dir() -> Path:
         state.mkdir(parents=True, exist_ok=True)
         return state
     except OSError:  # pragma: no cover - permission-dependent fallback
+        if server.pilot_project is not None:
+            raise
         return Path(tempfile.gettempdir()) / "deploom-mcp"
 
 
@@ -298,7 +329,10 @@ def _build_request(
 
     # All overlap validation passed: only now create managed directories (and
     # resolve the permission fallback), so a rejected request writes nothing.
-    state = _ensure_state_dir()
+    try:
+        state = _ensure_state_dir()
+    except OSError:
+        return _error("state-unavailable", "Could not access the configured pilot state directory"), None
 
     if out is None:
         out = str(state / "artifacts" / f"run-{os.urandom(6).hex()}")
@@ -1141,7 +1175,11 @@ async def explain_conflict_tool(
 )
 async def get_project_capabilities_tool(project_path: str) -> CallToolResult:
     from deploom_mcp.project_capabilities import get_project_capabilities
-    return _result(await asyncio.to_thread(get_project_capabilities, project_path))
+    result = await asyncio.to_thread(get_project_capabilities, project_path)
+    if server.pilot_project is not None and result.get("ok"):
+        result["routes"] = [route for route in result["routes"] if route["tool"] == TOOL_NAME]
+        result["supportedGoalKinds"] = ["DEPENDENCY_HEALTH_PLAN"]
+    return _result(result)
 
 
 class WorkspaceModelEnvironment(TypedDict, total=False):
@@ -1239,16 +1277,38 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=8000, help="HTTP listen port")
     parser.add_argument("--allowed-host", action="append", default=[], help="Allowed HTTP Host header; repeat as needed")
     parser.add_argument("--allowed-origin", action="append", default=[], help="Allowed HTTP Origin header; repeat as needed")
+    parser.add_argument("--pilot-project", type=Path, help="Serve flat planning for one standalone project over HTTP")
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535")
     if args.transport == "stdio":
-        if args.allowed_host or args.allowed_origin:
+        if args.allowed_host or args.allowed_origin or args.pilot_project is not None:
             parser.error("HTTP security options require --transport streamable-http")
         server.run(transport="stdio")
     else:
         if args.allowed_origin and not args.allowed_host:
             parser.error("--allowed-origin requires at least one --allowed-host")
+        if args.pilot_project is not None:
+            from deploom_mcp.project_capabilities import get_project_capabilities
+
+            if not args.pilot_project.is_absolute():
+                parser.error("--pilot-project requires an absolute path")
+            if os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") != "1":
+                parser.error("--pilot-project requires DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE=1")
+            try:
+                project = args.pilot_project.resolve(strict=True)
+                capabilities = get_project_capabilities(str(project))
+                if capabilities.get("workspaceKind") != "STANDALONE":
+                    parser.error("--pilot-project requires a supported standalone project with a lockfile")
+                if planning_registry(project, None) is None:
+                    parser.error("--pilot-project requires DEPLOOM_MCP_ALLOWED_PROJECT_REGISTRY")
+                if not os.environ.get("DEPLOOM_MCP_STATE_DIR") or resolve_output_outside(project, _state_dir()) is None:
+                    parser.error("--pilot-project requires a separate DEPLOOM_MCP_STATE_DIR")
+                _state_dir().mkdir(parents=True, exist_ok=True)
+            except (AuditError, OSError, ValueError):
+                parser.error("--pilot-project could not bind the project, registry or state directory")
+            server.pilot_project = project
+
         from mcp.server.transport_security import TransportSecuritySettings
         security = TransportSecuritySettings(
             allowed_hosts=args.allowed_host or ["127.0.0.1:*", "localhost:*", "[::1]:*"],
