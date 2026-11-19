@@ -47,6 +47,29 @@ jobs:
           python scripts/install_skill.py --client codex --scope user --config-home "${{ runner.temp }}/skill-home" --verify
           python scripts/install_skill.py --client opencode --scope project --project "${{ runner.temp }}/skill-project" --dry-run
 
+  linux-container:
+    name: Linux amd64 container smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build and run the container
+        run: |
+          set -euo pipefail
+          python -m pip install 'mcp>=2,<3'
+          docker build --platform linux/amd64 -t deploom-mcp:ci .
+          version="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          core="$(git -C upstream/deploom rev-parse HEAD)"
+          python scripts/smoke_linux_image.py deploom-mcp:ci --version "$version" --core "$core"
+
   react-workspace:
     name: React workspace wheel smoke (${{ matrix.os }})
     strategy:

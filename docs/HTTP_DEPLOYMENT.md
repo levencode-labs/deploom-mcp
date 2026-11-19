@@ -20,17 +20,23 @@ From a clean source checkout, initialize the exact pinned Core first:
 
 ```sh
 git submodule update --init --recursive
-docker build -t deploom-mcp:0.2.19 .
+docker build -t deploom-mcp:0.2.20 .
 docker run --rm -p 127.0.0.1:8000:8000 \
   --mount type=bind,src=/absolute/host/projects,dst=/projects,readonly \
-  deploom-mcp:0.2.19
+  deploom-mcp:0.2.20
 ```
 
 `project_path` must be a **server/container path** such as `/projects/example-app`. A read-only bind mount supports planning; any explicitly authorized execution involving writes requires a separately reviewed deployment and permissions. The container's unprivileged user must be able to read mounted paths. State, output and caches live server-side and require deliberate persistence where necessary.
 
+Release CI tests the `linux/amd64` container entrypoint, the two-tool pilot
+profile and cache persistence across container replacement. Open the release
+run’s Linux image job for the verified GHCR `image@sha256:…` reference and
+the matching `deploom-container-image.json` artifact. Pin the digest when
+deploying and configure registry credentials if the cluster needs them.
+
 ## Restricted Archestra pilot
 
-Use a candidate build that supports `--pilot-project`. Give one trusted tester
+Use MCP 0.2.20 or later with `--pilot-project`. Give one trusted tester
 group one standalone sample checkout and one dedicated state volume. The
 option exposes `get_project_capabilities` and the flat form of
 `get_upgrade_plan`, and binds both to the configured server-side path. Workspace
