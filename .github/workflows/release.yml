@@ -127,7 +127,7 @@ jobs:
             publish=false
             test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image")" = "$RELEASE_COMMIT"
             test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$image")" = "$RELEASE_VERSION"
-          elif grep -Eqi 'manifest unknown|not found' "$RUNNER_TEMP/deploom-pull.log"; then
+          elif grep -Eqi 'manifest unknown|not found|pull access denied|denied: denied' "$RUNNER_TEMP/deploom-pull.log"; then
             publish=true
             docker build --platform linux/amd64 -t "$image" \
               --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
@@ -159,12 +159,18 @@ jobs:
           ref="${SMOKE_IMAGE%:*}@$digest"
           docker pull --platform linux/amd64 "$ref"
           test "$(docker image inspect --format '{{.Id}}' "$ref")" = "$tested"
+          anonymous_config="$(mktemp -d)"
+          if DOCKER_CONFIG="$anonymous_config" docker manifest inspect "$ref" >/dev/null 2>&1; then
+            pull_access=anonymous
+          else
+            pull_access=authenticated
+          fi
           jq -n --arg image "$SMOKE_IMAGE" --arg digest "$digest" --arg ref "$ref" \
             --arg tag "$RELEASE_TAG" --arg commit "$RELEASE_COMMIT" \
-            --arg core "$(git -C upstream/deploom rev-parse HEAD)" \
-            '{image:$image,digest:$digest,ref:$ref,tag:$tag,commit:$commit,core:$core,platform:"linux/amd64"}' \
+            --arg core "$(git -C upstream/deploom rev-parse HEAD)" --arg pullAccess "$pull_access" \
+            '{image:$image,digest:$digest,ref:$ref,tag:$tag,commit:$commit,core:$core,platform:"linux/amd64",pullAccess:$pullAccess}' \
             > "$RUNNER_TEMP/deploom-container-image.json"
-          printf 'Linux amd64 image tested and verified in GHCR\n\n    %s\n' "$ref" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Linux amd64 image tested and verified in GHCR\n\n    %s\n\nPull access: %s\n' "$ref" "$pull_access" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: container-image-${{ needs.qualify.outputs.commit }}
