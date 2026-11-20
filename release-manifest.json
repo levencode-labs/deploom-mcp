@@ -1,7 +1,7 @@
 {
   "blueprintSchemaVersion": 2,
   "core": {
-    "contentSha256": "9f1ec189dc735259728f29cfc21d37819eafa311809669a82f24bf09ba110143",
+    "contentSha256": "86dc5333e180526a99a9f6b56779a58cbd3b5aed074b5e054198fa237fac9401",
     "files": {
       "VERSION": "2698c63efcc74d9adc7a29889fc4ecc7fadfb58c4588db3f117f9d87cfaaff40",
       "analyze_verification_telemetry.py": "1ee235ef0b9cf275fe34c22cf16cb4049e88fb19953096ddaecbb73d7a700e6f",
@@ -49,7 +49,7 @@
       "dependency_audit_branch.py": "c556a4ce33f105eb10763e0d874e4f2a03043bb94744ab68336a063a5d779f15",
       "dependency_compatibility_evidence.py": "6233e7d8bedca194fd030fa883aac57d9c3d51e79a342cec21420b04f757d192",
       "dependency_interaction.py": "af9f4e3b2458f2d58e557b3e241aaf4bab4596c6fbf59a0b355d46bb7215196c",
-      "dependency_live_roadmap_generator.py": "11733b5ebdaa0d1e6a67d9aae63d09224a3e041cc06eadc2501991c73ad3f0ff",
+      "dependency_live_roadmap_generator.py": "56470ea83f77b61d4fc64a269b508ed596487e0d7cdcc239d8ee259ee6d73319",
       "dependency_live_roadmap_worker.py": "1b76e6403c2964a45fd0fbca46031a0baa40bb5c3e4c6afdc943940973359aac",
       "dependency_release_branch.py": "072cec1182cf8d801fb9c727cd1266f0711f5eff49cb8799a304647ff17c87fe",
       "deploom_failure.py": "0f3d75cb02e3440379b736ab709cd916634a60e9f14d03b4be3cd14c162e8687",
@@ -98,6 +98,7 @@
       "npm_platform_obligations.py": "04a0aa644a833e3acd861f1d836322caef05c08784face7e05c42e86b635f0cf",
       "npm_semver_batch.py": "d4f648a15fa8a93abc0d9377593266cda0b94f7f591d04851faa71af642863db",
       "npm_shared_transition.py": "98758ee57a3cecb5ea3d2354287fd51ebd7505173caa255cf5222dd0bae3b167",
+      "osv_offline.py": "43a97b8b157afe5d710f63934c86d6251a29a22b9691e2475e3da35b31da0b26",
       "package_manager_profile.py": "17c0aa5f01cd6d73b5bfee2c468fd36b42696b09e2f1c2d54c54f34a75e74efe",
       "package_manager_telemetry.py": "03dcb08777e3865113e91fdc04058b6298cc2ca165ff1516652e31d989740ec5",
       "peer_solver_goal.py": "2e9dffd7f5da6145a513fc409e804f56e8cabc25c8c63b9bcaf1b2da30daeb7a",
@@ -160,7 +161,7 @@
       "yarn_berry.py": "bd769e797823ff99129983f8295a52b5aac1f01f9be2c2a8eac9ffeaf20903d2"
     },
     "repository": "https://github.com/levencode-labs/deploom-core",
-    "revision": "364145c77e7c209c4eb050cca2ebf0418d900cd3",
+    "revision": "a447d24b81d712f9ee757949d0f0a3ad668070f8",
     "version": "0.1.13"
   },
   "mcpVersion": "0.2.20",
