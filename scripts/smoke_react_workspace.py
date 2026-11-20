@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -122,6 +123,11 @@ def main():
                                 errors="replace", timeout=120)
         for stream in ("stdout", "stderr"):
             (out / f"{name}.{stream}.txt").write_text(getattr(result, stream).replace(registry, "<npm-registry>"), encoding="utf-8")
+        if name == "verify" and result.returncode != 0:
+            receipt = out / "verification.json"
+            code = json.loads(receipt.read_bytes()).get("error", "") if receipt.is_file() else result.stderr.strip()
+            if isinstance(code, str) and re.fullmatch(r"[A-Za-z_]{1,100}", code):
+                raise RuntimeError(f"Workspace verification failed: {code}")
         if expected is None and result.returncode != 0:
             raise RuntimeError(f"{name} exited {result.returncode}; see saved logs")
         if expected is not None and (result.returncode == 0 or expected not in result.stderr):
