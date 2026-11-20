@@ -50,7 +50,7 @@ def release_manifest(root: Path) -> dict:
         "mcpVersion": project["version"],
         "blueprintSchemaVersion": 2,
         "core": {"repository": "https://github.com/levencode-labs/deploom-core", "revision": revision,
-                 "version": (core / "VERSION").read_text(encoding="utf-8").strip(),
+                 "version": tomllib.loads((core / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"],
                  "contentSha256": inventory_digest(files), "files": files},
         "schemaSha256": digest((root / "contracts" / "upgrade-blueprint.schema.json").read_bytes()),
         "workspaceSchemaSha256": digest((root / "contracts" / "workspace-upgrade-blueprint.schema.json").read_bytes()),

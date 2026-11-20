@@ -62,4 +62,6 @@ The last command starts a protocol server on stdio, **not** a web UI. For reprod
 | Remote transport and security | [HTTP deployment](docs/HTTP_DEPLOYMENT.md) |
 | Sharing an installation | [Colleague guide](docs/SHARING_WITH_COLLEAGUES.md) |
 
+DepLoom MCP, its first-party schemas and the deploom-upgrade Skill are licensed under the [Apache License 2.0](LICENSE).
+
 Download MCP and the matching checksums from [GitHub Releases](https://github.com/levencode-labs/deploom-mcp/releases/latest). For supported npm upgrades, [request a snapshot-bound patch and migration card](docs/WORKSPACE_GOAL_REQUEST.md#manifest-edits-and-migration-cards), then verify the resulting project.
