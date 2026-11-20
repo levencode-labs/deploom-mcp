@@ -145,4 +145,8 @@ def refresh(root, fetch=get):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("cache_directory", type=Path)
-    print(refresh(parser.parse_args().cache_directory))
+    from .shared_records import refresh as refresh_records
+
+    root = parser.parse_args().cache_directory
+    print(refresh(root))
+    refresh_records(root.parent / "records")

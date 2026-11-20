@@ -1173,6 +1173,18 @@ async def explain_conflict_tool(
 
 
 @server.tool(
+    name="get_shared_migration_evidence",
+    title="Read public examples for one dependency transition",
+    description="Look up a local snapshot of reviewed public examples. Results are advisory; verify the recipient project independently.",
+    annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=False),
+)
+async def get_shared_migration_evidence_tool(package: str, from_version: str, to_version: str) -> CallToolResult:
+    from deploom_mcp.shared_records import lookup
+    root = os.environ.get("DEPLOOM_MCP_RECORDS_DIR")
+    return _result(await asyncio.to_thread(lookup, Path(root) if root else None, package, from_version, to_version))
+
+
+@server.tool(
     name="get_project_capabilities",
     title="Discover project planning and verification routes",
     description=("Read one explicit project root to identify npm/Yarn, lock and workspace support, "
