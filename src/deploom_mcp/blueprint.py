@@ -649,6 +649,10 @@ def _exec_env(policy: BlueprintPolicy, run_id: str, workspace_id: str, project_i
     for key in list(env):
         if key.startswith("DEPLOOM_"):
             del env[key]
+    if offline := os.environ.get("DEPLOOM_MCP_OSV_DIR"):
+        env["DEPLOOM_DRAFT_OSV_DIR"] = offline
+        env["DEPLOOM_DRAFT_PUBLIC_NAMES"] = os.environ.get("DEPLOOM_MCP_PUBLIC_NAMES", "")
+        env["DEPLOOM_DRAFT_PRIVATE_SCOPES"] = os.environ.get("DEPLOOM_MCP_PRIVATE_SCOPES", "")
     if os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") == "1":
         env["DEPLOOM_DRAFT_DISABLE_EXTERNAL_EVIDENCE"] = "1"
         approved_registry = os.environ.get("DEPLOOM_MCP_REGISTRY_ADVISORY_SOURCE")
