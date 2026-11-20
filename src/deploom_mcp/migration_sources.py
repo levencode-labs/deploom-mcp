@@ -112,8 +112,15 @@ class SourceStore:
         path=self._safe(path)
         if not path.exists():return None
         if not path.is_file() or path.stat().st_size>1048576:raise EvidenceUnavailable('CACHE_RECORD_INVALID')
-        try:wrapper=json.loads(path.read_bytes());record=wrapper['record'];expected=wrapper['sha256'];assert set(wrapper)=={'record','sha256'} and digest(encoded(record))==expected
-        except (ValueError,OSError,KeyError,TypeError,AssertionError):raise EvidenceUnavailable('CACHE_RECORD_INVALID') from None
+        try:
+            wrapper = json.loads(path.read_bytes())
+            record = wrapper['record']
+            expected = wrapper['sha256']
+            valid = set(wrapper) == {'record', 'sha256'} and digest(encoded(record)) == expected
+        except (ValueError, OSError, KeyError, TypeError):
+            raise EvidenceUnavailable('CACHE_RECORD_INVALID') from None
+        if not valid:
+            raise EvidenceUnavailable('CACHE_RECORD_INVALID')
         return record
     def _save(self,path,raw):
         path=self._safe(path);path.parent.mkdir(parents=True,exist_ok=True)

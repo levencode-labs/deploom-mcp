@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77.0.3", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,8 @@ name = "deploom-mcp"
 version = "0.2.20"
 description = "Dependency planning and host-authorized verified goal execution for supported DepLoom profiles."
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.12,<3.15"
 dependencies = [
     "mcp>=2,<3",

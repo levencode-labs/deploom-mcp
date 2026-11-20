@@ -39,6 +39,16 @@ class ProjectCapabilitiesTests(unittest.TestCase):
         self.assertFalse(result['executionReady'])
         self.assertEqual(before, {p.name: p.read_bytes() for p in self.root.iterdir()})
 
+    def test_shrinkwrap_only_advertises_the_flat_plan(self):
+        (self.root / "npm-shrinkwrap.json").write_text(json.dumps(self.lock))
+        for has_package_lock in (True, False):
+            if not has_package_lock:
+                (self.root / "package-lock.json").unlink()
+            with self.subTest(has_package_lock=has_package_lock):
+                result = get_project_capabilities(str(self.root))
+                self.assertTrue(result["ok"], result)
+                self.assertEqual([route["operation"] for route in result["routes"]], ["PLAN"])
+
     def test_workspace_inventory_is_bound_but_settings_do_not_grant_permission(self):
         self.manifest['workspaces'] = ['packages/*']
         self.lock['packages'][''] = dict(self.manifest)

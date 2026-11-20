@@ -79,7 +79,7 @@ def get_project_capabilities(project_path: str) -> dict:
                              preconditions=("FLAT_ROUTE_WORKSPACE_COVERAGE_REQUIRES_REVIEW",) if has_workspaces else ())]
             goals = ["DEPENDENCY_HEALTH_PLAN"]
             next_action = "USE_FLAT_UPGRADE_REQUEST"
-            if manager == "npm" and not has_workspaces and lock_version in (2, 3):
+            if lock_name == "package-lock.json" and manager == "npm" and not has_workspaces and lock_version in (2, 3):
                 routes.append(_route("GOAL_PLAN", "get_goal_plan", support="CONDITIONAL",
                                      preconditions=("SUPPORTED_PYTHON_TOOLCHAIN", "EXPLICIT_GOAL")))
                 routes.append(_route("VERIFY", "verify_goal_candidate", support="CONDITIONAL",
