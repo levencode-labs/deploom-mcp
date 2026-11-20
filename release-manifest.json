@@ -1,7 +1,7 @@
 {
   "blueprintSchemaVersion": 2,
   "core": {
-    "contentSha256": "b926fef333803d7de6f98bdddc333a9dc975bd6a95ab2da1bab1de5e571f9c85",
+    "contentSha256": "9f1ec189dc735259728f29cfc21d37819eafa311809669a82f24bf09ba110143",
     "files": {
       "VERSION": "2698c63efcc74d9adc7a29889fc4ecc7fadfb58c4588db3f117f9d87cfaaff40",
       "analyze_verification_telemetry.py": "1ee235ef0b9cf275fe34c22cf16cb4049e88fb19953096ddaecbb73d7a700e6f",
@@ -147,7 +147,7 @@
       "verification_workspace_backend.py": "fb27bc64f15c00091250cfee0cf586b376c15d1eef345a2edbf0c814b7b7e930",
       "windows_unc.py": "6b6589177faa963f0e1c8b3c7134a8719e9f251237ec6a075c667db6cf375bd1",
       "worker_runtime_state.py": "69cd5bf6ef0b4fb15bbf6b3418fbe7659a87bbbc5201bd9d2ef3e1e1d5a77345",
-      "workspace_glob.py": "ab7e6fb0bb8abb2812362dc7c416e79cad319b471d5c94aa5012a42b308813c7",
+      "workspace_glob.py": "a36e32e65978f082fb15a5b36db0126fc0dc498939e7c4bc6fc444d2602d60e1",
       "workspace_health_evidence.py": "915865d6688815afe6a0dced0cb814b5bb9a2624f607f4d1476d28c283168221",
       "workspace_health_policy.py": "6aa0024feb51775e2333f438f84486c18b4fcaaa6d1c7afb0b3d16a24065fe62",
       "workspace_noise.py": "0ed76379a5308cb8a5b053ed92293fdf4bd255c7799c6e77a644db8bac3af27a",
@@ -160,8 +160,8 @@
       "yarn_berry.py": "bd769e797823ff99129983f8295a52b5aac1f01f9be2c2a8eac9ffeaf20903d2"
     },
     "repository": "https://github.com/levencode-labs/deploom-core",
-    "revision": "81022cd7f101c8e2971c938604c79c3f374eb124",
-    "version": "1.0.0-preview.20"
+    "revision": "364145c77e7c209c4eb050cca2ebf0418d900cd3",
+    "version": "0.1.13"
   },
   "mcpVersion": "0.2.20",
   "schemaSha256": "974ea52175ea09928cddae9694b5eb750cc1024520e758e64f23ed967fe81627",
