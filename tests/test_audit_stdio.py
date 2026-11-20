@@ -30,9 +30,13 @@ class AuditStdioTests(unittest.TestCase):
                         "get_upgrade_plan", "evaluate_assignment", "explain_conflict", "audit_dependencies", "get_project_capabilities",
                         "get_goal_plan", "get_goal_report", "verify_goal_candidate", "apply_goal_candidate",
                         "get_goal_checkpoint", "observe_workspace_inventory_v1", "plan_workspace_snapshot_v1",
-                        "get_workspace_plan_details", "model_workspace_upgrade_v1",
+                        "get_workspace_plan_details", "model_workspace_upgrade_v1", "get_shared_migration_evidence",
                         "review_workspace_transitive_overrides_v1",
                     }, {tool.name for tool in tools.tools})
+                    evidence = await session.call_tool("get_shared_migration_evidence", {
+                        "package": "react-dom", "from_version": "18.2.0", "to_version": "18.3.1"})
+                    self.assertFalse(evidence.is_error)
+                    self.assertEqual("ADVISORY_ONLY", evidence.structured_content["authority"])
                     result = await session.call_tool("audit_dependencies", {"project_path": "relative"})
                     self.assertTrue(result.is_error)
                     self.assertEqual("invalid-project", result.structured_content["error"]["code"])

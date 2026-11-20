@@ -58,7 +58,7 @@ def refresh(root, fetch=get):
 
 
 def lookup(root, package, from_version, to_version):
-    result = {"authority": "ADVISORY_ONLY", "status": "no-matching-record", "observations": [], "recipes": []}
+    result = {"ok": True, "authority": "ADVISORY_ONLY", "status": "no-matching-record", "observations": [], "recipes": []}
     if root is None or not (root / "records.sqlite").is_file():
         result["status"] = "unavailable"
         return result
