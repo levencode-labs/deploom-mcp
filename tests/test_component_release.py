@@ -152,6 +152,7 @@ class McpVersionSynchronizationTests(unittest.TestCase):
         core=root/'upstream/deploom';core.mkdir(parents=True)
         for args in [('init','-b','main'),('config','user.name','Release Fixture'),('config','user.email','fixture@example.invalid'),('config','commit.gpgSign','false')]:
             subprocess.run(['git','-C',str(core),*args],check=True,capture_output=True,timeout=15)
+        (core/'pyproject.toml').write_text('[project]\nname = "deploom-core"\nversion = "0.1.3"\n')
         (core/'VERSION').write_text('engine-fixture');(core/'fixture.py').write_text('VALUE=1\n')
         subprocess.run(['git','-C',str(core),'add','.'],check=True,capture_output=True,timeout=15);subprocess.run(['git','-C',str(core),'commit','-m','fixture core'],check=True,capture_output=True,timeout=15)
         (root/'.gitmodules').write_text('[submodule "upstream/deploom"]\n path = upstream/deploom\n url = git@github.com:levencode-labs/deploom-core.git\n')
@@ -163,6 +164,7 @@ class McpVersionSynchronizationTests(unittest.TestCase):
         self.assertEqual(release.package(root),('deploom-mcp','0.1.2'))
         self.assertEqual((root/'src/deploom_mcp/__init__.py').read_text(),'__version__ = "0.1.2"\n')
         manifest=json.loads((root/'release-manifest.json').read_bytes());self.assertEqual(manifest['mcpVersion'],'0.1.2');self.assertEqual(manifest['core']['revision'],pin)
+        self.assertEqual(manifest['core']['version'], '0.1.3')
         self.assertEqual((core/'VERSION').read_text(),'engine-fixture')
 
 if __name__=='__main__':unittest.main()
