@@ -195,7 +195,7 @@ class OfflineCoverageEndToEndTests(unittest.TestCase):
                              "findingCount": 0, "publicIdentitySource": "NPM_PUBLIC_PACKUMENT"})
             self.assertEqual(cold["@fixture/scoped"], cold["fixture-clean"])
             self.assertEqual(cold["fixture-wrong-name"]["reason"], "PUBLIC_PACKAGE_UNCONFIRMED")
-            self.assertEqual(cold["fixture-foreign-lock"]["reason"], "PUBLIC_PACKAGE_UNCONFIRMED")
+            self.assertEqual(cold["fixture-foreign-lock"]["reason"], "LOCKED_PUBLIC_ARTIFACT_UNCONFIRMED")
             self.assertCountEqual(requests_seen, [("registry.npmjs.org", "/" + name.replace("/", "%2F")) for name in packages])
             requests_seen.clear()
             self.assertEqual(plan(), cold)
