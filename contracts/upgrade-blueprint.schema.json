@@ -293,6 +293,41 @@
             "string",
             "null"
           ]
+        },
+        "currentSecurityCoverage": {
+          "type": "object",
+          "description": "Counts across all declaration rows, including rows outside the compact display limit. Applies only to current versions.",
+          "required": [
+            "totalRows",
+            "unreportedRows",
+            "assessedBySource",
+            "unknownByReason"
+          ],
+          "properties": {
+            "totalRows": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unreportedRows": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "assessedBySource": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "unknownByReason": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          },
+          "additionalProperties": false
         }
       }
     },
@@ -427,6 +462,83 @@
                   "string",
                   "null"
                 ]
+              },
+              "currentSecurityEvidence": {
+                "type": "object",
+                "description": "Evidence for the current version of this declaration. A findingCount of zero requires an assessed source.",
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "ASSESSED",
+                      "UNKNOWN"
+                    ]
+                  },
+                  "source": {
+                    "enum": [
+                      "OFFLINE_OSV_NPM",
+                      "REGISTRY_BULK_ADVISORY",
+                      "OFFLINE_OSV_NPM_AND_REGISTRY"
+                    ]
+                  },
+                  "findingCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "osvReason": {
+                    "type": "string"
+                  },
+                  "registryReason": {
+                    "type": "string"
+                  }
+                },
+                "oneOf": [
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "ASSESSED"
+                      }
+                    },
+                    "required": [
+                      "status",
+                      "source",
+                      "findingCount"
+                    ],
+                    "not": {
+                      "required": [
+                        "reason"
+                      ]
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "UNKNOWN"
+                      }
+                    },
+                    "required": [
+                      "status",
+                      "reason"
+                    ],
+                    "not": {
+                      "anyOf": [
+                        {
+                          "required": [
+                            "source"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "findingCount"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "additionalProperties": false
               }
             }
           }

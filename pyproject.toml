@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "deploom-mcp"
-version = "0.2.21"
+version = "0.2.22.dev1"
 description = "Dependency planning and host-authorized verified goal execution for supported DepLoom profiles."
 readme = "README.md"
 license = "Apache-2.0"
@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/DepLoom/mcp"
+Homepage = "https://github.com/levencode-labs/deploom-mcp"
 
 [project.scripts]
 deploom-mcp = "deploom_mcp.server:main"

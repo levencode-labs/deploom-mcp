@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "name": "deploom-upgrade",
-  "contractVersion": "2.0.27",
+  "contractVersion": "2.0.28",
   "files": {
-    "SKILL.md": "3f8e7c0fe13239bae9615544811a7a4c153b75e36febbf107a441c16cf547f6f",
+    "SKILL.md": "3bd1bd8edf1fbeb8a3a90ad178c99c0ad61442fce540b7f74cb0e879462efd8c",
     "examples/blocked-upgrade.md": "b921b3ffd59d054ca69bddb7bc317450cc9c40d836cb1d44f5de86c9b974bfe4",
     "examples/plan-only.md": "ccfaad2b5e5f00678ff019e5988bb32e95ac2b82b6050a8786ab87295ca6883b",
     "examples/yellow-exclude-react.md": "379ccdd540513232fc5a2f396b2d9d3ee9cb4a420d7d27912ecd10c95b0da16b",
-    "references/blueprint-contract.md": "e0ae36222226d6c8b01ceb5441167b175acafb61c2c7eda9e51ad8426f6b5d9b",
+    "references/blueprint-contract.md": "448721b894a4caf8aca2ca188d5cd0aa7616e3c0df73aa875d31744a95b14f77",
     "references/evidence-report.md": "9a59a5d475619938ef15ca3f5a9c47f01ce906f0c0873c7da43ecb90c3060fa5",
     "references/execution-policy.md": "4c8161fe1df419cbe63a40698e87b02361c98906dfa18986aba47f8928c5a6a6",
     "references/goal-and-migration-evidence.md": "3c7a696d1ceeaa5cc2d5488131a9a5aafad04b97d7d6ceafece484093a44f702",
@@ -16,5 +16,5 @@
     "references/verification-policy.md": "57d6d0dbb3d52816badfa582d416fb3504c4c1c2e78ef80eed64aaa57642318c",
     "scripts/validate_evidence.py": "c830e7fb2ee5dc7b3bd156fd46193cb583e49b60bb39af96ccdd439894730ccb"
   },
-  "bundleSha256": "6038d5408bd0dd27e99266adc2804d4785d9eaa8b7cc0dd2ad1a89233b3a111a"
+  "bundleSha256": "fd68d255f69624b91c38208922321b67a4bbe393a44e54a302c1e31e1eefdc6c"
 }

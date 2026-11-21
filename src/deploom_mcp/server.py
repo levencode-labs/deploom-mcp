@@ -66,6 +66,7 @@ from deploom_mcp.decisions import (
     MAX_DRAFT_CANDIDATES, OBJECTIVES, decision_evidence, normalize_decision_contract,
 )
 from deploom_mcp.target_assessment import target_assessment, target_decision_evidence
+from deploom_mcp.security_projection import current_security_coverage, project_current_security
 from deploom_mcp.proxy_settings import ProxySettingError, resolve_system_proxy
 from deploom_mcp.decision_followups import evaluate_assignment, explain_conflict
 from deploom_mcp.registry_projection import (
@@ -582,6 +583,12 @@ def _compact_payload(
     all_rows = []
     for original in blueprint.get("dependencies") or []:
         row = dict(original)
+        if "currentSecurityEvidence" in (row.get("evidence") or {}):
+            evidence = dict(row["evidence"])
+            current = project_current_security(evidence.pop("currentSecurityEvidence"))
+            if current is not None:
+                evidence["currentSecurityEvidence"] = current
+            row["evidence"] = evidence
         affected = [item for item in target_evidence
                     if item.get("scope") == "aggregate" or item.get("project") == row.get("project")]
         if affected and row.get("status") != "EXCLUDED":
@@ -622,6 +629,7 @@ def _compact_payload(
         "evidenceRef": "#/targetAssessment",
     }
     total_rows = len(all_rows)
+    security_coverage = current_security_coverage(all_rows)
     rows = all_rows[:max_inline_rows]
     dependencies = []
     for row in rows:
@@ -736,6 +744,7 @@ def _compact_payload(
             "proposed": summary.get("proposed"),
             "needsReview": sum(bool(row.get("needsReview")) for row in all_rows),
             "statusCounts": summary.get("statusCounts") or {},
+            **({"currentSecurityCoverage": security_coverage} if security_coverage is not None else {}),
             **({"exactTargetPolicy": exact_policy} if exact_policy is not None else {}),
         },
         "recommendationGroups": groups,

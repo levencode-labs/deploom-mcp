@@ -1,7 +1,7 @@
 {
   "blueprintSchemaVersion": 2,
   "core": {
-    "contentSha256": "86dc5333e180526a99a9f6b56779a58cbd3b5aed074b5e054198fa237fac9401",
+    "contentSha256": "a017914bbb7c69edcf12dfa690a3316d7a0b16b0a3e9bb52e345e2908ee22b1f",
     "files": {
       "VERSION": "2698c63efcc74d9adc7a29889fc4ecc7fadfb58c4588db3f117f9d87cfaaff40",
       "analyze_verification_telemetry.py": "1ee235ef0b9cf275fe34c22cf16cb4049e88fb19953096ddaecbb73d7a700e6f",
@@ -38,7 +38,7 @@
       "cohort_conflict_regions.py": "42d5ce8f2b747f3597040156fd34e7eee462abbe0cce84fc93d14efacb44ad97",
       "cohort_size_policy.py": "061791d2c3ae73d3c9958a445985d90083244188cbd7bc72ada81cbcff2ff933",
       "cohort_telemetry_report.py": "55cf93e08076293d151c77701c0ade3d8ee065ec928aefb45b66fbc0c51a9513",
-      "constraint_cache.py": "4f8eb9ed2ea5f000182520be6919ecad8f2376519984cfe1f60bd3649e126f8e",
+      "constraint_cache.py": "0370b22dbcb3e1e1b16321935a4e4059b34065ff2d9b01577a476951fb0ab09e",
       "constraint_verify.py": "66f078011c99dd14acb368d60ec149182092be1f9adeedaa0b5c0992945d454d",
       "cross_process_io.py": "d6edd32c58ac58a69e279ebae1a1cba00139fcdfd61a642433fb201a84645ffd",
       "delivery_audit_recovery.py": "bf5d9f9590ebda2a0ff4325ac256ec6442dc8e1da7cb8d00d0194831d17dd347",
@@ -49,7 +49,7 @@
       "dependency_audit_branch.py": "c556a4ce33f105eb10763e0d874e4f2a03043bb94744ab68336a063a5d779f15",
       "dependency_compatibility_evidence.py": "6233e7d8bedca194fd030fa883aac57d9c3d51e79a342cec21420b04f757d192",
       "dependency_interaction.py": "af9f4e3b2458f2d58e557b3e241aaf4bab4596c6fbf59a0b355d46bb7215196c",
-      "dependency_live_roadmap_generator.py": "56470ea83f77b61d4fc64a269b508ed596487e0d7cdcc239d8ee259ee6d73319",
+      "dependency_live_roadmap_generator.py": "967d9a00299dd4baa70f48c5e6d37120fce83b596c59911214e67050788b1625",
       "dependency_live_roadmap_worker.py": "1b76e6403c2964a45fd0fbca46031a0baa40bb5c3e4c6afdc943940973359aac",
       "dependency_release_branch.py": "072cec1182cf8d801fb9c727cd1266f0711f5eff49cb8799a304647ff17c87fe",
       "deploom_failure.py": "0f3d75cb02e3440379b736ab709cd916634a60e9f14d03b4be3cd14c162e8687",
@@ -98,7 +98,7 @@
       "npm_platform_obligations.py": "04a0aa644a833e3acd861f1d836322caef05c08784face7e05c42e86b635f0cf",
       "npm_semver_batch.py": "d4f648a15fa8a93abc0d9377593266cda0b94f7f591d04851faa71af642863db",
       "npm_shared_transition.py": "98758ee57a3cecb5ea3d2354287fd51ebd7505173caa255cf5222dd0bae3b167",
-      "osv_offline.py": "43a97b8b157afe5d710f63934c86d6251a29a22b9691e2475e3da35b31da0b26",
+      "osv_offline.py": "f7bd1ab0a2d65f9c1bb84dedf804a04c4dd8815ac19ec695ecf7cac111a10ddf",
       "package_manager_profile.py": "17c0aa5f01cd6d73b5bfee2c468fd36b42696b09e2f1c2d54c54f34a75e74efe",
       "package_manager_telemetry.py": "03dcb08777e3865113e91fdc04058b6298cc2ca165ff1516652e31d989740ec5",
       "peer_solver_goal.py": "2e9dffd7f5da6145a513fc409e804f56e8cabc25c8c63b9bcaf1b2da30daeb7a",
@@ -111,7 +111,7 @@
       "project_runtime.py": "0b3c4949c7be99b4fa35dc8645c884c01e20cf5379517221388be26e8c96ba0f",
       "project_topology.py": "2ff960672379ec74264980e7fdea2fc95cf7570c95dd6362d01cb03bb7bf6772",
       "proven_dependency_state.py": "675591dce5dcd8b59f301811ed1e8b4e12183289844369ce4a1ba0e4b27fc119",
-      "registry_advisory_evidence.py": "38e85bb756e92c2239458590bdc95070f3a97367a7f8f511c1370722d51017f2",
+      "registry_advisory_evidence.py": "3566a557cc646b03eef0f07bb48301d44c38dcb352c2c8483325d7d08ad21669",
       "registry_candidate_diagnostics.py": "57cd6d3bf6298588ccd1e5136f5c5ea7465c9b2439a63eb0e50c27bb47defdf6",
       "registry_metadata_cache.py": "71599efd302a915173c01afd303b1f43de6d5535a77874699bece32a369b36e2",
       "registry_request_context.py": "8c21506247e61b9ffa05df3d74532e0e78d31ac0301a850f1c0dc781592ebeda",
@@ -161,16 +161,16 @@
       "yarn_berry.py": "bd769e797823ff99129983f8295a52b5aac1f01f9be2c2a8eac9ffeaf20903d2"
     },
     "repository": "https://github.com/levencode-labs/deploom-core",
-    "revision": "9d1b01dbba8e3f0518fec8506f5b2942b7a7c3c2",
+    "revision": "0a067ec3f8e926a6f05217eaacf1dce01bbd035d",
     "version": "0.1.14"
   },
-  "mcpVersion": "0.2.21",
-  "schemaSha256": "974ea52175ea09928cddae9694b5eb750cc1024520e758e64f23ed967fe81627",
+  "mcpVersion": "0.2.22.dev1",
+  "schemaSha256": "21d01d1e76526fb1e07882076947e6bc7e82d13c966c17d116f862cd63a827cf",
   "schemaVersion": 1,
   "skill": {
-    "bundleSha256": "6038d5408bd0dd27e99266adc2804d4785d9eaa8b7cc0dd2ad1a89233b3a111a",
-    "contractVersion": "2.0.27"
+    "bundleSha256": "fd68d255f69624b91c38208922321b67a4bbe393a44e54a302c1e31e1eefdc6c",
+    "contractVersion": "2.0.28"
   },
-  "skillManifestSha256": "56ead6546f58be20158cadc2a8dd28ecc04f143e2f4246b15f58390a01a1d119",
+  "skillManifestSha256": "e9cd82956ac0e61cfc23ecfef90b672b422e8e23e9fa0133e9a198fa6403b21c",
   "workspaceSchemaSha256": "055cb0565a2b31e503d269a1ddf8bf0af50aba54f512b6f8cfbeb6b7287b21b8"
 }

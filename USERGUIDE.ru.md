@@ -156,6 +156,24 @@ args = ["-m", "deploom_mcp"]
 
 **Локальный stdio не означает работу без сети.** Планировщик может обращаться к npm registry, OSV (по умолчанию `api.osv.dev`) и отдельным документированным источникам. Параметр `registry` не перенаправляет OSV в этот registry. Registry advisory-запросы могут передавать имена и версии пакетов. Проверьте корпоративную политику перед запуском на приватных зависимостях. При недоступных разрешённых источниках оставляйте evidence `UNKNOWN`.
 
+### Покрытие уязвимостей текущих версий
+
+В плоском `get_upgrade_plan` поле `summary.currentSecurityCoverage` охватывает строки прямых зависимостей всего плана. В `assessedBySource` видно, сколько строк оценили снимок npm OSV и одобренный registry. В `unknownByReason` строки с результатом `UNKNOWN` сгруппированы по причине. В `unreportedRows` попадают строки без этой диагностики, в том числе из старых версий планировщика. В строке зависимости `evidence.currentSecurityEvidence` показывает источник и количество находок при успешной оценке. Ноль относится к конкретной версии и источнику. Для сравнения с аудитом lockfile сопоставляйте имя пакета **и точную версию**.
+
+Для локального снимка задайте на хосте MCP `DEPLOOM_MCP_OSV_DIR`. В `DEPLOOM_MCP_PUBLIC_NAMES` через запятую перечисляются имена пакетов, публичность которых подтверждена отдельно. В `DEPLOOM_MCP_PRIVATE_SCOPES` указываются приватные scope, например `@internal`. Приватный scope имеет приоритет. Даже у снимка со статусом `ready` могут отсутствовать сведения о пакете, диапазоне версий или severity.
+
+Чтобы разрешить корпоративному registry получать имена без оценки OSV, в том числе приватные, задайте на хосте MCP переменные ниже. Во всех трёх URL укажите один одобренный базовый HTTPS-адрес registry. На его npm bulk advisory endpoint попадут только недостающие точные пары. Отсутствие ключа пакета в ответе, ошибка запроса или непригодные сведения сохраняют `UNKNOWN`.
+
+```text
+DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE=1
+DEPLOOM_MCP_ALLOWED_PROJECT_REGISTRY=https://nexus.example.invalid/repository/npm-group
+DEPLOOM_MCP_REGISTRY_ADVISORY_SOURCE=https://nexus.example.invalid/repository/npm-group
+DEPLOOM_MCP_CORPORATE_ADVISORY_SOURCE=https://nexus.example.invalid/repository/npm-group
+```
+
+Для сохранённого плоского Draft запустите из checkout MCP с закреплённым Core команду `python scripts/diagnose_offline_coverage.py <путь-к-result.json>`. Рядом должен быть исходный `plan.json`. Отчёт сверяет его SHA-256 и показывает счётчики и причины без списка пакетов. `--focus <имя>` выводит причину для одной зависимости. Для повторной оценки передайте `--snapshot-dir <каталог>` с той же установленной редакцией снимка и исходные значения `DEPLOOM_MCP_PRIVATE_SCOPES` и `DEPLOOM_MCP_PUBLIC_NAMES`. Результат такого повтора помечен отдельно от того, что записано в старом запуске. `--inventory <canonical-yarn-inventory.json>` считает пересечение уникальных пар по имени и точной версии, совпадение пар само по себе не подтверждает ответ Nexus.
+
+
 **Remote Streamable HTTP:** [инструкция](docs/HTTP_DEPLOYMENT.md). У сервера нет встроенной аутентификации пользователей и изоляции проектных путей. Для удалённой работы нужны TLS/authenticated gateway, ограниченные права и mount, отдельные instances для недоверенных пользователей и лимиты процессов. `project_path` относится к файловой системе **сервера**.
 
 Ошибки proxy/registry решайте через [System proxy](docs/SYSTEM_PROXY.md), не переключая приватный проект на сторонний registry или advisory API без разрешения.

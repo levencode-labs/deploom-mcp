@@ -48,6 +48,7 @@ from deploom_mcp.decisions import (
 )
 from deploom_mcp.distribution import resolve_core_dir, blueprint_schema_path
 from deploom_mcp.target_assessment import TARGET_PROJECTION_FIELDS, projected_health
+from deploom_mcp.security_projection import current_security_coverage, project_current_security
 from deploom_mcp.registry_projection import (
     project_no_target_code, project_registry_candidate, reconcile_registry_aggregate,
 )
@@ -290,6 +291,9 @@ def transcode_upgrade_blueprint(
                 "scanState": row.get("scanState"),
             },
         })
+        current_security = project_current_security(row.get("currentSecurityEvidence"))
+        if current_security is not None:
+            dependencies[-1]["evidence"]["currentSecurityEvidence"] = current_security
         # Optional additive Core evidence. The legacy bundled Core does not
         # publish it; do not synthesize "zero rejected" on its behalf.
         diagnostic = project_registry_candidate(row.get("registryCandidateDiagnostics"))
@@ -431,6 +435,9 @@ def transcode_upgrade_blueprint(
         "artifacts": dict(artifacts),
         "blueprintFile": str(Path(blueprint_path).resolve()),
     }
+    security_coverage = current_security_coverage(dependencies)
+    if security_coverage is not None:
+        blueprint["summary"]["currentSecurityCoverage"] = security_coverage
     registry_diagnostics = reconcile_registry_aggregate(
         plan.get("registryDiagnostics"), rows, dependencies,
     )
@@ -658,6 +665,11 @@ def _exec_env(policy: BlueprintPolicy, run_id: str, workspace_id: str, project_i
         approved_registry = os.environ.get("DEPLOOM_MCP_REGISTRY_ADVISORY_SOURCE")
         if approved_registry and options.registry and approved_registry.rstrip("/") == options.registry.rstrip("/"):
             env["DEPLOOM_DRAFT_REGISTRY_ADVISORY_SOURCE"] = approved_registry
+            corporate = os.environ.get("DEPLOOM_MCP_CORPORATE_ADVISORY_SOURCE")
+            if offline and corporate and corporate.rstrip("/") == approved_registry.rstrip("/"):
+                from deploom_mcp.planning_registry import is_corporate_advisory_url
+                if is_corporate_advisory_url(corporate):
+                    env["DEPLOOM_DRAFT_CORPORATE_ADVISORY_SOURCE"] = corporate
     env["DEPLOOM_MODE"] = "draft"
     env["DEPLOOM_RUN_ID"] = run_id
     env["DEPLOOM_WORKSPACE_ID"] = workspace_id

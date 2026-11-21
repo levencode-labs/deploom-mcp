@@ -113,6 +113,19 @@ not dismiss an explicit current child blocker because the root target exists.
 Reconcile shared root/child assignments before applying affected targets. Peer
 absence in one child manifest alone does not prove workspace incompatibility.
 
+## Current-version advisory coverage
+
+For a flat plan, report `summary.currentSecurityCoverage` when present. Its
+counts cover all direct declaration rows, including those beyond the compact
+display limit. For an individual row, read `evidence.currentSecurityEvidence`.
+`ASSESSED` names the source and gives a finding count for that exact version.
+`UNKNOWN` includes a reason. When a corporate fallback was attempted, preserve
+both `osvReason` and `registryReason`. A ready snapshot and a processed row
+alone say nothing about a package's finding count. Older reports may omit
+these fields. Keep unresolved rows visible and use only the host-approved
+evidence sources. To compare with a lockfile audit, join on package name and
+exact version and report how many pairs intersect.
+
 ## Status and authority
 
 | Row status | Decision meaning |

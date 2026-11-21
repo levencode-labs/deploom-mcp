@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -20,6 +21,17 @@ def _url(value: str | None) -> str | None:
     if result and any(c in result for c in "`$;{}"):
         raise AuditError("invalid-registry", "registry contains an unsupported character")
     return result
+
+
+def is_corporate_advisory_url(value: str) -> bool:
+    try:
+        parsed = urlsplit(_url(value))
+    except (AuditError, ValueError):
+        return False
+    host = (parsed.hostname or "").lower().rstrip(".")
+    return (parsed.scheme == "https" and bool(host) and host.isascii()
+            and not any(host == domain or host.endswith("." + domain)
+                        for domain in ("npmjs.org", "npmjs.com", "yarnpkg.com")))
 
 
 def _configured_routes(raw: bytes, *, yarn: bool) -> tuple[set[str], bool]:
