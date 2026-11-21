@@ -1188,9 +1188,8 @@ async def explain_conflict_tool(
     annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=False),
 )
 async def get_shared_migration_evidence_tool(package: str, from_version: str, to_version: str) -> CallToolResult:
-    from deploom_mcp.shared_records import lookup
-    root = os.environ.get("DEPLOOM_MCP_RECORDS_DIR")
-    return _result(await asyncio.to_thread(lookup, Path(root) if root else None, package, from_version, to_version))
+    from deploom_mcp.shared_records import directory, lookup
+    return _result(await asyncio.to_thread(lookup, directory(), package, from_version, to_version))
 
 
 @server.tool(
@@ -1313,6 +1312,8 @@ def main() -> int:
     if args.transport == "stdio":
         if args.allowed_host or args.allowed_origin or args.pilot_project is not None:
             parser.error("HTTP security options require --transport streamable-http")
+        from deploom_mcp.shared_records import start_refresh
+        start_refresh()
         server.run(transport="stdio")
     else:
         if args.allowed_origin and not args.allowed_host:

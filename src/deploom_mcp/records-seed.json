@@ -1,0 +1,23 @@
+{
+  "history": [
+    {
+      "schema": 1,
+      "package": "react-dom",
+      "from": "18.2.0",
+      "to": "18.3.1",
+      "source": "https://github.com/levencode-labs/deploom-npm/blob/36216f29d52bacd92e0b64e87433c8ed3e84b5a4/fixtures/react-renderers/check.cjs",
+      "check": "install",
+      "outcome": "passed"
+    }
+  ],
+  "knowledge": [
+    {
+      "schema": 1,
+      "package": "react-dom",
+      "from": "18.2.0",
+      "to": "18.3.1",
+      "source": "https://github.com/levencode-labs/deploom-npm/blob/36216f29d52bacd92e0b64e87433c8ed3e84b5a4/fixtures/react-renderers/check.cjs",
+      "recipe": "align-react-renderers"
+    }
+  ]
+}
