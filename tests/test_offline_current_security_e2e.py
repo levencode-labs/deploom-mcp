@@ -16,6 +16,7 @@ import threading
 import time
 import unittest
 from unittest.mock import patch
+from urllib.parse import unquote
 
 from deploom_mcp import blueprint
 from deploom_mcp.server import get_upgrade_plan_tool
@@ -130,16 +131,24 @@ class OfflineCoverageEndToEndTests(unittest.TestCase):
     def test_public_metadata_covers_exact_pairs_without_advisory_egress(self):
         version = "1.0.0"
         public = "https://registry.npmjs.org"
-        packages = ["fixture-clean", "fixture-wrong-name", "fixture-foreign-lock"]
+        packages = ["fixture-clean", "@fixture/scoped", "fixture-wrong-name", "fixture-foreign-lock"]
         store = PackageStore({"packages": {name: {"versions": [{"version": version,
                              "time": "2020-01-01T00:00:00Z"}]} for name in packages}}, public)
+        # The general fixture server uses the full name in its filename. npm uses its basename.
+        def metadata_for(name):
+            data = store.metadata(name)
+            if data is not None and name.startswith("@"):
+                basename = name.rsplit("/", 1)[-1]
+                data["versions"][version]["dist"]["tarball"] = f"{public}/{name}/-/{basename}-{version}.tgz"
+            return data
+
         requests_seen = []
 
         class PublicRegistry(Handler):
             def do_GET(self):
                 requests_seen.append((self.headers["Host"], self.path))
-                name = self.path.lstrip("/")
-                metadata = store.metadata(name)
+                name = unquote(self.path).lstrip("/")
+                metadata = metadata_for(name)
                 if metadata is None:
                     return self._send_json({}, 404)
                 if name == "fixture-wrong-name":
@@ -158,7 +167,7 @@ class OfflineCoverageEndToEndTests(unittest.TestCase):
         (project / "package.json").write_text(json.dumps(manifest))
         entries = {"": manifest}
         for name in packages:
-            dist = store.metadata(name)["versions"][version]["dist"]
+            dist = metadata_for(name)["versions"][version]["dist"]
             entries["node_modules/" + name] = {"version": version, "resolved": dist["tarball"],
                                                 "integrity": dist["integrity"]}
         foreign = entries["node_modules/fixture-foreign-lock"]
@@ -184,15 +193,16 @@ class OfflineCoverageEndToEndTests(unittest.TestCase):
             cold = plan()
             self.assertEqual(cold["fixture-clean"], {"status": "ASSESSED", "source": "OFFLINE_OSV_NPM",
                              "findingCount": 0, "publicIdentitySource": "NPM_PUBLIC_PACKUMENT"})
+            self.assertEqual(cold["@fixture/scoped"], cold["fixture-clean"])
             self.assertEqual(cold["fixture-wrong-name"]["reason"], "PUBLIC_PACKAGE_UNCONFIRMED")
             self.assertEqual(cold["fixture-foreign-lock"]["reason"], "PUBLIC_PACKAGE_UNCONFIRMED")
-            self.assertCountEqual(requests_seen, [("registry.npmjs.org", "/" + name) for name in packages])
+            self.assertCountEqual(requests_seen, [("registry.npmjs.org", "/" + name.replace("/", "%2F")) for name in packages])
             requests_seen.clear()
             self.assertEqual(plan(), cold)
             self.assertEqual(requests_seen, [])
             mirror = plan("https://mirror.test.invalid")
             self.assertEqual(mirror["fixture-clean"]["reason"], "PUBLIC_PACKAGE_UNCONFIRMED")
-            self.assertCountEqual(requests_seen, [("mirror.test.invalid", "/" + name) for name in packages])
+            self.assertCountEqual(requests_seen, [("mirror.test.invalid", "/" + name.replace("/", "%2F")) for name in packages])
             requests_seen.clear()
             with patch.dict(os.environ, {"DEPLOOM_MCP_PRIVATE_SCOPES": "@inside", "DEPLOOM_MCP_OSV_DIR": ""}):
                 manifest["dependencies"]["@inside/fixture-private"] = version
