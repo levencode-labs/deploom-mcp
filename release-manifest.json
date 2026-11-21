@@ -1,7 +1,7 @@
 {
   "blueprintSchemaVersion": 2,
   "core": {
-    "contentSha256": "e2948aacd30b30bf7a46b17512bfaf897b42247c9c0f2b61dc745d9f038f8155",
+    "contentSha256": "55c2bd156820e7b800a60c0f9a8ef745950c389c6ec74511deab42695e67bd4b",
     "files": {
       "VERSION": "2698c63efcc74d9adc7a29889fc4ecc7fadfb58c4588db3f117f9d87cfaaff40",
       "analyze_verification_telemetry.py": "1ee235ef0b9cf275fe34c22cf16cb4049e88fb19953096ddaecbb73d7a700e6f",
@@ -13,7 +13,7 @@
       "block_psi54_branch_search.py": "366a1b0afcb4f2e84dae3f939d199faa3c42477c1ee35b89f6eb86d4c64ac4c0",
       "block_psi55_resolver_overrides.py": "1fd40e85e2afd97dd24da7c25664d902f3594e49ccc1bc4a6a6396a9c59acd25",
       "block_psi56_causal_anytime_search.py": "7fab91f5fac179abc3969719e429df643fe74062201ad17c74f662029cc9a795",
-      "block_psi57_yarn1_resolver_seed.py": "9c45bc5d404351bf76a8eb3b43be805b9f71a6ddfddcb719576e915a5fce3321",
+      "block_psi57_yarn1_resolver_seed.py": "7aa33406e6ba13194a069587e89d625eb8a1bf714bbbed124d229b4232f70862",
       "block_psi581_probe_budget_and_cohort.py": "a538ff4bc9d2aa9b246f93be047233b6ed8e54ec5077837f7f94d46144029944",
       "block_psi582_pre_run_closure.py": "8860450f0a66a7c91ae63c4f6dc689ca76b0acd3ef55e7dfa0f686928853322b",
       "block_psi583_duplicate_fallback_control.py": "e098d6285b3f216444e33fcc809f43dc7924d31c3bba99e9ff4cad05d0d99445",
@@ -106,9 +106,9 @@
       "peer_solver_transition.py": "80a00cec7aa2a2ebbf7907c121682dcae8a56a9f1c1aec6669df5b779b3a78eb",
       "peer_solver_z3.py": "34fbfbdd2441d67ebe0a973f41893d2fff9ef3b3fdf0481901136527e9d70a4d",
       "planning_cache.py": "5b54a50d425ad82c1563a9b7f22f529dcbeee9c423d4092c637061b5fc144cd3",
-      "prepared_workspace_fastpath.py": "269bf97e1c60057ee085b20b16054061ba735dc97c55a11bfbf16b739d4bd5b5",
+      "prepared_workspace_fastpath.py": "3e5e788519e473779f235ac84a22e363e8be120ee6d22c6cca3c1134399a6dd6",
       "project_execution_environment.py": "10cabffb0abd73704a305c5ab59ba14600de3343c6ca50e29d6c514ad4e096ac",
-      "project_runtime.py": "0b3c4949c7be99b4fa35dc8645c884c01e20cf5379517221388be26e8c96ba0f",
+      "project_runtime.py": "152492b6f1e68b82d6b9c198008ef596c9d746f8658d10b9357a5a1fb81c0e99",
       "project_topology.py": "2ff960672379ec74264980e7fdea2fc95cf7570c95dd6362d01cb03bb7bf6772",
       "proven_dependency_state.py": "675591dce5dcd8b59f301811ed1e8b4e12183289844369ce4a1ba0e4b27fc119",
       "public_npm_identity.py": "f4228a38733bbf8efee9adc1c3e48348cd857dc87763e7ed10fa87e4614a6710",
@@ -142,7 +142,7 @@
       "verification_linux_pid_namespace.py": "2c9c157b5ab8e3db208399925a6f33bac79306a7fc34efa1bf7b827f065c3486",
       "verification_observability.py": "d30ec27b23a68c6e9c329910640c4360d320786443f9f3ad040270b2000a2ba2",
       "verification_process_supervisor.py": "1f89abe0b6307eddc56cd4e59ade4d73df35332e2441ea8f91afba71198478c6",
-      "verification_proof.py": "4400e43f19a01fcaf8601d6785c37cb64e76f490846048f99e280a1d9060b548",
+      "verification_proof.py": "70aceea215391d4cfe79062047ef5beb356c1be1088ba92d895348df8b8961de",
       "verification_source_closure.py": "8103e069e8cd73d65be720f7223981fd3b0a221c4e7b0583ccc6f7176166ad6d",
       "verification_stage_checkpoint.py": "573121e8eb0b73c056224287fe27fd12c2861042420b1bb793d89a82e42ea926",
       "verification_storage_maintenance.py": "88a7c419aeacf6380521a956523b996a71f647e020d4d2def6492df2c377e0fb",
@@ -162,8 +162,8 @@
       "yarn_berry.py": "bd769e797823ff99129983f8295a52b5aac1f01f9be2c2a8eac9ffeaf20903d2"
     },
     "repository": "https://github.com/levencode-labs/deploom-core",
-    "revision": "810669878abc7c9b737873614d14251f07955810",
-    "version": "0.1.16"
+    "revision": "aaff5b063297ceb493795fdfc06f5b9b9b714604",
+    "version": "0.1.17"
   },
   "mcpVersion": "0.2.22",
   "schemaSha256": "8f34bcc5005ee39c3d43131643216d6ce0ad5cdb1bc9f2447bcd55537481ae43",
