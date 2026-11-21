@@ -104,7 +104,7 @@ class CurrentSecurityProjectionTests(unittest.TestCase):
         base = {"DEPLOOM_MCP_PRIVATE_SCOPES": "@inside", "DEPLOOM_MCP_OSV_DIR": "/test/osv",
                 "DEPLOOM_DRAFT_PRIVATE_METADATA_REGISTRY": corporate}
         with tempfile.TemporaryDirectory() as tmp:
-            project = Path(tmp)
+            project = Path(tmp).resolve()
             manifest = project / "package.json"
             manifest.write_text(json.dumps({"devDependencies": {"@inside/a": "^1.0.0"}}))
             without_cache = {k: v for k, v in base.items() if k != "DEPLOOM_MCP_OSV_DIR"}
