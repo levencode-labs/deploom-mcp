@@ -7,10 +7,11 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import yaml
+from semantic_version import NpmSpec
 
 from deploom_mcp.dependency_audit import AuditError, checked_registry
 from deploom_mcp.goal_contract import GoalContractError
-from deploom_mcp.workspace_inventory import _read_bytes
+from deploom_mcp.workspace_inventory import SECTIONS, _read, _read_bytes
 
 _PUBLIC = {"https://registry.npmjs.org", "https://registry.yarnpkg.com"}
 _REGISTRY_ROUTE = re.compile(r"^\s*[\"']?(?:registry|@[^\s=:]+:registry)[\"']?(?:\s|=|$)", re.I)
@@ -23,15 +24,52 @@ def _url(value: str | None) -> str | None:
     return result
 
 
-def is_corporate_advisory_url(value: str) -> bool:
+def is_corporate_registry_url(value: str) -> bool:
     try:
         parsed = urlsplit(_url(value))
     except (AuditError, ValueError):
         return False
     host = (parsed.hostname or "").lower().rstrip(".")
     return (parsed.scheme == "https" and bool(host) and host.isascii()
+            and not any(part in {".", ".."} for part in parsed.path.split("/"))
             and not any(host == domain or host.endswith("." + domain)
                         for domain in ("npmjs.org", "npmjs.com", "yarnpkg.com")))
+
+
+def private_metadata_registry(selected: str | None) -> str | None:
+    approved = os.environ.get("DEPLOOM_MCP_ALLOWED_PROJECT_REGISTRY", "").rstrip("/")
+    if (selected and selected.rstrip("/") == approved and is_corporate_registry_url(approved)
+            and os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") == "1"):
+        return approved
+    return None
+
+
+def _guard_private_declarations(project: Path, selected: str | None) -> None:
+    scopes = {item.strip() for item in os.environ.get("DEPLOOM_MCP_PRIVATE_SCOPES", "").split(",") if item.strip()}
+    if not scopes or private_metadata_registry(selected):
+        return
+    try:
+        _, manifest = _read(project / "package.json", 2 * 1024 * 1024, root=project)
+    except FileNotFoundError:
+        return
+    except (GoalContractError, OSError, ValueError):
+        raise AuditError("project-manifest-unavailable", "Could not safely inspect private dependency scopes") from None
+    for section in SECTIONS:
+        declarations = manifest.get(section)
+        if not isinstance(declarations, dict):
+            continue
+        for name, spec in declarations.items():
+            if name.split("/", 1)[0] not in scopes or not isinstance(spec, str) or not spec.strip():
+                continue
+            # An ordinary semver selector or dist-tag triggers a packument read.
+            # Core also guards the actual fetch, including newly discovered peer names.
+            try:
+                NpmSpec(spec.strip())
+            except ValueError:
+                if not re.fullmatch(r"[A-Za-z][A-Za-z0-9._-]*", spec.strip()):
+                    continue
+            raise AuditError("private-metadata-registry-required",
+                             "Private dependency metadata requires restricted mode and the host-approved corporate HTTPS registry")
 
 
 def _configured_routes(raw: bytes, *, yarn: bool) -> tuple[set[str], bool]:
@@ -130,13 +168,14 @@ def planning_registry(project: Path, explicit: str | None) -> str | None:
     if selected is not None:
         if routes and selected not in routes and (restricted or scoped_routes):
             raise AuditError("project-registry-conflict", "Explicit registry differs from the configured project route")
-        return selected
-    if not routes:
-        return approved if restricted else None
-    selected = next(iter(routes))
-    if not selected.startswith("https://"):
-        raise AuditError("project-registry-unsupported", "Automatic project registry selection requires HTTPS")
-    if selected != approved and (restricted or selected not in _PUBLIC):
-        raise AuditError("project-registry-not-authorized",
-                         "Pass the registry explicitly or configure the MCP host's approved project registry")
+    elif routes:
+        selected = next(iter(routes))
+        if not selected.startswith("https://"):
+            raise AuditError("project-registry-unsupported", "Automatic project registry selection requires HTTPS")
+        if selected != approved and (restricted or selected not in _PUBLIC):
+            raise AuditError("project-registry-not-authorized",
+                             "Pass the registry explicitly or configure the MCP host's approved project registry")
+    elif restricted:
+        selected = approved
+    _guard_private_declarations(project, selected)
     return selected

@@ -659,7 +659,11 @@ def _exec_env(policy: BlueprintPolicy, run_id: str, workspace_id: str, project_i
     if offline := os.environ.get("DEPLOOM_MCP_OSV_DIR"):
         env["DEPLOOM_DRAFT_OSV_DIR"] = offline
         env["DEPLOOM_DRAFT_PUBLIC_NAMES"] = os.environ.get("DEPLOOM_MCP_PUBLIC_NAMES", "")
-        env["DEPLOOM_DRAFT_PRIVATE_SCOPES"] = os.environ.get("DEPLOOM_MCP_PRIVATE_SCOPES", "")
+    if scopes := os.environ.get("DEPLOOM_MCP_PRIVATE_SCOPES"):
+        env["DEPLOOM_DRAFT_PRIVATE_SCOPES"] = scopes
+        from deploom_mcp.planning_registry import private_metadata_registry
+        if private_registry := private_metadata_registry(options.registry):
+            env["DEPLOOM_DRAFT_PRIVATE_METADATA_REGISTRY"] = private_registry
     if os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") == "1":
         env["DEPLOOM_DRAFT_DISABLE_EXTERNAL_EVIDENCE"] = "1"
         approved_registry = os.environ.get("DEPLOOM_MCP_REGISTRY_ADVISORY_SOURCE")
@@ -667,8 +671,8 @@ def _exec_env(policy: BlueprintPolicy, run_id: str, workspace_id: str, project_i
             env["DEPLOOM_DRAFT_REGISTRY_ADVISORY_SOURCE"] = approved_registry
             corporate = os.environ.get("DEPLOOM_MCP_CORPORATE_ADVISORY_SOURCE")
             if offline and corporate and corporate.rstrip("/") == approved_registry.rstrip("/"):
-                from deploom_mcp.planning_registry import is_corporate_advisory_url
-                if is_corporate_advisory_url(corporate):
+                from deploom_mcp.planning_registry import is_corporate_registry_url
+                if is_corporate_registry_url(corporate):
                     env["DEPLOOM_DRAFT_CORPORATE_ADVISORY_SOURCE"] = corporate
     env["DEPLOOM_MODE"] = "draft"
     env["DEPLOOM_RUN_ID"] = run_id

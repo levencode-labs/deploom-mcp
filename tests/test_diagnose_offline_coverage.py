@@ -21,23 +21,26 @@ class SavedRunDiagnosisTests(unittest.TestCase):
                 ("sample", "2.0.0", "osv-unavailable", "3.0.0"),
                 ("private-example", "1.0.0", "", "internal/non-registry"),
                 ("second", "1.0.0", "", "1.0.0"),
+                ("unresolved", "1.0.0", "", "1.0.0"),
             ]:
                 rows.append(dict(project="example", package=name, kind="dependencies", requestedSpec=version,
                                  current=version, scanState="done", draftUnknown=tag, latest=latest, status="no-target"))
+            rows[-1]["requestedSpec"] = "^1.0.0"
+            rows[-1]["currentSecurityEvidence"] = {"status": "UNKNOWN", "reason": "CURRENT_VERSION_UNRESOLVED"}
             unknowns = [dict(row, reason="OSV/security state unknown for this package in this Draft run")
                         for row in rows[:2]]
             plan = json.dumps({"unknowns": unknowns, "proposals": [{"rows": rows}]}).encode()
             (directory / "plan.json").write_bytes(plan)
             result = {"runId": "test", "hashes": {"plan": hashlib.sha256(plan).hexdigest()},
-                      "metadata": {"securityTotal": 3, "securityKnown": 1, "processed": 3, "processedTotal": 3}}
+                      "metadata": {"securityTotal": 4, "securityKnown": 1, "processed": 4, "processedTotal": 4}}
             result_file = directory / "result.json"
             result_file.write_text(json.dumps(result))
             inventory = directory / "inventory.json"
             inventory.write_text(json.dumps({"complete": True, "pairs": [
-                ["sample", "1.0.0"], ["second", "1.0.0"], ["second", "1.0.0"], ["private-example", "1.0.0"]]}))
+                ["sample", "1.0.0"], ["second", "1.0.0"], ["second", "1.0.0"], ["private-example", "1.0.0"], ["unresolved", "1.0.0"]]}))
             report = diagnose(result_file, inventory_path=inventory, focus="private-example")
             self.assertTrue(report["accountsForReportedUnknowns"])
-            self.assertEqual({"LEGACY_REASON_NOT_RECORDED": 1, "NON_REGISTRY_SPEC": 1}, report["recordedReasons"])
+            self.assertEqual({"LEGACY_REASON_NOT_RECORDED": 1, "NON_REGISTRY_SPEC": 1, "CURRENT_VERSION_UNRESOLVED": 1}, report["recordedReasons"])
             self.assertEqual(1, report["pairIntersection"]["sharedPairs"])
             self.assertEqual(2, report["pairIntersection"]["distinctDirectPairs"])
             self.assertEqual("NON_REGISTRY_SPEC", report["focusUnknownRows"][0]["recordedReason"])
