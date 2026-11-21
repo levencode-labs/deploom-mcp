@@ -3,7 +3,7 @@
 OSV_REASONS = frozenset({
     "PUBLIC_PACKAGE_UNCONFIRMED", "PRIVATE_SCOPE_EXCLUDED", "UNSUPPORTED_OSV_RANGE",
     "MISSING_SEVERITY", "SNAPSHOT_READ_ERROR", "SNAPSHOT_STALE", "SNAPSHOT_UNAVAILABLE",
-    "INVALID_EXACT_VERSION",
+    "INVALID_EXACT_VERSION", "LOCKED_PUBLIC_ARTIFACT_UNCONFIRMED",
 })
 ROW_REASONS = OSV_REASONS | {"NON_REGISTRY_SPEC", "REGISTRY_METADATA_UNAVAILABLE", "CURRENT_VERSION_UNRESOLVED", "PRIVATE_METADATA_REGISTRY_UNAPPROVED"}
 REGISTRY_REASONS = frozenset({
@@ -22,6 +22,9 @@ def project_current_security(value):
         if source not in ("OFFLINE_OSV_NPM", "REGISTRY_BULK_ADVISORY", "OFFLINE_OSV_NPM_AND_REGISTRY") or type(count) is not int or count < 0:
             return None
         evidence = {"status": status, "source": source, "findingCount": count}
+        if (source == "OFFLINE_OSV_NPM" and count == 0
+                and value.get("publicIdentitySource") == "NPM_PUBLIC_PACKUMENT"):
+            evidence["publicIdentitySource"] = "NPM_PUBLIC_PACKUMENT"
     elif status == "UNKNOWN" and isinstance(value.get("reason"), str) and value["reason"] in ROW_REASONS:
         evidence = {"status": status, "reason": value["reason"]}
     else:

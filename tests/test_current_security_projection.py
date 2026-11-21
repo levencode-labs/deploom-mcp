@@ -17,7 +17,8 @@ class CurrentSecurityProjectionTests(unittest.TestCase):
         rows = plan["proposals"][0]["rows"]
         seed = rows.pop()
         results = [
-            {"status": "ASSESSED", "source": "OFFLINE_OSV_NPM", "findingCount": 0},
+            {"status": "ASSESSED", "source": "OFFLINE_OSV_NPM", "findingCount": 0,
+             "publicIdentitySource": "NPM_PUBLIC_PACKUMENT"},
             {"status": "ASSESSED", "source": "REGISTRY_BULK_ADVISORY", "findingCount": 1,
              "osvReason": "PUBLIC_PACKAGE_UNCONFIRMED", "registryReason": "REGISTRY_EXACT_VERSION"},
             {"status": "UNKNOWN", "reason": "MISSING_SEVERITY", "osvReason": "MISSING_SEVERITY",
@@ -46,6 +47,17 @@ class CurrentSecurityProjectionTests(unittest.TestCase):
                     "unknownByReason": {"MISSING_SEVERITY": 1, "NON_REGISTRY_SPEC": 1}}
         self.assertEqual(bp["summary"]["currentSecurityCoverage"], expected)
         self.assertEqual(compact["summary"]["currentSecurityCoverage"], expected)
+
+    def test_public_identity_marker_is_specific_to_an_assessed_offline_zero(self):
+        from deploom_mcp.security_projection import project_current_security
+        for value in (
+            {"status": "UNKNOWN", "reason": "PUBLIC_PACKAGE_UNCONFIRMED"},
+            {"status": "ASSESSED", "source": "REGISTRY_BULK_ADVISORY", "findingCount": 0},
+            {"status": "ASSESSED", "source": "OFFLINE_OSV_NPM", "findingCount": 1},
+        ):
+            with self.subTest(value=value):
+                result = project_current_security(dict(value, publicIdentitySource="NPM_PUBLIC_PACKUMENT"))
+                self.assertEqual(result, value)
 
     def test_missing_or_invalid_row_does_not_create_assessment(self):
         plan, manifest = fixture(diag=False)

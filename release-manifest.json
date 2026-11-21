@@ -1,7 +1,7 @@
 {
   "blueprintSchemaVersion": 2,
   "core": {
-    "contentSha256": "e9b329b249cd84717351c2f116b9a1033da87dc14374051a0cd18a1ca44cf87f",
+    "contentSha256": "e2948aacd30b30bf7a46b17512bfaf897b42247c9c0f2b61dc745d9f038f8155",
     "files": {
       "VERSION": "2698c63efcc74d9adc7a29889fc4ecc7fadfb58c4588db3f117f9d87cfaaff40",
       "analyze_verification_telemetry.py": "1ee235ef0b9cf275fe34c22cf16cb4049e88fb19953096ddaecbb73d7a700e6f",
@@ -49,7 +49,7 @@
       "dependency_audit_branch.py": "c556a4ce33f105eb10763e0d874e4f2a03043bb94744ab68336a063a5d779f15",
       "dependency_compatibility_evidence.py": "6233e7d8bedca194fd030fa883aac57d9c3d51e79a342cec21420b04f757d192",
       "dependency_interaction.py": "af9f4e3b2458f2d58e557b3e241aaf4bab4596c6fbf59a0b355d46bb7215196c",
-      "dependency_live_roadmap_generator.py": "f88678dca72f8305ec10a37482c3bbbad506962b51c0dbf0e369d9d12fc251c0",
+      "dependency_live_roadmap_generator.py": "5bb3b38bb994c7f53e5ef8e28f28294013c555a2ac7002978c60546074bc8289",
       "dependency_live_roadmap_worker.py": "1b76e6403c2964a45fd0fbca46031a0baa40bb5c3e4c6afdc943940973359aac",
       "dependency_release_branch.py": "072cec1182cf8d801fb9c727cd1266f0711f5eff49cb8799a304647ff17c87fe",
       "deploom_failure.py": "0f3d75cb02e3440379b736ab709cd916634a60e9f14d03b4be3cd14c162e8687",
@@ -86,9 +86,9 @@
       "iterative_target_deferrals.py": "f92426c77d50bba4c81740f470d71605592d165e0b7260e5bc5118ca1f57b64d",
       "iterative_task.py": "a7b245714ec9e92713a6c98f2e472c81fc13e7a8b77ed9f4a28760c5fbce5bdb",
       "iterative_trial_workspace.py": "d9e140c72553244cfea3a8055faa97ecc85342ffcd73b4d70f45aea0151a09a2",
-      "lockfile_consistency.py": "8e413e8fe6d2536172ebbff376e23c303229acff44b80cdd01ba82701bab2771",
+      "lockfile_consistency.py": "4e327a59039b3202fcb3ab6152c19cc83208ec91d6fedbe5173bdfdf3a34aed8",
       "lockfile_preflight.py": "b13ee58c00905c27223062e872f0c3219239b76249a19b3ea6c15e1fd1238924",
-      "manual_dependency_audit.py": "27c1d6e512ec46ea7dc8cb2dfb0220272b8d148661905baf4bb839e2389dc6a2",
+      "manual_dependency_audit.py": "9af2fbdd50f9998fd89ce5459a2a41c9b0521960e5963b00da9c40e5955a3bb2",
       "materialization_retention.py": "9e4c37f073de700ef4a0d0fe2a5225a3b71b7e3e814c1fd48ab59189af5f6abf",
       "materialized_workspace_verifier.py": "b16bd5e07c7dd6e77d1eefb20ffd41714f499f611875337e122c1e9184eadba1",
       "migration_documents.py": "8f20583f19aa3bb09454ae3047866f301a50c4b7ab2f3fa8e8d64c0fdda25a19",
@@ -111,9 +111,10 @@
       "project_runtime.py": "0b3c4949c7be99b4fa35dc8645c884c01e20cf5379517221388be26e8c96ba0f",
       "project_topology.py": "2ff960672379ec74264980e7fdea2fc95cf7570c95dd6362d01cb03bb7bf6772",
       "proven_dependency_state.py": "675591dce5dcd8b59f301811ed1e8b4e12183289844369ce4a1ba0e4b27fc119",
+      "public_npm_identity.py": "f4228a38733bbf8efee9adc1c3e48348cd857dc87763e7ed10fa87e4614a6710",
       "registry_advisory_evidence.py": "38c5f8bd3481329fdbe581939e8eaa588927b0ce5c1501f64c81741d366a5a91",
       "registry_candidate_diagnostics.py": "57cd6d3bf6298588ccd1e5136f5c5ea7465c9b2439a63eb0e50c27bb47defdf6",
-      "registry_metadata_cache.py": "71599efd302a915173c01afd303b1f43de6d5535a77874699bece32a369b36e2",
+      "registry_metadata_cache.py": "01128830beb4987754d21b3fb06006a5ba1704e47dc973ca832ffd9f11282b90",
       "registry_request_context.py": "8c21506247e61b9ffa05df3d74532e0e78d31ac0301a850f1c0dc781592ebeda",
       "reparse_materialization.py": "f617cee356d171ef306d44911f971b3a77b8a8ca00464c4f22a2c056aa24be9a",
       "resolution_inventory.py": "f0582528ee1336c582efde773ed7b7a9cd1f405856430b60b1b27439c54f57df",
@@ -161,16 +162,16 @@
       "yarn_berry.py": "bd769e797823ff99129983f8295a52b5aac1f01f9be2c2a8eac9ffeaf20903d2"
     },
     "repository": "https://github.com/levencode-labs/deploom-core",
-    "revision": "0120f99a16a9d6c92280b363e9e3caa28d310765",
+    "revision": "732dc2384252f7316e57b521000008e40628c42d",
     "version": "0.1.14"
   },
-  "mcpVersion": "0.2.22.dev1",
-  "schemaSha256": "21d01d1e76526fb1e07882076947e6bc7e82d13c966c17d116f862cd63a827cf",
+  "mcpVersion": "0.2.22.dev2",
+  "schemaSha256": "8f34bcc5005ee39c3d43131643216d6ce0ad5cdb1bc9f2447bcd55537481ae43",
   "schemaVersion": 1,
   "skill": {
-    "bundleSha256": "fd68d255f69624b91c38208922321b67a4bbe393a44e54a302c1e31e1eefdc6c",
-    "contractVersion": "2.0.28"
+    "bundleSha256": "2654918a1219da0795f0d38950ad6f5a05f5dd5b1a44ca0807db34b650f906fe",
+    "contractVersion": "2.0.29"
   },
-  "skillManifestSha256": "e9cd82956ac0e61cfc23ecfef90b672b422e8e23e9fa0133e9a198fa6403b21c",
+  "skillManifestSha256": "aae6c6ce7cbceb7626058ede56aeaa48455918a600219518c3c92e7eb65d94c9",
   "workspaceSchemaSha256": "055cb0565a2b31e503d269a1ddf8bf0af50aba54f512b6f8cfbeb6b7287b21b8"
 }

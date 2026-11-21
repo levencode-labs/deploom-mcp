@@ -119,6 +119,11 @@ For a flat plan, report `summary.currentSecurityCoverage` when present. Its
 counts cover all direct declaration rows, including those beyond the compact
 display limit. For an individual row, read `evidence.currentSecurityEvidence`.
 `ASSESSED` names the source and gives a finding count for that exact version.
+An offline zero with `publicIdentitySource: NPM_PUBLIC_PACKUMENT` means the
+planner confirmed the public npm name and version from its registry metadata
+and the selected OSV edition has zero known findings for that pair.
+The result describes the public package version. Installed files and
+transitive dependencies require separate checks.
 `UNKNOWN` includes a reason. When a corporate fallback was attempted, preserve
 both `osvReason` and `registryReason`. A ready snapshot and a processed row
 alone say nothing about a package's finding count. Older reports may omit

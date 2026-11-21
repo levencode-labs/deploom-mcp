@@ -484,6 +484,10 @@
                     "type": "integer",
                     "minimum": 0
                   },
+                  "publicIdentitySource": {
+                    "const": "NPM_PUBLIC_PACKUMENT",
+                    "description": "The planning metadata from the public npm registry independently identified this exact public package version."
+                  },
                   "reason": {
                     "type": "string"
                   },
@@ -492,6 +496,15 @@
                   },
                   "registryReason": {
                     "type": "string"
+                  }
+                },
+                "if": { "required": ["publicIdentitySource"] },
+                "then": {
+                  "required": ["status", "source", "findingCount"],
+                  "properties": {
+                    "status": { "const": "ASSESSED" },
+                    "source": { "const": "OFFLINE_OSV_NPM" },
+                    "findingCount": { "const": 0 }
                   }
                 },
                 "oneOf": [
