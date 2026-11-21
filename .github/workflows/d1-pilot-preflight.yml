@@ -145,8 +145,10 @@ jobs:
           node-version: '22'
       - name: Full no-agent Windows PowerShell 5.1 demo
         shell: powershell
+        env:
+          EXPECTED_MCP_SHA: ${{ inputs.release_ref || github.event.pull_request.head.sha || github.sha }}
         run: |
-          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\d1_yellow_windows_demo.ps1 -ExpectedMcpSha '${{ inputs.release_ref || github.event.pull_request.head.sha || github.sha }}' -OutputDir (Join-Path $env:RUNNER_TEMP 'deploom-d1-windows')
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\d1_yellow_windows_demo.ps1 -ExpectedMcpSha $env:EXPECTED_MCP_SHA -OutputDir (Join-Path $env:RUNNER_TEMP 'deploom-d1-windows')
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: No-model A/B ledger, objective and owned-descendant regressions (Windows)
         shell: powershell
