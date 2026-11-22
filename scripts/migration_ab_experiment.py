@@ -31,6 +31,20 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
+def read_api_key():
+    value = os.environ.pop("OPENAI_API_KEY", "").lstrip("\ufeff").strip()
+    if value.startswith("OPENAI_API_KEY="):
+        value = value.removeprefix("OPENAI_API_KEY=").strip()
+    if value[:1] in ("'", '"') and value[-1:] == value[:1]:
+        value = value[1:-1]
+    key = "".join(value.split())
+    if not key:
+        raise RuntimeError("Environment secret OPENAI_API_KEY is missing")
+    if not re.fullmatch(r"sk-[A-Za-z0-9_-]{20,}", key):
+        raise RuntimeError("Environment secret must contain a single OpenAI API key")
+    return key
+
+
 def api(key, suffix, payload, limit):
     request = Request("https://api.openai.com/v1/responses" + suffix, method="POST",
                       headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
@@ -49,6 +63,8 @@ def api(key, suffix, payload, limit):
         except (AttributeError, ValueError):
             pass
         raise RuntimeError(" ".join([f"OpenAI HTTP {error.code}", *hint])) from None
+    except ValueError:
+        raise RuntimeError("Invalid OpenAI HTTP transport value") from None
 
 
 def schema(name, description, *keys):
@@ -410,11 +426,8 @@ def main():
     parser.add_argument("--pair")
     parser.add_argument("--api-smoke", action="store_true")
     args = parser.parse_args()
-    key = os.environ.pop("OPENAI_API_KEY", "")
     if args.api_smoke:
-        if not key:
-            raise RuntimeError("Environment secret OPENAI_API_KEY is missing")
-        api_smoke(key)
+        api_smoke(read_api_key())
         return
     if not args.corpus or not args.out:
         parser.error("--corpus and --out are required")
@@ -428,8 +441,9 @@ def main():
             preflight(corpus, out)
             write_json(out / "preflight.json", {"status": "PASS", "modelSessions": 0, "corpusSha256": corpus_hash})
             return
-        if not key or not pair:
-            raise RuntimeError("Environment secret or valid pair id missing")
+        if not pair:
+            raise RuntimeError("Unknown pair id")
+        key = read_api_key()
         registry_index = json_file(corpus / "registry/index.json")
         rows = []
         for side in pair["order"]:
