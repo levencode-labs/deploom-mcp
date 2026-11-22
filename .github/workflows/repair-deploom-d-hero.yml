@@ -1,0 +1,46 @@
+name: Fix Deploom MCP hero D (design branch only)
+on:
+  push:
+    branches: [design/deploom-d-continuous-hero]
+permissions:
+  contents: write
+jobs:
+  patch-original:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned rendering libraries
+        run: python -m pip install --disable-pip-version-check pillow==12.3.0 numpy==2.3.5 opencv-python-headless==4.13.0.92
+      - name: Read-only, SHA-pinned shared D contour repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '765916c5238e0182051bfad2bbf3eaacc05fb9c2ce1ed4cab37a3e2c1cfa7d75  assets/product-hero.jpg' | sha256sum -c -
+          curl --fail --location --retry 3 --silent --show-error \
+            https://raw.githubusercontent.com/levencode-labs/deploom-core/415cd416def50f0ccd02244ef5d7d737208465b5/tools/fix_deploom_d_contour.py \
+            -o /tmp/fix_deploom_d_contour.py
+          python /tmp/fix_deploom_d_contour.py assets/product-hero.jpg /tmp/fixed.jpg
+          cp /tmp/fixed.jpg assets/product-hero.jpg
+          sha256sum assets/product-hero.jpg
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deploom-mcp-fixed-continuous-D
+          path: assets/product-hero.jpg
+          if-no-files-found: error
+      - name: Commit corrected image, no other changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/product-hero.jpg
+          git diff --cached --quiet && { echo 'No image change'; exit 1; }
+          git commit -m 'Fix continuous cyan-violet D in Deploom MCP hero'
+          git push origin HEAD:design/deploom-d-continuous-hero
