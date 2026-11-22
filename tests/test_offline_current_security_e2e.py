@@ -120,8 +120,10 @@ class OfflineCoverageEndToEndTests(unittest.TestCase):
         self.assertTrue(payload["planningOptions"]["registryFallbackEnabled"])
         rows = {row["package"]: row["evidence"]["currentSecurityEvidence"] for row in payload["dependencies"]}
         self.assertEqual(rows["test-confirmed"], {"status": "ASSESSED", "source": "OFFLINE_OSV_NPM", "findingCount": 0})
-        self.assertEqual(rows["test-unknown"]["status"], "UNKNOWN")
-        self.assertEqual(rows["test-unknown"]["registryReason"], "COVERAGE_UNCONFIRMED")
+        self.assertEqual(rows["test-unknown"]["status"], "ASSESSED")
+        self.assertEqual(rows["test-unknown"]["source"], "REGISTRY_BULK_ADVISORY")
+        self.assertEqual(rows["test-unknown"]["findingCount"], 0)
+        self.assertEqual(rows["test-unknown"]["registryReason"], "REGISTRY_NO_REPORTED_ADVISORIES")
         self.assertEqual((rows["@inside/test-nexus"]["source"], rows["@inside/test-nexus"]["findingCount"]), ("REGISTRY_BULK_ADVISORY", 1))
         self.assertEqual((rows["test-overlap"]["source"], rows["test-overlap"]["findingCount"]),
                          ("OFFLINE_OSV_NPM_AND_REGISTRY", 1))
