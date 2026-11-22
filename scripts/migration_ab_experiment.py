@@ -39,7 +39,16 @@ def api(key, suffix, payload, limit):
         with build_opener(NoRedirect).open(request, timeout=min(30, limit)) as response:
             return json.load(response)
     except HTTPError as error:
-        raise RuntimeError(f"OpenAI HTTP {error.code}") from None
+        hint = []
+        try:
+            detail = json.loads(error.read(16_384)).get("error", {})
+            for name in ("code", "param"):
+                value = detail.get(name)
+                if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_.\[\]-]{1,80}", value):
+                    hint.append(f"{name}={value}")
+        except (AttributeError, ValueError):
+            pass
+        raise RuntimeError(" ".join([f"OpenAI HTTP {error.code}", *hint])) from None
 
 
 def schema(name, description, *keys):
@@ -310,7 +319,11 @@ def arm(key, corpus, pair, side, home, registry_index, hits, out):
             row["toolCalls"].append({"name": call["name"], "seconds": round(time.monotonic() - t, 3)})
             data.append({"type": "function_call_output", "call_id": call["call_id"], "output": value})
     except Exception as error:
-        row["terminal"] = str(error) if re.fullmatch(r"OpenAI HTTP [0-9]{3}", str(error)) else type(error).__name__
+        if re.match(r"OpenAI HTTP [0-9]{3}", str(error)):
+            row["terminal"] = str(error)[:15]
+            row["apiError"] = str(error)
+        else:
+            row["terminal"] = type(error).__name__
     row["agentSeconds"] = round(time.monotonic() - started, 3)
     row["registryRequests"] = len(hits) - hit_start
     verify_started = time.monotonic()
@@ -366,23 +379,48 @@ def preflight(corpus, evidence):
         working = home / "project"
         copy_clean(corpus / case / "baseline", working)
         result = asyncio.run(asyncio.wait_for(mcp_call(case, working, home), timeout=45))
-        if not isinstance(result, dict) or result.get("ok") is False:
-            print(f"{case}: MCP response {json.dumps(result, ensure_ascii=True)[:300]}", flush=True)
-        else:
-            print(f"{case}: pinned MCP returned a plan", flush=True)
+        if not isinstance(result, dict) or result.get("ok") is not True:
+            raise RuntimeError(f"{case}: pinned MCP did not return a plan")
+        print(f"{case}: pinned MCP returned a plan", flush=True)
     return manifest
+
+
+def api_smoke(key):
+    probe = schema("probe", "Run the required fixture probe.")
+    data = [{"role": "user", "content": "Call the probe tool, then say OK after receiving its output."}]
+    base = {"model": MODEL, "input": data, "reasoning": {"effort": EFFORT}, "tools": [probe]}
+    assert api(key, "/input_tokens", base, 30)["input_tokens"] > 0
+    response_options = {"store": False, "parallel_tool_calls": False, "max_output_tokens": 200,
+                        "include": ["reasoning.encrypted_content"]}
+    initial = api(key, "", {**base, **response_options, "tool_choice": "required"}, 30)
+    calls = [item for item in initial["output"] if item["type"] == "function_call"]
+    assert initial["status"] == "completed" and len(calls) == 1 and calls[0]["name"] == "probe"
+    data.extend(initial["output"])
+    data.append({"type": "function_call_output", "call_id": calls[0]["call_id"], "output": "OK"})
+    assert api(key, "/input_tokens", base, 30)["input_tokens"] > 0
+    final = api(key, "", {**base, **response_options, "tool_choice": "none"}, 30)
+    assert final["status"] == "completed" and final["usage"]["input_tokens"] > 0
+    print("Responses API tool continuation passed for " + final["model"])
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--corpus", type=Path, required=True)
-    parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--corpus", type=Path)
+    parser.add_argument("--out", type=Path)
     parser.add_argument("--pair")
+    parser.add_argument("--api-smoke", action="store_true")
     args = parser.parse_args()
+    key = os.environ.pop("OPENAI_API_KEY", "")
+    if args.api_smoke:
+        if not key:
+            raise RuntimeError("Environment secret OPENAI_API_KEY is missing")
+        api_smoke(key)
+        return
+    if not args.corpus or not args.out:
+        parser.error("--corpus and --out are required")
     out = args.out.resolve()
     out.mkdir()
     corpus = args.corpus.resolve()
-    key = os.environ.pop("OPENAI_API_KEY", "")
     corpus_hash = digest((corpus / "manifest.json").read_bytes())
     pair = next((p for p in schedule()["plannedPairs"] if p["id"] == args.pair), None)
     with frozen_registry(corpus / "registry") as hits:

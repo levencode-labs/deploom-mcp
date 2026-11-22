@@ -46,6 +46,10 @@ def report(directory):
                         "terminal": dict(Counter(r["terminal"] for r in group)),
                         "apiRequests": sum(r["requests"] for r in group),
                         "responses": sum(r.get("responses", 0) for r in group),
+                        "sessionsUsingMcp": sum(any(t["name"] == "deploom_plan" for t in r.get("toolCalls", []))
+                                                for r in group),
+                        "sessionsReadingSkill": sum(any(t["name"] == "read_skill" for t in r.get("toolCalls", []))
+                                                    for r in group),
                         "inputTokens": sum(r.get("inputTokens", 0) for r in group),
                         "outputTokens": sum(r.get("outputTokens", 0) for r in group)}
     missing = sum(r["terminal"] == "MISSING" for r in rows)

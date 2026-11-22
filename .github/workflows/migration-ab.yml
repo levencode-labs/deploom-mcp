@@ -72,9 +72,27 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  compare:
+  model-access:
     if: github.repository == 'levencode-labs/deploom-mcp' && github.ref == 'refs/heads/bench/migration-ab' && github.run_attempt == 1 && github.event.head_commit.message == 'Run the fixed 12-pair migration experiment'
     needs: prepare
+    runs-on: ubuntu-22.04
+    timeout-minutes: 4
+    environment: migration-ab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify the repository secret and stateless model tool round trip
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scripts/migration_ab_experiment.py --api-smoke
+
+  compare:
+    if: github.repository == 'levencode-labs/deploom-mcp' && github.ref == 'refs/heads/bench/migration-ab' && github.run_attempt == 1 && github.event.head_commit.message == 'Run the fixed 12-pair migration experiment'
+    needs: [prepare, model-access]
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     environment: migration-ab
