@@ -80,6 +80,26 @@ class NativeKnowledgeContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             knowledge.validate_record(row)
 
+    def test_multiple_independent_breaking_changes_in_same_major_line(self):
+        first = example()
+        second = copy.deepcopy(first)
+        second["id"] = "react-dom-hydration-change-18"
+        second["title"] = "Hydration-related migration guidance"
+        second["actions"] = ["Review hydration behavior and run the application's SSR tests."]
+        rows = knowledge.validate_corpus(json.dumps({"schema": 2, "records": [first, second]}).encode())
+        self.assertEqual(2, len(rows["records"]))
+        self.assertEqual("verified-exact-transition", knowledge.query_match(second, "react-dom", "18.2.0", "18.3.1"))
+        duplicated = copy.deepcopy(first)
+        duplicated["id"] = "another-id-but-duplicate-content"
+        with self.assertRaisesRegex(ValueError, "duplicate knowledge content"):
+            knowledge.validate_corpus(json.dumps({"schema": 2, "records": [first, duplicated]}).encode())
+
+    def test_unproven_extra_transition_cannot_be_called_verified(self):
+        row = example()
+        row["verifiedTransitions"].append({"from": "18.1.0", "to": "18.3.1"})
+        with self.assertRaisesRegex(ValueError, "each verified transition"):
+            knowledge.validate_record(row)
+
     def test_dedupe_and_duplicate_json_keys(self):
         row = example()
         with self.assertRaisesRegex(ValueError, "duplicate knowledge ID"):

@@ -74,8 +74,8 @@ def validate_record(row):
             and len(set(managers)) == len(managers),
             "package managers")
     transitions = row["verifiedTransitions"]
-    _expect(isinstance(transitions, list) and 1 <= len(transitions) <= 24,
-            "verified transitions")
+    _expect(isinstance(transitions, list) and len(transitions) == 1,
+            "each verified transition requires its own pinned positive fixture claim")
     seen = set()
     for item in transitions:
         _fields(item, {"from", "to"})
@@ -136,15 +136,15 @@ def validate_corpus(raw):
     _expect(isinstance(data["records"], list) and 1 <= len(data["records"]) <= MAX_RECORDS,
             "record count")
     seen_ids = set()
-    seen_identity = set()
+    seen_content = set()
     for record in data["records"]:
         validate_record(record)
         _expect(record["id"] not in seen_ids, "duplicate knowledge ID")
         seen_ids.add(record["id"])
-        identity = (record["kind"], record["package"], record["fromMajor"],
-                    record["toMajor"], tuple(sorted(record["packageManagers"])))
-        _expect(identity not in seen_identity, "duplicate knowledge coverage")
-        seen_identity.add(identity)
+        canonical = {key: value for key, value in record.items() if key != "id"}
+        identity = json.dumps(canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+        _expect(identity not in seen_content, "duplicate knowledge content")
+        seen_content.add(identity)
     return data
 
 
