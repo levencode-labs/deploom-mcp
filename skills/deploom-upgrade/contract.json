@@ -16,5 +16,5 @@
     "references/verification-policy.md": "57d6d0dbb3d52816badfa582d416fb3504c4c1c2e78ef80eed64aaa57642318c",
     "scripts/validate_evidence.py": "c830e7fb2ee5dc7b3bd156fd46193cb583e49b60bb39af96ccdd439894730ccb"
   },
-  "bundleSha256": "6df5cf6e4700f54349570c17af1c88db89dda0c61db772fdc74b48ef753b792b"
+  "bundleSha256": "dd2977ccfcb563bff8b550b23714586c8332243b706b5a858f851b7eec7c02ed"
 }
