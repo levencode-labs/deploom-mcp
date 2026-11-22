@@ -1,9 +1,9 @@
 # Shared migration evidence v2 consumer (development)
 
 This adds the **signed, content-addressed** v2 reader without changing the
-public MCP tool's parameter shape. \`get_shared_migration_evidence\` returns
-\`snapshotSource=verified-pages\` when it has a trusted v2 edition, plus
-\`snapshotSchema=2\`. It continues to return the existing v1/bundled results
+public MCP tool's parameter shape. `get_shared_migration_evidence` returns
+`snapshotSource=verified-pages` when it has a trusted v2 edition, plus
+`snapshotSchema=2`. It continues to return the existing v1/bundled results
 when no complete trusted v2 edition is installed.
 
 Startup refresh fetches only **fixed publisher URLs**, not package- or
