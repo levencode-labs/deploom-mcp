@@ -1,0 +1,149 @@
+name: Migration A/B on Ubuntu
+
+on:
+  push:
+    branches:
+      - bench/migration-ab
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migration-ab
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.repository == 'levencode-labs/deploom-mcp' && github.ref == 'refs/heads/bench/migration-ab'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    outputs:
+      matrix: ${{ steps.fixture.outputs.matrix }}
+      sha256: ${{ steps.fixture.outputs.sha256 }}
+      wheel_sha256: ${{ steps.fixture.outputs.wheel_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.0'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build the pinned wheel and verify namespaces
+        run: |
+          test "$(npm --version)" = 11.16.0
+          unshare --user --map-root-user --pid --fork sh -c 'test "$$" -eq 1'
+          command -v bwrap || (sudo apt-get update -qq && sudo apt-get install -y bubblewrap)
+          python -m pip install build
+          python -m build --wheel
+          python -m pip install dist/*.whl
+      - name: Freeze registry, task sources and caches, then check the independent oracle
+        id: fixture
+        run: |
+          stage="$RUNNER_TEMP/migration-preparation"
+          mkdir "$stage" "$RUNNER_TEMP/evidence"
+          python scripts/migration_ab_corpus.py "$stage" "$RUNNER_TEMP/corpus"
+          python scripts/migration_ab_experiment.py --corpus "$RUNNER_TEMP/corpus" --out "$RUNNER_TEMP/evidence/oracle"
+          python scripts/migration_ab_preflight.py --out "$RUNNER_TEMP/evidence/schedule" --schedule-only
+          python -c 'import json,sys; p=json.load(open(sys.argv[1])); print("matrix="+json.dumps({"pair":[row["id"] for row in p["plannedPairs"]]},separators=(",",":")))' "$RUNNER_TEMP/evidence/schedule/schedule.json" >> "$GITHUB_OUTPUT"
+          cp "$RUNNER_TEMP/corpus/manifest.json" "$RUNNER_TEMP/evidence/"
+          mkdir "$RUNNER_TEMP/bench-package"
+          tar -czf "$RUNNER_TEMP/bench-package/corpus.tar.gz" -C "$RUNNER_TEMP" corpus
+          cp dist/*.whl "$RUNNER_TEMP/bench-package/"
+          cd "$RUNNER_TEMP/bench-package"
+          printf 'sha256=%s\n' "$(sha256sum corpus.tar.gz | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+          printf 'wheel_sha256=%s\n' "$(sha256sum *.whl | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: corpus-and-wheel
+          path: ${{ runner.temp }}/bench-package
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: migration-preflight
+          path: |
+            ${{ runner.temp }}/evidence/oracle/preflight.json
+            ${{ runner.temp }}/evidence/manifest.json
+            ${{ runner.temp }}/evidence/schedule/schedule.json
+          if-no-files-found: error
+          retention-days: 7
+
+  compare:
+    if: github.repository == 'levencode-labs/deploom-mcp' && github.ref == 'refs/heads/bench/migration-ab' && github.run_attempt == 1 && github.event.head_commit.message == 'Run the fixed 12-pair migration experiment'
+    needs: prepare
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    environment: migration-ab
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.0'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: corpus-and-wheel
+          path: ${{ runner.temp }}/bench-input
+      - name: Verify and restore approved inputs
+        env:
+          CORPUS_SHA256: ${{ needs.prepare.outputs.sha256 }}
+          WHEEL_SHA256: ${{ needs.prepare.outputs.wheel_sha256 }}
+        run: |
+          test "$(npm --version)" = 11.16.0
+          unshare --user --map-root-user --pid --fork sh -c 'test "$$" -eq 1'
+          command -v bwrap || (sudo apt-get update -qq && sudo apt-get install -y bubblewrap)
+          cd "$RUNNER_TEMP/bench-input"
+          printf '%s  %s\n' "$CORPUS_SHA256" corpus.tar.gz | sha256sum -c -
+          tar -xzf corpus.tar.gz
+          set -- *.whl
+          test "$#" = 1
+          printf '%s  %s\n' "$WHEEL_SHA256" "$1" | sha256sum -c -
+          python -m pip install "$1"
+      - name: Run both assignments and verify the resulting trees
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PAIR: ${{ matrix.pair }}
+        run: |
+          python scripts/migration_ab_experiment.py --corpus "$RUNNER_TEMP/bench-input/corpus" --out "$RUNNER_TEMP/bench-evidence" --pair "$PAIR"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pair-${{ matrix.pair }}
+          path: ${{ runner.temp }}/bench-evidence/*.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  summarize:
+    if: always() && needs.prepare.result == 'success' && needs.compare.result != 'skipped'
+    needs: [prepare, compare]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pair-*
+          path: ${{ runner.temp }}/pairs
+      - name: Summarize all scheduled assignments
+        run: python scripts/migration_ab_summary.py "$RUNNER_TEMP/pairs" "$RUNNER_TEMP/migration-summary.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: migration-ab-summary
+          path: ${{ runner.temp }}/migration-summary.json
+          if-no-files-found: error
+          retention-days: 14
