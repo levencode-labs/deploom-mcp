@@ -49,12 +49,27 @@ class SharedRecordTests(unittest.TestCase):
             def read():
                 return records.lookup(root, "react-dom", "18.2.0", "18.3.1")
             with patch.object(records, "public_key_file", pin):
+                from unittest.mock import Mock
+                from deploom_mcp import public_cache
                 tag = '"first"'
+                blocked = Mock(side_effect=AssertionError("Unexpected network access"))
+                with patch.dict("os.environ", {"DEPLOOM_MCP_LOCAL_CACHE_ONLY": "1"}), patch.object(records.threading, "Thread", blocked):
+                    records.start_refresh()
+                    self.assertFalse(records.refresh(root, blocked))
+                    with self.assertRaisesRegex(ValueError, "Cache refresh disabled"):
+                        public_cache.refresh(root, blocked)
+                    self.assertEqual(read()["snapshotSource"], "bundled")
+                    self.assertFalse((root / records.DATABASE).exists())
+                    blocked.assert_not_called()
                 self.assertEqual(read()["snapshotSource"], "bundled")
                 self.assertTrue(records.refresh(root, fetch))
                 self.assertEqual(read()["observations"][0]["outcome"], "failed")
                 self.assertTrue(records.refresh(root, fetch))
                 self.assertEqual([s.split("/")[-1] for s in calls], ["cache.json", "cache.sig", "cache.json"])
+                with patch.dict("os.environ", {"DEPLOOM_MCP_LOCAL_CACHE_ONLY": "1"}):
+                    self.assertFalse(records.refresh(root, blocked))
+                    self.assertEqual(read()["snapshotSource"], "verified-pages")
+                    blocked.assert_not_called()
                 tag = '"tampered"'
                 valid = body
                 body += b" "

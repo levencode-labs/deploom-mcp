@@ -1307,6 +1307,9 @@ def main() -> int:
     parser.add_argument("--allowed-origin", action="append", default=[], help="Allowed HTTP Origin header; repeat as needed")
     parser.add_argument("--pilot-project", type=Path, help="Serve flat planning for one standalone project over HTTP")
     args = parser.parse_args()
+    if os.environ.get("DEPLOOM_MCP_LOCAL_CACHE_ONLY") == "1":
+        os.environ["DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE"] = "1"
+        os.environ["DEPLOOM_MCP_MIGRATION_OFFLINE"] = "1"
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535")
     if args.transport == "stdio":

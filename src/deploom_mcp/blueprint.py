@@ -658,6 +658,8 @@ def _exec_env(policy: BlueprintPolicy, run_id: str, workspace_id: str, project_i
             del env[key]
     if offline := os.environ.get("DEPLOOM_MCP_OSV_DIR"):
         env["DEPLOOM_DRAFT_OSV_DIR"] = offline
+        if os.environ.get("DEPLOOM_MCP_PUBLIC_ADVISORY_FALLBACK") == "1":
+            env["DEPLOOM_DRAFT_PUBLIC_ADVISORY_FALLBACK"] = "1"
         env["DEPLOOM_DRAFT_PUBLIC_NAMES"] = os.environ.get("DEPLOOM_MCP_PUBLIC_NAMES", "")
     if scopes := os.environ.get("DEPLOOM_MCP_PRIVATE_SCOPES"):
         env["DEPLOOM_DRAFT_PRIVATE_SCOPES"] = scopes

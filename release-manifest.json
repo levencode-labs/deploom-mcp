@@ -1,7 +1,7 @@
 {
   "blueprintSchemaVersion": 2,
   "core": {
-    "contentSha256": "55c2bd156820e7b800a60c0f9a8ef745950c389c6ec74511deab42695e67bd4b",
+    "contentSha256": "09fd03b6b7f21313809ab3463a7864ac533646667df2c89081a8e394484ec489",
     "files": {
       "VERSION": "2698c63efcc74d9adc7a29889fc4ecc7fadfb58c4588db3f117f9d87cfaaff40",
       "analyze_verification_telemetry.py": "1ee235ef0b9cf275fe34c22cf16cb4049e88fb19953096ddaecbb73d7a700e6f",
@@ -49,7 +49,7 @@
       "dependency_audit_branch.py": "c556a4ce33f105eb10763e0d874e4f2a03043bb94744ab68336a063a5d779f15",
       "dependency_compatibility_evidence.py": "6233e7d8bedca194fd030fa883aac57d9c3d51e79a342cec21420b04f757d192",
       "dependency_interaction.py": "af9f4e3b2458f2d58e557b3e241aaf4bab4596c6fbf59a0b355d46bb7215196c",
-      "dependency_live_roadmap_generator.py": "5bb3b38bb994c7f53e5ef8e28f28294013c555a2ac7002978c60546074bc8289",
+      "dependency_live_roadmap_generator.py": "2d7ebd101ca0a55bf84afd5249c98d4f5e48cae73275392d43deb7b78ced118d",
       "dependency_live_roadmap_worker.py": "1b76e6403c2964a45fd0fbca46031a0baa40bb5c3e4c6afdc943940973359aac",
       "dependency_release_branch.py": "072cec1182cf8d801fb9c727cd1266f0711f5eff49cb8799a304647ff17c87fe",
       "deploom_failure.py": "0f3d75cb02e3440379b736ab709cd916634a60e9f14d03b4be3cd14c162e8687",
@@ -162,10 +162,10 @@
       "yarn_berry.py": "bd769e797823ff99129983f8295a52b5aac1f01f9be2c2a8eac9ffeaf20903d2"
     },
     "repository": "https://github.com/levencode-labs/deploom-core",
-    "revision": "aaff5b063297ceb493795fdfc06f5b9b9b714604",
-    "version": "0.1.17"
+    "revision": "4aa87c9e3241da9b4dee2d0cd4532df11ce5747b",
+    "version": "0.1.18"
   },
-  "mcpVersion": "0.2.23",
+  "mcpVersion": "0.2.24",
   "schemaSha256": "8f34bcc5005ee39c3d43131643216d6ce0ad5cdb1bc9f2447bcd55537481ae43",
   "schemaVersion": 1,
   "skill": {

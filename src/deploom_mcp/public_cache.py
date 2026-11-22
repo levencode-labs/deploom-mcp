@@ -100,6 +100,8 @@ def usable(root, m):
 
 
 def refresh(root, fetch=get):
+    if os.environ.get("DEPLOOM_MCP_LOCAL_CACHE_ONLY") == "1":
+        raise ValueError("Cache refresh disabled by DEPLOOM_MCP_LOCAL_CACHE_ONLY")
     root = root.resolve()
     root.mkdir(parents=True, exist_ok=True)
     with closing(sqlite3.connect(root / "update-lock.sqlite", timeout=60)) as lock:

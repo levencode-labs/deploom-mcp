@@ -42,6 +42,8 @@ def bundled():
 
 
 def refresh(root, fetch=get, *, if_due=False):
+    if os.environ.get("DEPLOOM_MCP_LOCAL_CACHE_ONLY") == "1":
+        return False
     try:
         root.mkdir(parents=True, exist_ok=True)
         with closing(sqlite3.connect(root / DATABASE, timeout=60)) as db, db:
@@ -85,7 +87,8 @@ def directory():
 
 
 def start_refresh():
-    if os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") == "1":
+    if (os.environ.get("DEPLOOM_MCP_LOCAL_CACHE_ONLY") == "1" or
+            os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") == "1"):
         return
     def update():
         while True:
