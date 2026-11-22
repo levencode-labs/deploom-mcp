@@ -1,0 +1,39 @@
+name: Migration A/B fixture preflight
+
+on:
+  push:
+    branches:
+      - bench/migration-ab
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.0'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check native namespace and package manager
+        run: |
+          test "$(npm --version)" = 11.16.0
+          unshare --user --map-root-user --pid --fork sh -c 'test "$$" -eq 1'
+      - name: Prepare and verify the ESLint fixture and experiment schedule
+        run: python scripts/migration_ab_preflight.py --out "$RUNNER_TEMP/migration-ab"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: migration-ab-fixture-preflight
+          path: |
+            ${{ runner.temp }}/migration-ab/*.json
+            ${{ runner.temp }}/migration-ab/eslint/baseline/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
