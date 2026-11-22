@@ -5,7 +5,7 @@ description: Plan and execute JavaScript and TypeScript dependency upgrades with
 
 # deploom-upgrade
 
-**Contract version: 2.0.29.** Canonical file hashes are in `contract.json`.
+**Contract version: 2.0.30.** Canonical file hashes are in `contract.json`.
 
 Use `get_upgrade_plan` for health/policy planning evidence. For an explicitly
 agreed functional-maintenance or finite coupled goal, use `get_goal_plan` and
@@ -247,6 +247,31 @@ separate from compatibility evidence.
   (default at most three per root cause unless the task specifies otherwise).
   Do not disable checks, remove validation or invent an out-of-scope restriction
   to get green. Explain alternatives when the repair budget is exhausted.
+
+## Offer to share an observed check
+
+At the end of an applied migration, offer once to contribute an actual check
+from this run. Skip planning-only runs, private or unconfirmed package origins,
+offline/local-only use, opt-outs and ambiguous attribution. When the client
+exposes `finish_team_migration`, follow its team workflow and stop here.
+On public MCP use `preview_public_migration_check` for the exact public package,
+versions, check and observed outcome. Only offer previews marked `awaiting-user`.
+Show the exact fields and name the public repository `levencode-labs/deploom-npm`.
+Ask whether to open a public PR for those observations. Silence or a general
+request to run migrations is not consent. Never send logs, project identities,
+project files, paths or private registry URLs.
+
+Only after explicit consent, use the user's authorized GitHub client. Check
+`docs/v1/history.json` for duplicates. Match each observation to an exact claim
+in a maintainer-reviewed public fixture's `evidence.json`; use its sibling
+`check.cjs` at the immutable repository commit as the record's source. On a
+contributor branch or fork, append only matching schema-1 records to the
+current history array. Open a data-only PR and return its URL. Leave all
+admission checks in place. If the record exists, link to it. If public evidence
+is missing, offer a separate synthetic fixture for maintainer review and show
+its proposed contents for fresh approval before uploading. If GitHub write
+access is unavailable, give the user the prepared change and a link to the
+public contribution instructions. Never request a token in chat.
 
 ## Delivery and evaluation integrity
 

@@ -1,6 +1,7 @@
 """Signed advisory snapshots for public migration examples."""
 import hashlib
 import os
+import re
 import sqlite3
 import threading
 import time
@@ -11,7 +12,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from .public_cache import get
-from .record_contract import KINDS, LIMIT, RECIPES, parse, validate
+from .record_contract import CHECKS, KINDS, LIMIT, PACKAGES, RECIPES, VERSION, parse, validate
 
 BASE = "https://levencode-labs.github.io/deploom-npm/v1/"
 DOMAIN = b"DepLoom public migration records v1\x00"
@@ -95,6 +96,22 @@ def start_refresh():
             refresh(directory(), if_due=True)
             time.sleep(86400)
     threading.Thread(target=update, daemon=True, name="deploom-records").start()
+
+
+def contribution_preview(package, from_version, to_version, check, outcome):
+    """Prepare a bounded, local observation. This function has no publishing capability."""
+    if any(os.environ.get(flag) == "1" for flag in (
+        "DEPLOOM_MCP_LOCAL_CACHE_ONLY", "DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE",
+        "DEPLOOM_MCP_MIGRATION_OFFLINE",
+    )):
+        return {"status": "disabled"}
+    if (package not in PACKAGES or check not in CHECKS or outcome not in ("passed", "failed")
+            or from_version == to_version
+            or not all(re.fullmatch(VERSION, v, re.ASCII) for v in (from_version, to_version))):
+        return {"status": "ineligible"}
+    return {"status": "awaiting-user", "repository": "levencode-labs/deploom-npm",
+            "observation": {"package": package, "from": from_version, "to": to_version,
+                            "check": check, "outcome": outcome}}
 
 
 def lookup(root, package, from_version, to_version):

@@ -1182,6 +1182,19 @@ async def explain_conflict_tool(
 
 
 @server.tool(
+    name="preview_public_migration_check",
+    title="Preview a voluntary public migration observation locally",
+    description="After an observed migration check, prepare the exact fields for an optional public contribution. "
+                "No network, files or submission. Show the preview and ask permission before any public write.",
+    annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=False),
+)
+async def preview_public_migration_check_tool(package: str, from_version: str, to_version: str,
+                                             check: str, outcome: str) -> CallToolResult:
+    from deploom_mcp.shared_records import contribution_preview
+    return _result(contribution_preview(package, from_version, to_version, check, outcome))
+
+
+@server.tool(
     name="get_shared_migration_evidence",
     title="Read public examples for one dependency transition",
     description="Look up a local snapshot of reviewed public examples. Results are advisory; verify the recipient project independently.",
