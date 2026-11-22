@@ -64,13 +64,14 @@ def validate_record(row):
                   "evidence"})
     _expect(type(row["schema"]) is int and row["schema"] == 2, "schema")
     _expect(isinstance(row["id"], str) and IDENT.fullmatch(row["id"]), "id")
-    _expect(row["kind"] in KINDS, "unknown knowledge kind")
+    _expect(isinstance(row["kind"], str) and row["kind"] in KINDS, "unknown knowledge kind")
     _package(row["package"])
     for key in ("fromMajor", "toMajor"):
         _expect(type(row[key]) is int and 0 <= row[key] < 100_000, key)
     managers = row["packageManagers"]
     _expect(isinstance(managers, list) and 1 <= len(managers) <= 3
-            and all(v in MANAGERS for v in managers) and len(set(managers)) == len(managers),
+            and all(isinstance(v, str) and v in MANAGERS for v in managers)
+            and len(set(managers)) == len(managers),
             "package managers")
     transitions = row["verifiedTransitions"]
     _expect(isinstance(transitions, list) and 1 <= len(transitions) <= 24,
@@ -112,7 +113,8 @@ def validate_record(row):
     _version(c["to"])
     _expect(c["package"] == row["package"] and (c["from"], c["to"]) in seen,
             "evidence claim must match an exact verified transition")
-    _expect(c["check"] in ALLOWED_CHECKS and c["outcome"] == "passed", "evidence outcome")
+    _expect(isinstance(c["check"], str) and c["check"] in ALLOWED_CHECKS
+            and c["outcome"] == "passed", "evidence outcome")
     if row["kind"] == "codemod":
         _expect(any("source" in x.lower() or "codemod" in x.lower()
                     for x in row["verification"]), "codemod requires source-code check")
