@@ -6,6 +6,8 @@ import binascii
 import json
 import os
 import re
+import sys
+from pathlib import Path
 
 from semantic_version import NpmSpec, Version
 
@@ -137,6 +139,9 @@ def prepare_native_intent(project, request, resolution_slots, *, render, save, r
         return {"ok": False, "error": {"code": "HELD_LOCK_PROVIDER_CHANGED", **diagnostics},
                 "inventoryDigest": digest, "requestDigest": request_digest, "executionReady": False}
     artifact = save(project, patch)
+    executable = Path(sys.executable)
+    portable = os.name == "posix" and (executable.parent.parent / ".deploom-install.json").is_file()
+    command = str(executable.with_name("deploom-workspace")) if portable else "deploom-workspace"
     response = {
         "ok": True, "schemaVersion": 1, "kind": "npm-workspace-native-manifest-proposal",
         "inventoryDigest": digest, "requestDigest": request_digest,
@@ -144,7 +149,7 @@ def prepare_native_intent(project, request, resolution_slots, *, render, save, r
         "jointAssignment": "NOT_COMPUTED", "packageManagerValidation": {"status": "REQUIRED"},
         "action": {
             "kind": "STAGE_MANIFEST_PATCH_FOR_NATIVE_VERIFICATION",
-            "argv": ["deploom-workspace", "apply", str(project), digest, artifact["path"], artifact["sha256"]],
+            "argv": [command, "apply", str(project), digest, artifact["path"], artifact["sha256"]],
         },
         "heldDeclarationCount": held, "patch": artifact,
     }
