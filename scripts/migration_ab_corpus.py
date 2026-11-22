@@ -42,7 +42,7 @@ def files(root):
     found = {}
     for path in sorted(root.rglob("*")):
         rel = path.relative_to(root)
-        if rel.parts[0] == "node_modules":
+        if "node_modules" in rel.parts:
             continue
         if path.is_symlink():
             raise ValueError("candidate contains a symlink")
@@ -271,7 +271,10 @@ def prepare_corpus(stage, dest):
                     require(npm(["install", "--package-lock-only"], root, cache), f"{case}/{side} lock")
                 require(npm(["ci"], root, cache), f"{case}/{side} ci")
                 require(check_runtime(case, root, cache), f"{case}/{side} behavior")
-                shutil.rmtree(root / "node_modules")
+                for workspace in [root, *root.glob("packages/*")]:
+                    installed = workspace / "node_modules"
+                    if installed.is_dir():
+                        shutil.rmtree(installed)
                 if side == "baseline":
                     shutil.copytree(cache / "_cacache", folder / "warm/_cacache")
             regenerate = stage / (case + "-regenerate")
@@ -285,7 +288,7 @@ def prepare_corpus(stage, dest):
                 if row.get("integrity") and (row.get("resolved"), row["integrity"]) not in allowed:
                     raise RuntimeError(f"{case}: frozen lock selected an unapproved artifact at {slot}")
             write_json(folder / "reference/package-lock.json", regenerated)
-            manifest["tasks"][case] = {side: hashes(folder / side) for side in ("baseline", "reference")}
+            manifest["tasks"][case] = {side: hashes(folder / side) for side in ("baseline", "reference", "warm")}
     write_json(dest / "manifest.json", manifest)
 
 

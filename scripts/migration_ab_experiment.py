@@ -233,7 +233,7 @@ def arm(key, corpus, pair, side, home, registry_index, hits, out):
     row = {"pair": pair["id"], "arm": side, "model": MODEL,
            "skillSetupSeconds": time.monotonic() - setup_started,
            "inputTokens": 0, "outputTokens": 0, "cachedTokens": 0, "reasoningTokens": 0,
-           "requests": 0, "toolCalls": [], "registryRequests": 0,
+           "requests": 0, "responses": 0, "toolCalls": [], "registryRequests": 0,
            "terminal": "STEP_LIMIT", "verification": "NOT_RUN"}
     deadline = time.monotonic() + SECONDS
     started, hit_start = time.monotonic(), len(hits)
@@ -245,7 +245,8 @@ def arm(key, corpus, pair, side, home, registry_index, hits, out):
                 break
             base = {"model": MODEL, "input": data, "instructions": instructions, "tools": tools,
                     "reasoning": {"effort": EFFORT}, "parallel_tool_calls": False}
-            n = api(key, "/input_tokens", base, remaining)["input_tokens"]
+            count = {k: v for k, v in base.items() if k != "parallel_tool_calls"}
+            n = api(key, "/input_tokens", count, remaining)["input_tokens"]
             available = OUTPUT - row["outputTokens"]
             if row["inputTokens"] + n > INPUT or available < 32:
                 row["terminal"] = "TOKEN_LIMIT"
@@ -254,6 +255,7 @@ def arm(key, corpus, pair, side, home, registry_index, hits, out):
             response = api(key, "", {**base, "store": False, "max_output_tokens": min(700, available),
                                      "include": ["reasoning.encrypted_content"]},
                            max(1, deadline - time.monotonic()))
+            row["responses"] += 1
             usage = response["usage"]
             row["inputTokens"] += usage["input_tokens"]
             row["outputTokens"] += usage["output_tokens"]
