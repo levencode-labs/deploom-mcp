@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/social-preview.png" width="768" alt="Deploom MCP banner" />
+<img src="assets/product-hero.jpg" width="1200" alt="Levencode Labs Deploom MCP — explainable upgrade tools and Blueprints for coding agents" />
 
 # Deploom MCP
 
