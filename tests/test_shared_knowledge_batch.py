@@ -157,7 +157,10 @@ class SignedBatchKnowledgeTests(unittest.TestCase):
         missing = batch.lookup_batch(self.root / "no-database", [query()])
         self.assertEqual("snapshot-unavailable", missing["status"])
         self.assertNotEqual("verified-pages", missing["snapshotSource"])
-        with sqlite3.connect(self.root / signed.DB) as db:
+        from contextlib import closing
+        # Windows cannot remove the temporary SQLite file while a connection
+        # remains open: contextmanager commit/rollback alone does not close it.
+        with closing(sqlite3.connect(self.root / signed.DB)) as db, db:
             db.execute("UPDATE shard SET data=?", (b"{}",))
         invalid = batch.lookup_batch(self.root, [query(), query("react", "18.2.0", "18.3.1")])
         self.assertEqual("snapshot-unavailable", invalid["status"])
