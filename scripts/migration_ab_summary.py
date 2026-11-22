@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 
 from migration_ab_preflight import schedule, write_json
+from migration_ab_token_metrics import aggregate_tool_inputs, usage_totals
 
 
 def report(directory):
@@ -31,9 +32,14 @@ def report(directory):
                 raise ValueError("pair receipt identity mismatch")
             hashes.add(record["corpusSha256"])
             receipts += 1
+        input_by_arm = {side: usage_totals([row]) if row.get("inputUsageResponses", row.get("responses", 0)) else None
+                        for side, row in observed.items()}
+        a, b = input_by_arm["A"], input_by_arm["B"]
+        input_delta = {k: b[k] - a[k] for k in a} if a is not None and b is not None else None
         pairs.append({"id": pair["id"], "task": pair["task"], "cache": pair["cache"],
                       "order": pair["order"], "A": observed["A"]["acceptedWithinBudget"],
                       "B": observed["B"]["acceptedWithinBudget"],
+                      "inputByArm": input_by_arm, "pairedBMinusAInput": input_delta,
                       "outcomes": {k: {"terminal": v["terminal"], "verification": v["verification"]}
                                    for k, v in observed.items()},
                       "pairedBMinusASeconds": round(observed["B"]["agentSeconds"] -
@@ -50,13 +56,16 @@ def report(directory):
                                                 for r in group),
                         "sessionsReadingSkill": sum(any(t["name"] == "read_skill" for t in r.get("toolCalls", []))
                                                     for r in group),
-                        "inputTokens": sum(r.get("inputTokens", 0) for r in group),
+                        **usage_totals(group),
+                        "inputUsageResponses": sum(r.get("inputUsageResponses", r.get("responses", 0)) for r in group),
+                        "toolInputAttribution": aggregate_tool_inputs(group),
                         "outputTokens": sum(r.get("outputTokens", 0) for r in group)}
     missing = sum(r["terminal"] == "MISSING" for r in rows)
     completed = len(hashes) == 1 and receipts == len(pairs) and not missing and all(
         r.get("responses", 0) for r in rows)
     return {"status": "COMPLETE" if completed else "INCOMPLETE", "corpusSha256": sorted(hashes),
-            "armCounts": counts, "missing": missing, "pairs": pairs, "runs": rows}
+            "armCounts": counts, "missing": missing, "pairs": pairs, "runs": rows,
+            "toolInputAttributionMethod": "isolated token-count delta times occurrences with reported input usage; no cache split by tool"}
 
 
 if __name__ == "__main__":

@@ -43,6 +43,7 @@ jobs:
       - name: Freeze registry, task sources and caches, then check the independent oracle
         id: fixture
         run: |
+          python scripts/migration_ab_token_metrics.py
           stage="$RUNNER_TEMP/migration-preparation"
           mkdir "$stage" "$RUNNER_TEMP/evidence"
           python scripts/migration_ab_corpus.py "$stage" "$RUNNER_TEMP/corpus"

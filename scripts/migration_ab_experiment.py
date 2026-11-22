@@ -16,6 +16,7 @@ from migration_ab_corpus import (FILES, REGISTRY, REPO, TASKS, check_runtime, co
                                  digest, files, frozen_registry, hashes, npm, npm_env,
                                  require, sandbox_node)
 from migration_ab_preflight import schedule, write_json
+from migration_ab_token_metrics import TOOL_FAMILY, cache_usage, tool_inputs
 
 MODEL = "gpt-6-luna"
 EFFORT = "low"
@@ -352,9 +353,11 @@ def arm(key, corpus, pair, side, home, registry_index, hits, out):
         instructions += (" DepLoom MCP and its pinned Skill are available. Read SKILL.md with page 'summary'. "
                          "Use the plan summary and request detailed pages as needed.")
     data = [{"role": "user", "content": TASKS[case]}]
+    tool_outputs = []
     row = {"pair": pair["id"], "arm": side, "model": MODEL,
            "skillSetupSeconds": time.monotonic() - setup_started,
            "inputTokens": 0, "outputTokens": 0, "cachedTokens": 0, "reasoningTokens": 0,
+           "cacheUnknownInputTokens": 0, "inputUsageResponses": 0,
            "requests": 0, "responses": 0, "toolCalls": [], "registryRequests": 0,
            "terminal": "STEP_LIMIT", "verification": "NOT_RUN"}
     deadline = time.monotonic() + SECONDS
@@ -379,9 +382,8 @@ def arm(key, corpus, pair, side, home, registry_index, hits, out):
                            max(1, deadline - time.monotonic()))
             row["responses"] += 1
             usage = response["usage"]
-            row["inputTokens"] += usage["input_tokens"]
+            cache_usage(row, usage)
             row["outputTokens"] += usage["output_tokens"]
-            row["cachedTokens"] += (usage.get("input_tokens_details") or {}).get("cached_tokens", 0)
             row["reasoningTokens"] += (usage.get("output_tokens_details") or {}).get("reasoning_tokens", 0)
             row["reportedModel"] = response["model"]
             if row["inputTokens"] > INPUT or row["outputTokens"] > OUTPUT:
@@ -408,6 +410,8 @@ def arm(key, corpus, pair, side, home, registry_index, hits, out):
                 value = '{"error":"bounded tool operation failed"}'
             row["toolCalls"].append({"name": call["name"], "seconds": round(time.monotonic() - t, 3)})
             data.append({"type": "function_call_output", "call_id": call["call_id"], "output": value})
+            if call["name"] in TOOL_FAMILY:
+                tool_outputs.append((TOOL_FAMILY[call["name"]], value, row["inputUsageResponses"]))
     except Exception as error:
         if re.match(r"OpenAI HTTP [0-9]{3}", str(error)):
             row["terminal"] = str(error)[:15]
@@ -429,7 +433,25 @@ def arm(key, corpus, pair, side, home, registry_index, hits, out):
                                   and row["agentSeconds"] <= SECONDS)
     row["candidateSha256"] = digest(json.dumps(hashes(root), sort_keys=True).encode())
     write_json(out, row)
-    return row
+    return row, tool_outputs
+
+
+def record_tool_inputs(key, rows, outputs, out):
+    # This uses the count-only endpoint after both timed assignments.
+    deadline = time.monotonic() + 20
+
+    def count(text):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("tool input attribution time limit")
+        request = {"model": MODEL, "reasoning": {"effort": EFFORT},
+                   "input": [{"role": "user", "content": f"<tool-output>\n{text}\n</tool-output>"}]}
+        return api(key, "/input_tokens", request, min(5, remaining))["input_tokens"]
+
+    for row in rows:
+        side = row["arm"]
+        row["toolInputAttribution"] = tool_inputs(outputs[side], row["inputUsageResponses"], count)
+        write_json(out / f"{side}.json", row)
 
 
 def tool_output_sizes(corpus, evidence, manifest, skill):
@@ -583,10 +605,12 @@ def main():
             raise RuntimeError("Unknown pair id")
         key = read_api_key()
         registry_index = json_file(corpus / "registry/index.json")
-        rows = []
+        rows, outputs = [], {}
         for side in pair["order"]:
-            rows.append(arm(key, corpus, pair, side, out / ("arm-" + side), registry_index, hits,
-                            out / f"{side}.json"))
+            row, outputs[side] = arm(key, corpus, pair, side, out / ("arm-" + side), registry_index, hits,
+                                     out / f"{side}.json")
+            rows.append(row)
+        record_tool_inputs(key, rows, outputs, out)
         write_json(out / "pair.json", {**pair, "corpusSha256": corpus_hash, "runs": rows})
         print(f"{pair['id']}: " + " ".join(f"{r['arm']}={r['verification']}" for r in rows))
 
