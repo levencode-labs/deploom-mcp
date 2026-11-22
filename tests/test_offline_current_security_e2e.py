@@ -146,7 +146,17 @@ class OfflineCoverageEndToEndTests(unittest.TestCase):
 
         bulk_requests = []
 
+        offered_cookie = False
+        credentials_seen = []
+
         class PublicRegistry(Handler):
+            def end_headers(self):
+                if offered_cookie:
+                    self.send_header("Cache-Control", "public, max-age=300")
+                    self.send_header("Set-Cookie", "fixture=unused; Path=/; Secure")
+                    credentials_seen.append(any(self.headers.get(k) for k in ("Cookie", "Authorization", "Proxy-Authorization")))
+                super().end_headers()
+
             def do_GET(self):
                 requests_seen.append((self.headers["Host"], self.path))
                 name = unquote(self.path).lstrip("/")
@@ -210,6 +220,15 @@ class OfflineCoverageEndToEndTests(unittest.TestCase):
             with patch.dict(os.environ, {"DEPLOOM_MCP_OSV_DIR": str(self.root / "empty-osv"),
                                          "DEPLOOM_MCP_PUBLIC_ADVISORY_FALLBACK": "1"}):
                 fallback = plan()
+            bulk_requests.clear()
+            offered_cookie = True
+            with patch.dict(os.environ, {"DEPLOOM_MCP_OSV_DIR": str(self.root / "empty-osv"),
+                                         "DEPLOOM_MCP_STATE_DIR": str(self.root / "cookie-edition"),
+                                         "DEPLOOM_MCP_PUBLIC_ADVISORY_FALLBACK": "1"}):
+                self.assertEqual(plan(), fallback)
+            offered_cookie = False
+            self.assertTrue(credentials_seen)
+            self.assertFalse(any(credentials_seen))
             self.assertEqual(fallback["fixture-clean"]["source"], "REGISTRY_BULK_ADVISORY")
             self.assertEqual(fallback["@fixture/scoped"]["source"], "REGISTRY_BULK_ADVISORY")
             self.assertEqual(fallback["fixture-foreign-lock"]["status"], "UNKNOWN")
