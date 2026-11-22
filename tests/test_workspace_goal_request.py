@@ -267,6 +267,26 @@ class WorkspaceGoalRequestTests(unittest.TestCase):
             self.assertEqual(blocked["error"]["code"], "NATIVE_INTENT_BASELINE_ARTIFACT_UNPROVEN")
             self.assertEqual([path.resolve() for path in Path(directory).glob("*.patch")], [artifact.resolve()])
 
+    def test_native_intent_defaults_only_to_public_registry(self):
+        public = "https://registry.npmjs.org"
+        self.fixture.lock["packages"]["node_modules/typescript"].update(
+            resolved=public + "/typescript/-/typescript-5.0.0.tgz",
+            integrity="sha512-" + base64.b64encode(bytes(64)).decode())
+        self.fixture.save()
+        request = {**self.request, "responseMode": "EDITS", "editsStrategy": "NATIVE_INTENT", "scope": [
+            {"selector": {"owner": ".", "section": "devDependencies", "name": "typescript"},
+             "approvedLines": [5], "exactTarget": "5.0.1"}]}
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ), patch(
+                "deploom_mcp.workspace_edits.configured_state_root", return_value=Path(directory)):
+            os.environ.pop("DEPLOOM_WORKSPACE_NPM_REGISTRY", None)
+            def plan():
+                return asyncio.run(plan_workspace_edits(str(self.root), request))
+            self.assertEqual(plan()["error"]["code"], "WORKSPACE_REQUEST_REGISTRY_NOT_AUTHORIZED")
+            request["registry"] = public + "/"
+            self.assertTrue(plan()["ok"])
+            (self.root / ".npmrc").write_text("registry=" + REGISTRY + "\n")
+            self.assertEqual(plan()["error"]["code"], "WORKSPACE_PREFLIGHT_PROJECT_REGISTRY_MISMATCH")
+
     def test_native_intent_plans_and_applies_a_root_only_npm_project(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
