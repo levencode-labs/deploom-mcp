@@ -10,6 +10,12 @@
 
 </div>
 
+### Local-only cache
+
+Set `DEPLOOM_MCP_LOCAL_CACHE_ONLY=1` in the MCP server's environment and restart the client. DepLoom reads its verified local records or the bundled examples and skips GitHub cache updates, including manual refresh in a CLI with the same environment. Offline OSV coverage depends on the local edition and its expiry. Package installation and registry operations requested by a planning tool have separate network requirements.
+
+If the OSV snapshot has a coverage gap, the planner can send a package name and exact version to npm's Bulk Advisory endpoint only after verifying the version against anonymous public npm metadata. A completed zero-finding assessment needs no second query. Set `DEPLOOM_MCP_PUBLIC_ADVISORY_FALLBACK=0` to disable those public advisory requests.
+
 Deploom MCP connects a headless dependency-planning engine to MCP-compatible coding agents. It helps make upgrade scope, version choices, compatibility constraints, and missing evidence explicit, so an agent can act on a structured plan instead of guessing what an update means.
 
 The published wheel bundles the **exact pinned [Deploom Core](https://github.com/levencode-labs/deploom-core)**, schemas, and canonical `deploom-upgrade` Skill. Electron/Desktop and a separate Core checkout are not required to use the wheel.

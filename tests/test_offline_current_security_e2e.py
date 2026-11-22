@@ -144,6 +144,8 @@ class OfflineCoverageEndToEndTests(unittest.TestCase):
 
         requests_seen = []
 
+        bulk_requests = []
+
         class PublicRegistry(Handler):
             def do_GET(self):
                 requests_seen.append((self.headers["Host"], self.path))
@@ -157,7 +159,12 @@ class OfflineCoverageEndToEndTests(unittest.TestCase):
 
             def do_POST(self):
                 requests_seen.append((self.headers["Host"], self.path))
-                self.send_error(405)
+                if self.path != "/-/npm/v1/security/advisories/bulk":
+                    self.send_error(404)
+                    return
+                body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                bulk_requests.append(body)
+                self._send_json({name: [] for name in body})
 
         port = self.start_registry(PublicRegistry)
         project = self.root / "project"
@@ -200,6 +207,16 @@ class OfflineCoverageEndToEndTests(unittest.TestCase):
             requests_seen.clear()
             self.assertEqual(plan(), cold)
             self.assertEqual(requests_seen, [])
+            with patch.dict(os.environ, {"DEPLOOM_MCP_OSV_DIR": str(self.root / "empty-osv"),
+                                         "DEPLOOM_MCP_PUBLIC_ADVISORY_FALLBACK": "1"}):
+                fallback = plan()
+            self.assertEqual(fallback["fixture-clean"]["source"], "REGISTRY_BULK_ADVISORY")
+            self.assertEqual(fallback["@fixture/scoped"]["source"], "REGISTRY_BULK_ADVISORY")
+            self.assertEqual(fallback["fixture-foreign-lock"]["status"], "UNKNOWN")
+            self.assertEqual(fallback["fixture-wrong-name"]["status"], "UNKNOWN")
+            self.assertEqual({(name, v) for body in bulk_requests for name, versions in body.items() for v in versions},
+                             {(name, version) for name in ("fixture-clean", "@fixture/scoped")})
+            requests_seen.clear()
             mirror = plan("https://mirror.test.invalid")
             self.assertEqual(mirror["fixture-clean"]["reason"], "PUBLIC_PACKAGE_UNCONFIRMED")
             self.assertCountEqual(requests_seen, [("mirror.test.invalid", "/" + name.replace("/", "%2F")) for name in packages])
