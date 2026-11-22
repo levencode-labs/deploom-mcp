@@ -1,0 +1,176 @@
+{
+  "schema": "deploom-cloud-extreme-v1",
+  "capturedAt": "2026-11-22",
+  "scope": "Reproducible experimental tasks. A pinned target is a challenge, not a claim of compatibility or acceptance.",
+  "cases": [
+    {
+      "id": "undici-node24",
+      "repository": "nodejs/undici",
+      "sha": "789001cdb570ae6fef93bcd18e3d65d13fc5ace6",
+      "manager": "npm",
+      "route": "standalone-npm",
+      "lockfile": "package-lock.json",
+      "targets": [
+        {
+          "section": "devDependencies",
+          "name": "@types/node",
+          "from": "^22.0.0",
+          "to": "24.19.2"
+        }
+      ],
+      "checks": [
+        [
+          "npm",
+          "run",
+          "lint"
+        ],
+        [
+          "npm",
+          "test"
+        ]
+      ],
+      "description": "Standalone calibration; node typings major with runtime/TypeScript checks."
+    },
+    {
+      "id": "playwright-node24",
+      "repository": "microsoft/playwright",
+      "sha": "049226728d2da8054db18b04782a9848b755855e",
+      "manager": "npm",
+      "route": "npm-workspace-planning-only",
+      "lockfile": "package-lock.json",
+      "targets": [
+        {
+          "section": "devDependencies",
+          "name": "@types/node",
+          "from": "20.19.43",
+          "to": "24.19.2"
+        }
+      ],
+      "checks": [
+        [
+          "npm",
+          "run",
+          "tsc"
+        ]
+      ],
+      "description": "Native Node 24 type migration across Playwright workspaces; no blanket workspace execution claim."
+    },
+    {
+      "id": "npm-cli-tap21",
+      "repository": "npm/cli",
+      "sha": "787f1520fa412e91a5792468f1c7f25b166867a6",
+      "manager": "npm",
+      "route": "npm-workspace-planning-only",
+      "lockfile": "package-lock.json",
+      "targets": [
+        {
+          "section": "devDependencies",
+          "name": "tap",
+          "from": "^16.3.9",
+          "to": "21.8.1"
+        }
+      ],
+      "checks": [
+        [
+          "npm",
+          "test"
+        ]
+      ],
+      "description": "Breaking test-runner migration; original npm test suite is mandatory."
+    },
+    {
+      "id": "fluentui-ts6-vite8",
+      "repository": "microsoft/fluentui",
+      "sha": "f47ce10d3350bbe7c70c323b0009c3f53bbfcc64",
+      "manager": "yarn",
+      "route": "yarn-exploratory",
+      "lockfile": "yarn.lock",
+      "targets": [
+        {
+          "section": "devDependencies",
+          "name": "typescript",
+          "from": "5.7.3",
+          "to": "6.0.3"
+        },
+        {
+          "section": "devDependencies",
+          "name": "vite",
+          "from": "6.4.5",
+          "to": "8.1.6"
+        }
+      ],
+      "checks": [
+        [
+          "yarn",
+          "check:installed-dependencies-versions"
+        ],
+        [
+          "yarn",
+          "check:affected"
+        ]
+      ],
+      "description": "Coupled tooling migration; entire monorepo unverified by the selected checks."
+    },
+    {
+      "id": "storybook-vite8",
+      "repository": "storybookjs/storybook",
+      "sha": "20075e60242c908616d9ce8783a0686fc0ba896d",
+      "manager": "yarn",
+      "route": "yarn-exploratory",
+      "lockfile": "yarn.lock",
+      "targets": [
+        {
+          "section": "devDependencies",
+          "name": "vite",
+          "from": "^7.0.4",
+          "to": "^8.1.6"
+        }
+      ],
+      "checks": [
+        [
+          "yarn",
+          "lint"
+        ],
+        [
+          "yarn",
+          "test"
+        ]
+      ],
+      "description": "Vite 8 transition through Storybook builders/frameworks; validate original test plan."
+    },
+    {
+      "id": "backstage-eslint9",
+      "repository": "backstage/backstage",
+      "sha": "feeadd4d4efcbda9f1573b95e356e0f3fc0b5d17",
+      "manager": "yarn",
+      "route": "yarn-exploratory",
+      "lockfile": "yarn.lock",
+      "targets": [
+        {
+          "section": "devDependencies",
+          "name": "eslint",
+          "from": "^8.6.0",
+          "to": "^9.39.4"
+        }
+      ],
+      "checks": [
+        [
+          "yarn",
+          "lint:all"
+        ]
+      ],
+      "description": "ESLint 8->9 in a large plugin ecosystem; forbid weakening lint rules."
+    },
+    {
+      "id": "n8n-pnpm-boundary",
+      "repository": "n8n-io/n8n",
+      "sha": "55e79ed1b7688fba85f4ba2ffcf753dda5eafefd",
+      "manager": "pnpm",
+      "route": "pnpm-unsupported-control",
+      "lockfile": "pnpm-lock.yaml",
+      "targets": [],
+      "checks": [],
+      "description": "Negative control: capabilities and unsupported classification only; never label an upgrade PASS."
+    }
+  ]
+}
