@@ -67,6 +67,7 @@ jobs:
           name: migration-preflight
           path: |
             ${{ runner.temp }}/evidence/oracle/preflight.json
+            ${{ runner.temp }}/evidence/oracle/tool-output-sizes.json
             ${{ runner.temp }}/evidence/manifest.json
             ${{ runner.temp }}/evidence/schedule/schedule.json
           if-no-files-found: error

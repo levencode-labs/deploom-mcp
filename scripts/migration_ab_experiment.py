@@ -24,6 +24,7 @@ OUTPUT = 4000
 STEPS = 26
 SECONDS = 220
 ESLINT_CONFIGS = {"eslint.config.cjs", "eslint.config.js", "eslint.config.mjs"}
+DETAIL_CHARS = 2000
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -82,8 +83,11 @@ TOOLS = [
     schema("check_project", "Run the original project checks after installing from the frozen lock."),
     schema("read_reference", "Read shared evidence for the exact migration task."),
 ]
-MCP = schema("deploom_plan", "Ask the packaged DepLoom MCP for the bounded migration plan and current capabilities.")
-SKILL = schema("read_skill", "Read pinned DepLoom skill SKILL.md or a bundled references/*.md file.", "path")
+MCP = schema("deploom_plan", "Get the DepLoom plan summary for this project snapshot.")
+MCP_DETAILS = schema("read_deploom_plan", "Read a page of the full saved plan by its planId and 1-based page.",
+                     "planId", "page")
+SKILL = schema("read_skill", "Read a pinned Skill file. Use page 'summary' for its index or a 1-based page for text.",
+               "path", "page")
 
 
 def json_file(path):
@@ -186,14 +190,78 @@ async def mcp_call(case, root, workspace):
                 value = getattr(response, "structuredContent", None)
                 if value is None and response.content:
                     value = json.loads(response.content[0].text)
-                if case == "react-workspace" and value.get("ok"):
-                    return {k: value[k] for k in ("ok", "jointAssignment", "constraintModel", "action")}
-                if value.get("ok") and len(json.dumps(value)) > 26000:
-                    return {k: value[k] for k in ("ok", "summary", "decisionCompleteness", "action") if k in value}
+                if not isinstance(value, dict):
+                    raise RuntimeError("invalid MCP plan response")
                 return value
 
 
-def check_actions(case, root, baseline, reference, registry_index, cache, selected, args, workspace, skill):
+def page_count(text):
+    return max(1, (len(text) + DETAIL_CHARS - 1) // DETAIL_CHARS)
+
+
+def detail_page(text, page):
+    if not re.fullmatch(r"[1-9][0-9]{0,5}", page or "") or int(page) > page_count(text):
+        return {"error": "unknown detail page"}
+    first = (int(page) - 1) * DETAIL_CHARS
+    return {"page": int(page), "pages": page_count(text), "text": text[first:first + DETAIL_CHARS]}
+
+
+def read_skill(skill, path, page):
+    if not re.fullmatch(r"SKILL\.md|references/[a-z0-9-]+\.md", path or ""):
+        return {"error": "unknown skill path"}
+    file = skill / path
+    if not file.is_file():
+        return {"error": "unknown skill path"}
+    text = file.read_text(encoding="utf-8")
+    if page != "summary":
+        return detail_page(text, page)
+    result = {"path": path, "pages": page_count(text),
+              "sections": [{"title": m[1], "page": m.start() // DETAIL_CHARS + 1}
+                           for m in re.finditer(r"^## (.+)$", text, re.MULTILINE)]}
+    if path == "SKILL.md":
+        result["guidance"] = ("Use deploom_plan for planning evidence. Keep held declarations and exact target "
+                              "authority. A proposed version is not verification. Use resolve_lock and "
+                              "check_project to validate the migration. Read the relevant sections as needed.")
+        result["references"] = sorted(p.relative_to(skill).as_posix() for p in (skill / "references").glob("*.md"))
+    return result
+
+
+def fields(obj, *names):
+    return {name: obj[name] for name in names if name in obj}
+
+
+def summarize_plan(plan, details):
+    text = json.dumps(plan, ensure_ascii=False, separators=(",", ":"))
+    plan_id = digest(text.encode("utf-8"))
+    details[plan_id] = text
+    summary = {"ok": plan["ok"], "details": {"planId": plan_id, "pages": page_count(text)}}
+    if not plan["ok"]:
+        summary["error"] = fields(plan.get("error") or {}, "code", "message")
+    elif "jointAssignment" in plan:
+        summary.update(
+            model=fields(plan["constraintModel"], "status", "reason", "transitivePlacement"),
+            targets=[fields(row, "declaration", "declaredSpec", "selectedVersion", "baselineLock")
+                     for row in plan["jointAssignment"]["targets"]],
+            held=fields(plan["intent"], "unselectedDirectDependencies", "immutableInstances"),
+            heldCount=plan["coverage"]["heldDeclarationCount"],
+            action=plan["action"], authority=plan["authority"], verification=plan["verification"],
+            packageManager=fields(plan["packageManagerValidation"], "status", "code"),
+        )
+    else:
+        exact = plan["summary"].get("exactTargetPolicy") or {}
+        summary.update(
+            status=fields(plan["status"], "draftStatus", "authority", "verificationStatus", "partialReason"),
+            exact=fields(exact, "requestedExactTargets", "allRequestedTargetsProposed", "totalBlockers"),
+            targets=[fields(row, "package", "current", "target", "status", "nextAction")
+                     for row in plan.get("dependencies", [])],
+            evidence=[fields(row, "code", "severity", "package") for row in plan.get("decisionEvidence", [])],
+            decision=fields(plan["decisionCompleteness"], "planningComplete", "evidenceComplete",
+                            "criticalEvidenceCount", "blockerCount", "nextAction"),
+        )
+    return summary
+
+
+def check_actions(case, root, baseline, reference, registry_index, cache, selected, args, workspace, skill, details):
     path = args.get("path")
     if selected == "list_files":
         return sorted(files(root))
@@ -243,12 +311,13 @@ def check_actions(case, root, baseline, reference, registry_index, cache, select
             "eslint-flat-config": "In ESLint 9 configurations export a flat config array from eslint.config.cjs or .mjs. Configure the same rule severity under rules. Flat config uses languageOptions.sourceType for CommonJS.",
         }[case]
     if skill and selected == "read_skill":
-        if not re.fullmatch(r"SKILL\.md|references/[a-z0-9-]+\.md", path):
-            return {"error": "unknown skill path"}
-        file = skill / path
-        return file.read_text(encoding="utf-8") if file.is_file() else {"error": "unknown skill path"}
+        return read_skill(skill, path, args["page"])
     if skill and selected == "deploom_plan":
-        return asyncio.run(asyncio.wait_for(mcp_call(case, root, workspace), timeout=30))
+        plan = asyncio.run(asyncio.wait_for(mcp_call(case, root, workspace), timeout=30))
+        return summarize_plan(plan, details)
+    if skill and selected == "read_deploom_plan":
+        text = details.get(args["planId"])
+        return detail_page(text, args["page"]) if text is not None else {"error": "unknown planId"}
     return {"error": "tool or path unavailable"}
 
 
@@ -269,17 +338,19 @@ def arm(key, corpus, pair, side, home, registry_index, hits, out):
         cache.mkdir()
     tools = TOOLS.copy()
     skill = None
+    details = {}
     setup_started = time.monotonic()
     if side == "B":
         skill = skill_root()
         assert not verify_contract(skill)
-        tools += [MCP, SKILL]
+        tools += [MCP, MCP_DETAILS, SKILL]
     instructions = ("You work on a synthetic dependency migration fixture. Use only the provided tools. "
                     "Keep project behavior and every held declaration. Do not edit test scripts, skip checks, "
                     "or add dependencies outside the task. Use the fixed registry via resolve_lock. "
                     "Check the project before finishing. You can read the shared migration reference.")
     if skill:
-        instructions += " DepLoom MCP and its pinned skill are available. Read SKILL.md and use them as relevant."
+        instructions += (" DepLoom MCP and its pinned Skill are available. Read SKILL.md with page 'summary'. "
+                         "Use the plan summary and request detailed pages as needed.")
     data = [{"role": "user", "content": TASKS[case]}]
     row = {"pair": pair["id"], "arm": side, "model": MODEL,
            "skillSetupSeconds": time.monotonic() - setup_started,
@@ -329,7 +400,7 @@ def arm(key, corpus, pair, side, home, registry_index, hits, out):
             t = time.monotonic()
             try:
                 result = check_actions(case, root, baseline, reference, registry_index, cache, call["name"],
-                                       json.loads(call["arguments"]), home, skill)
+                                       json.loads(call["arguments"]), home, skill, details)
                 value = json.dumps(result, ensure_ascii=True)
                 if len(value) > 28_000:
                     value = json.dumps({"error": "tool output exceeded prescribed limit"})
@@ -359,6 +430,60 @@ def arm(key, corpus, pair, side, home, registry_index, hits, out):
     row["candidateSha256"] = digest(json.dumps(hashes(root), sort_keys=True).encode())
     write_json(out, row)
     return row
+
+
+def tool_output_sizes(corpus, evidence, manifest, skill):
+    def wire_bytes(value):
+        return len(json.dumps(value, ensure_ascii=True).encode("utf-8"))
+
+    skill_text = (skill / "SKILL.md").read_text(encoding="utf-8")
+    index = read_skill(skill, "SKILL.md", "summary")
+    skill_sizes = {"beforeBytes": wire_bytes(skill_text), "afterBytes": wire_bytes(index),
+                   "detailPages": index["pages"]}
+    assert skill_sizes["afterBytes"] < skill_sizes["beforeBytes"]
+    for path in ["SKILL.md", *index["references"]]:
+        original = (skill / path).read_text(encoding="utf-8")
+        pages = [read_skill(skill, path, str(n)) for n in range(1, page_count(original) + 1)]
+        assert all(wire_bytes(page) <= 28_000 for page in pages)
+        assert "".join(page["text"] for page in pages) == original
+    assert "error" in read_skill(skill, "../SKILL.md", "1")
+    assert "error" in read_skill(skill, "SKILL.md", "0")
+
+    sizes = {"modelSessions": 0, "registryIndexSha256": manifest["registryIndexSha256"],
+             "skill": skill_sizes, "plans": {}}
+    for case, fixtures in manifest["tasks"].items():
+        home = evidence / ("deploom-" + case)
+        working = home / "project"
+        copy_clean(corpus / case / "baseline", working)
+        raw = asyncio.run(asyncio.wait_for(mcp_call(case, working, home), timeout=45))
+        if raw.get("ok") is not True:
+            raise RuntimeError(f"{case}: pinned MCP did not return a plan")
+        # Reproduce the model-facing payload from the previous benchmark.
+        if case == "react-workspace":
+            before = fields(raw, "ok", "jointAssignment", "constraintModel", "action")
+        elif len(json.dumps(raw)) > 26_000:
+            before = fields(raw, "ok", "summary", "decisionCompleteness", "action")
+        else:
+            before = raw
+        if wire_bytes(before) > 28_000:
+            before = {"error": "tool output exceeded prescribed limit"}
+
+        details = {}
+        summary = summarize_plan(raw, details)
+        pointer = summary["details"]
+        pages = [check_actions(case, working, None, None, None, None, "read_deploom_plan",
+                               {"planId": pointer["planId"], "page": str(n)}, home, skill, details)
+                 for n in range(1, pointer["pages"] + 1)]
+        assert all(wire_bytes(page) <= 28_000 for page in pages)
+        assert json.loads("".join(page["text"] for page in pages)) == raw
+        assert summary["targets"], f"{case}: compact plan lost its targets"
+        before_bytes, after_bytes = wire_bytes(before), wire_bytes(summary)
+        assert after_bytes < before_bytes, f"{case}: plan summary did not shrink"
+        sizes["plans"][case] = {"beforeBytes": before_bytes, "afterBytes": after_bytes,
+                                "detailPages": pointer["pages"],
+                                "baselineSha256": digest(json.dumps(fixtures["baseline"], sort_keys=True).encode())}
+    write_json(evidence / "tool-output-sizes.json", sizes)
+    print("TOOL_OUTPUT_SIZES " + json.dumps(sizes, sort_keys=True), flush=True)
 
 
 def preflight(corpus, evidence):
@@ -408,15 +533,9 @@ def preflight(corpus, evidence):
     from deploom_mcp.distribution import skill_root
     from skill_integrity import verify_contract
 
-    assert not verify_contract(skill_root())
-    for case in manifest["tasks"]:
-        home = evidence / ("deploom-" + case)
-        working = home / "project"
-        copy_clean(corpus / case / "baseline", working)
-        result = asyncio.run(asyncio.wait_for(mcp_call(case, working, home), timeout=45))
-        if not isinstance(result, dict) or result.get("ok") is not True:
-            raise RuntimeError(f"{case}: pinned MCP did not return a plan")
-        print(f"{case}: pinned MCP returned a plan", flush=True)
+    skill = skill_root()
+    assert not verify_contract(skill)
+    tool_output_sizes(corpus, evidence, manifest, skill)
     return manifest
 
 
