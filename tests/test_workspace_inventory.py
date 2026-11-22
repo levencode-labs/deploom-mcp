@@ -22,7 +22,7 @@ class WorkspaceInventoryTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.root = Path(self.tmp.name).resolve()
+        self.root = Path(self.tmp.name).resolve() / "project"
         self.manifests = {
             'package.json': {'name': 'fixture', 'version': '1.0.0', 'workspaces': ['packages/*'],
                              'devDependencies': {'typescript': '5.0.0'}},

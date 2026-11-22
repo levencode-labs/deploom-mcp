@@ -13,13 +13,10 @@ from deploom_mcp.goal_core_integrity import verify_core_files
 
 class CoreIntegrityTests(unittest.TestCase):
     def setUp(self):
-        workspace = Path(__file__).resolve().parents[3]
-        temp_root = workspace / '.tmp-tests' / 'core-integrity'
-        temp_root.mkdir(parents=True, exist_ok=True)
-        self.tmp = tempfile.TemporaryDirectory(prefix='guard-', dir=temp_root)
-        self.base = Path(self.tmp.name).resolve()
-        self.assertTrue(self.base.is_relative_to(workspace.resolve()))
+        self.tmp = tempfile.TemporaryDirectory(prefix='core-integrity-')
         self.addCleanup(self.tmp.cleanup)
+        self.base = Path(self.tmp.name).resolve()
+        self.assertTrue(self.base.is_relative_to(Path(tempfile.gettempdir()).resolve()))
         self.core = self.base / 'core'
         self.core.mkdir()
         self.expected = {}
