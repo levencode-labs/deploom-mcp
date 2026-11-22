@@ -83,7 +83,9 @@ class WorkspaceGoalRequestTests(unittest.TestCase):
             with self.assertRaisesRegex(GoalContractError, "WORKSPACE_PATCH_DIGEST_MISMATCH"):
                 apply_workspace_patch(self.root, result["inventoryDigest"], artifact, "0" * 64)
             self.assertEqual(manifest.read_bytes(), original)
-            subprocess.run(["git", "init", "-q"], cwd=self.root.parent, check=True)
+            git_root = Path(self.fixture.tmp.name).resolve()
+            self.assertEqual(self.root.parent, git_root)
+            subprocess.run(["git", "init", "-q"], cwd=git_root, check=True)
             apply_workspace_patch(self.root, result["inventoryDigest"], artifact, result["patch"]["sha256"])
             expected = json.loads(original)
             expected["dependencies"]["kleur"] = "3.0.1"
