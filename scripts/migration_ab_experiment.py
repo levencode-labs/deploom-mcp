@@ -316,7 +316,11 @@ def preflight(corpus, evidence):
         assert oracle(case, source, source, reference, evidence / "unused", registry) != "PASS"
         temp = evidence / ("curator-" + case)
         copy_clean(reference, temp)
-        assert oracle(case, source, temp, reference, evidence / "oracle-cache", registry) == "PASS"
+        observed = oracle(case, source, temp, reference, evidence / "oracle-cache", registry)
+        if observed != "PASS":
+            delta = sorted(p for p in files(source).keys() | files(temp).keys()
+                           if files(source).get(p) != files(temp).get(p))
+            raise RuntimeError(f"{case}: positive oracle returned {observed}, changed files {delta}")
         (temp / "unsupported.txt").write_text("outside scope")
         assert oracle(case, source, temp, reference, evidence / "unused", registry) == "OUTSIDE_SCOPE"
         (temp / "unsupported.txt").unlink()
