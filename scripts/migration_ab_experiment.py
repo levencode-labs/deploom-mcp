@@ -12,7 +12,7 @@ import time
 from urllib.error import HTTPError
 from urllib.request import build_opener, HTTPRedirectHandler, Request
 
-from migration_ab_corpus import (FILES, REGISTRY, TASKS, check_runtime, copy_clean,
+from migration_ab_corpus import (FILES, REGISTRY, REPO, TASKS, check_runtime, copy_clean,
                                  digest, files, frozen_registry, hashes, npm, npm_env,
                                  require, sandbox_node)
 from migration_ab_preflight import schedule, write_json
@@ -118,15 +118,21 @@ def oracle(case, baseline, root, reference, cache, registry_index):
 
 def plan_arguments(case, root):
     if case == "react-workspace":
-        scope = [{"selector": {"owner": owner, "section": "dependencies", "name": name},
-                  "approvedLines": [19], "exactTarget": "19.0.0"}
-                 for owner, name in [(".", "react"), ("packages/app", "react"), ("packages/app", "react-dom")]]
+        from deploom_mcp.workspace_inventory import observe_npm_workspace
+
+        targets = [{"selector": {"owner": owner, "section": "dependencies", "name": name},
+                    "approvedLines": [19], "versions": ["19.0.0"], "exactTarget": "19.0.0"}
+                   for owner, name in [(".", "react"), ("packages/app", "react"), ("packages/app", "react-dom")]]
+        packuments = json_file(REPO / "tests/fixtures/react_workspace.json")["packuments"]
         return {"project_path": str(root), "workspace_request": {
-            "schemaVersion": 3, "goalKind": "TARGETED_UPGRADE", "responseMode": "EDITS",
-            "compactEdits": True, "registry": REGISTRY, "scope": scope}}
+            "schemaVersion": 2, "goalKind": "TARGETED_UPGRADE", "targets": targets,
+            "inventoryDigest": observe_npm_workspace(root)["inventoryDigest"],
+            "environment": {"node": "24.18.0", "npm": "11.16.0"}, "topology": None,
+            "packuments": packuments}}
     name, target = ("eslint", "9.39.4") if case == "eslint-flat-config" else ("kontur-fixture-a", "1.9.0")
     return {"project_path": str(root), "registry": REGISTRY, "use_system_proxy": True,
             "target_level": "yellow", "deadline_seconds": 14, "target_mode": "pinned",
+            "objective": "explicit-version-targets",
             "mutable_packages": [name], "exact_targets": {name: target}}
 
 
@@ -136,7 +142,8 @@ async def mcp_call(case, root, workspace):
 
     env = npm_env(workspace / "npm-cache")
     env.update(DEPLOOM_MCP_STATE_DIR=str(workspace / "mcp-state"),
-               DEPLOOM_MCP_OFFLINE="1", XDG_CACHE_HOME=str(workspace / "mcp-cache"),
+               DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE="1", DEPLOOM_MCP_MIGRATION_OFFLINE="1",
+               DEPLOOM_MCP_ALLOWED_PROJECT_REGISTRY=REGISTRY, XDG_CACHE_HOME=str(workspace / "mcp-cache"),
                HTTP_PROXY="http://127.0.0.1:1", HTTPS_PROXY="http://127.0.0.1:1",
                ALL_PROXY="http://127.0.0.1:1", NO_PROXY="127.0.0.1,localhost")
     params = StdioServerParameters(command=sys.executable, args=["-m", "deploom_mcp"],
@@ -151,6 +158,10 @@ async def mcp_call(case, root, workspace):
                 value = getattr(response, "structuredContent", None)
                 if value is None and response.content:
                     value = json.loads(response.content[0].text)
+                if case == "react-workspace" and value.get("ok"):
+                    return {k: value[k] for k in ("ok", "jointAssignment", "constraintModel", "action")}
+                if value.get("ok") and len(json.dumps(value)) > 26000:
+                    return {k: value[k] for k in ("ok", "summary", "decisionCompleteness", "action") if k in value}
                 return value
 
 
@@ -178,7 +189,19 @@ def check_actions(case, root, baseline, reference, registry_index, cache, select
         return {"removed": path}
     if selected in ("resolve_lock", "check_project"):
         valid_lock(root, registry_index)
-        result = npm(["install", "--package-lock-only"], root, cache) if selected == "resolve_lock" else npm(["ci"], root, cache)
+        if selected == "resolve_lock" and case == "react-workspace":
+            lock = root / "package-lock.json"
+            saved = lock.read_bytes()
+            lock.unlink()
+            try:
+                result = npm(["install", "--package-lock-only"], root, cache)
+            finally:
+                if not lock.exists():
+                    lock.write_bytes(saved)
+            if result.returncode:
+                lock.write_bytes(saved)
+        else:
+            result = npm(["install", "--package-lock-only"], root, cache) if selected == "resolve_lock" else npm(["ci"], root, cache)
         if result.returncode:
             return {"exit": result.returncode, "diagnostic": result.stderr[-900:]}
         if selected == "check_project":
@@ -320,6 +343,9 @@ def preflight(corpus, evidence):
         copy_clean(reference, temp)
         observed = oracle(case, source, temp, reference, evidence / "oracle-cache", registry)
         if observed != "PASS":
+            if observed == "RUNTIME_FAILED":
+                runtime = check_runtime(case, temp, evidence / "oracle-cache")
+                print(runtime.stderr[-2200:], flush=True)
             delta = sorted(p for p in files(source).keys() | files(temp).keys()
                            if files(source).get(p) != files(temp).get(p))
             raise RuntimeError(f"{case}: positive oracle returned {observed}, changed files {delta}")
@@ -331,6 +357,19 @@ def preflight(corpus, evidence):
         write_json(temp / "package.json", doc)
         assert oracle(case, source, temp, reference, evidence / "unused", registry) in (
             "DECLARATION_OR_CHECK_DRIFT", "OUTSIDE_SCOPE")
+    from deploom_mcp.distribution import skill_root
+    from skill_integrity import verify_contract
+
+    assert not verify_contract(skill_root())
+    for case in manifest["tasks"]:
+        home = evidence / ("deploom-" + case)
+        working = home / "project"
+        copy_clean(corpus / case / "baseline", working)
+        result = asyncio.run(asyncio.wait_for(mcp_call(case, working, home), timeout=45))
+        if not isinstance(result, dict) or result.get("ok") is False:
+            print(f"{case}: MCP response {json.dumps(result, ensure_ascii=True)[:300]}", flush=True)
+        else:
+            print(f"{case}: pinned MCP returned a plan", flush=True)
     return manifest
 
 

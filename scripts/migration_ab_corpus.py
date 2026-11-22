@@ -279,7 +279,11 @@ def prepare_corpus(stage, dest):
                     shutil.copytree(cache / "_cacache", folder / "warm/_cacache")
             regenerate = stage / (case + "-regenerate")
             copy_clean(folder / "reference", regenerate)
-            shutil.copyfile(folder / "baseline/package-lock.json", regenerate / "package-lock.json")
+            if case == "react-workspace":
+                # Resolve the workspace graph anew so npm cannot retain a stale hoisted peer slot.
+                (regenerate / "package-lock.json").unlink()
+            else:
+                shutil.copyfile(folder / "baseline/package-lock.json", regenerate / "package-lock.json")
             require(npm(["install", "--package-lock-only"], regenerate, stage / (case + "-recheck")), "frozen lock regeneration")
             regenerated = json.loads((regenerate / "package-lock.json").read_bytes())
             approved = json.loads((folder / "reference/package-lock.json").read_bytes())
