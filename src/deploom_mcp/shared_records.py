@@ -92,7 +92,9 @@ def start_refresh():
             os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") == "1"):
         return
     def update():
+        from .shared_records_v2 import refresh as refresh_v2
         while True:
+            refresh_v2(directory(), if_due=True)
             refresh(directory(), if_due=True)
             time.sleep(86400)
     threading.Thread(target=update, daemon=True, name="deploom-records").start()
@@ -115,6 +117,10 @@ def contribution_preview(package, from_version, to_version, check, outcome):
 
 
 def lookup(root, package, from_version, to_version):
+    from .shared_records_v2 import lookup as lookup_v2
+    v2 = lookup_v2(root, package, from_version, to_version)
+    if v2 is not None:
+        return v2
     data = None
     if root is not None and (root / DATABASE).is_file():
         try:
