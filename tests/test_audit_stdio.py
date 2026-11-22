@@ -31,6 +31,7 @@ class AuditStdioTests(unittest.TestCase):
                         "get_goal_plan", "get_goal_report", "verify_goal_candidate", "apply_goal_candidate",
                         "get_goal_checkpoint", "observe_workspace_inventory_v1", "plan_workspace_snapshot_v1",
                         "get_workspace_plan_details", "model_workspace_upgrade_v1", "get_shared_migration_evidence",
+                        "get_shared_migration_knowledge_batch",
                         "review_workspace_transitive_overrides_v1",
                     }, {tool.name for tool in tools.tools})
                     self.assertNotIn("preview_public_migration_check", {tool.name for tool in tools.tools})
@@ -38,6 +39,17 @@ class AuditStdioTests(unittest.TestCase):
                         "package": "react-dom", "from_version": "18.2.0", "to_version": "18.3.1"})
                     self.assertFalse(evidence.is_error)
                     self.assertEqual("ADVISORY_ONLY", evidence.structured_content["authority"])
+                    invalid = await session.call_tool("get_shared_migration_knowledge_batch", {
+                        "transitions": [{"package": "../bad", "from_version": "1.0.0",
+                                         "to_version": "2.0.0", "package_manager": "npm"}]})
+                    self.assertTrue(invalid.is_error)
+                    self.assertEqual("INVALID_KNOWLEDGE_BATCH",
+                                     invalid.structured_content["error"]["code"])
+                    empty = await session.call_tool("get_shared_migration_knowledge_batch", {
+                        "transitions": [{"package": "react-dom", "from_version": "18.2.0",
+                                         "to_version": "18.3.1", "package_manager": "npm"}]})
+                    self.assertFalse(empty.is_error)
+                    self.assertEqual("ADVISORY_ONLY", empty.structured_content["authority"])
                     result = await session.call_tool("audit_dependencies", {"project_path": "relative"})
                     self.assertTrue(result.is_error)
                     self.assertEqual("invalid-project", result.structured_content["error"]["code"])

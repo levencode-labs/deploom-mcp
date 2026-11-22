@@ -39,6 +39,7 @@ class SignedBatchKnowledgeTests(unittest.TestCase):
         signed.public_key_file = self.pin
         self.addCleanup(setattr, signed, "public_key_file", original)
         self.records = [self._record()]
+        self.revision = 29
         self._publish()
 
     def _record(self):
@@ -66,12 +67,13 @@ class SignedBatchKnowledgeTests(unittest.TestCase):
         return result
 
     def _publish(self):
+        self.revision += 1
         buckets = {}
         self.resources = {}
         for record in self.records:
             prefix = hashlib.sha256(record["package"].encode()).hexdigest()[:2]
             buckets.setdefault(prefix, []).append(record)
-        index = {"schema": 2, "revision": 30, "sourceSha256": "a" * 64,
+        index = {"schema": 2, "revision": self.revision, "sourceSha256": "a" * 64,
                  "recordCount": len(self.records), "buckets": {}}
         for bucket, records in buckets.items():
             blob = compact({"schema": 2, "records": records})
