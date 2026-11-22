@@ -6,6 +6,8 @@ import binascii
 import json
 import os
 import re
+import sys
+from pathlib import Path
 
 from semantic_version import NpmSpec, Version
 
@@ -17,6 +19,7 @@ from deploom_mcp.workspace_plan_details import root_peer_evidence
 from deploom_mcp.workspace_plan_snapshot import _requested_registry, _workspace_registry
 
 
+_PUBLIC_REGISTRY = "https://registry.npmjs.org"
 _PACKAGE_NAME = re.compile(r"(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*")
 
 
@@ -34,7 +37,7 @@ def _baseline_version(record, name, declared, target, registry):
         raise GoalContractError("NATIVE_INTENT_REQUIRES_UPGRADE")
     integrity = record.get("integrity")
     filename = f"{name.rsplit('/', 1)[-1]}-{version}.tgz"
-    registries = (registry, "https://registry.npmjs.org")
+    registries = (registry, _PUBLIC_REGISTRY)
     resolved = record.get("resolved")
     if (not isinstance(integrity, str) or not integrity.startswith("sha512-")
             or not isinstance(resolved, str)
@@ -70,6 +73,9 @@ def prepare_native_intent(project, request, resolution_slots, *, render, save, r
         targets[key] = (version, adding)
     requested = _requested_registry(goal, online_metadata=True)
     configured = os.environ.get("DEPLOOM_WORKSPACE_NPM_REGISTRY")
+    # This local manifest proposal never fetches registry metadata.
+    if configured is None and requested == _PUBLIC_REGISTRY:
+        configured = _PUBLIC_REGISTRY
     if not configured:
         raise GoalContractError("WORKSPACE_REQUEST_REGISTRY_NOT_AUTHORIZED")
     def bind(digest, declarations, packages, inputs):
@@ -133,6 +139,9 @@ def prepare_native_intent(project, request, resolution_slots, *, render, save, r
         return {"ok": False, "error": {"code": "HELD_LOCK_PROVIDER_CHANGED", **diagnostics},
                 "inventoryDigest": digest, "requestDigest": request_digest, "executionReady": False}
     artifact = save(project, patch)
+    executable = Path(sys.executable)
+    portable = os.name == "posix" and (executable.parent.parent / ".deploom-install.json").is_file()
+    command = str(executable.with_name("deploom-workspace")) if portable else "deploom-workspace"
     response = {
         "ok": True, "schemaVersion": 1, "kind": "npm-workspace-native-manifest-proposal",
         "inventoryDigest": digest, "requestDigest": request_digest,
@@ -140,7 +149,7 @@ def prepare_native_intent(project, request, resolution_slots, *, render, save, r
         "jointAssignment": "NOT_COMPUTED", "packageManagerValidation": {"status": "REQUIRED"},
         "action": {
             "kind": "STAGE_MANIFEST_PATCH_FOR_NATIVE_VERIFICATION",
-            "argv": ["deploom-workspace", "apply", str(project), digest, artifact["path"], artifact["sha256"]],
+            "argv": [command, "apply", str(project), digest, artifact["path"], artifact["sha256"]],
         },
         "heldDeclarationCount": held, "patch": artifact,
     }
