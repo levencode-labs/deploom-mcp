@@ -116,6 +116,9 @@ def oracle(case, baseline, root, reference, cache, registry_index):
             if json.loads(observed[path]) != json.loads(expected[path]):
                 return "DECLARATION_OR_CHECK_DRIFT"
         elif observed[path] != expected[path]:
+            if (case == "react-workspace" and path == "packages/app/main.cjs"
+                    and observed[path] == expected[path].removesuffix(b"\n")):
+                continue
             return "SOURCE_OR_CHECK_DRIFT"
     if json.loads(observed["package-lock.json"]) != json.loads(expected["package-lock.json"]):
         return "LOCK_OR_HELD_PLACEMENT_MISMATCH"
@@ -370,7 +373,8 @@ def preflight(corpus, evidence):
         assert oracle(case, source, source, reference, evidence / "unused", registry) != "PASS"
         temp = evidence / ("curator-" + case)
         copy_clean(reference, temp)
-        observed = oracle(case, source, temp, reference, evidence / "oracle-cache", registry)
+        oracle_cache = evidence / "oracle-cache"
+        observed = oracle(case, source, temp, reference, oracle_cache, registry)
         if observed != "PASS":
             if observed == "RUNTIME_FAILED":
                 runtime = check_runtime(case, temp, evidence / "oracle-cache")
@@ -378,6 +382,21 @@ def preflight(corpus, evidence):
             delta = sorted(p for p in files(source).keys() | files(temp).keys()
                            if files(source).get(p) != files(temp).get(p))
             raise RuntimeError(f"{case}: positive oracle returned {observed}, changed files {delta}")
+        if case == "react-workspace":
+            app = temp / "packages/app/main.cjs"
+            original = app.read_bytes()
+            assert original.endswith(b"\n")
+            without_lf = original.removesuffix(b"\n")
+            for label, content, expected in (
+                ("missing final LF", without_lf, "PASS"),
+                ("extra final LF", original + b"\n", "SOURCE_OR_CHECK_DRIFT"),
+                ("changed assertion", without_lf.replace(b"React, ui.react", b"React, React", 1),
+                 "SOURCE_OR_CHECK_DRIFT"),
+            ):
+                app.write_bytes(content)
+                actual = oracle(case, source, temp, reference, oracle_cache, registry)
+                assert actual == expected, f"{label}: expected {expected}, got {actual}"
+            app.write_bytes(original)
         (temp / "unsupported.txt").write_text("outside scope")
         assert oracle(case, source, temp, reference, evidence / "unused", registry) == "OUTSIDE_SCOPE"
         (temp / "unsupported.txt").unlink()
