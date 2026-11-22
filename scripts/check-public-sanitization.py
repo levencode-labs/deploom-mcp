@@ -126,7 +126,7 @@ def main() -> int:
         for label, pattern in SECRETS:
             match = pattern.search(text)
             if match:
-                errors.append(f'{label}: {rel}: {match.group(0)[:120]!r}')
+                errors.append(f'{label}: {rel}')
         private_ip = PRIVATE_IP_RE.search(text)
         if private_ip:
             errors.append(f'private-network-address: {rel}: {private_ip.group(0)}')

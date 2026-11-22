@@ -30,6 +30,7 @@ jobs:
         run: python -m unittest discover -s tests -p "test_*.py" -v
       - name: Versioned Skill and release resources
         run: |
+          python scripts/check-public-sanitization.py
           python scripts/check_skill.py
           python scripts/update_release_manifest.py --check
       - name: stdio smoke (`python -m deploom_mcp`, clean stdout)
