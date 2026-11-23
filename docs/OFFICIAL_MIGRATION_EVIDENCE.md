@@ -81,12 +81,16 @@ canonical commit URLs and full content hashes remain available.
 
 ## Local syntax inspection
 
-`localApplicability: ON` optionally uses an already installed **host** TypeScript
-6.0.3 library. Configure DEPLOOM_MCP_TYPESCRIPT_PATH to its absolute typescript.js
-path and DEPLOOM_MCP_TYPESCRIPT_SHA256 to the exact file hash. The library must be
-outside the inspected project. There is no automatic installation or loading of
-project-owned parsers, imports, plugins or configuration. A missing/mismatched
-host parser gives UNKNOWN rather than an absence claim.
+Release wheels include a pinned TypeScript 6.0.3 parser. Both the workspace
+card and `localApplicability: ON` use it with an available host Node executable.
+This works offline with the same wheel used by the npm installer. A host can
+override the parser with an absolute `DEPLOOM_MCP_TYPESCRIPT_PATH` and the
+corresponding `DEPLOOM_MCP_TYPESCRIPT_SHA256`. The parser and executable must
+resolve outside the inspected project. The analysis loads only the verified
+parser and its own helper. Missing or mismatched runtime resources give
+`UNKNOWN`. To prepare a wheel from source without network access, run
+`python typescript_bundle.py --tarball <verified-local-archive>` before
+building it.
 
 The pinned helper parses JS/TS text without executing it. It records literal
 imports, re-exports, require calls, dynamic imports with static specifiers and
@@ -128,8 +132,7 @@ specific checks for observed React DOM, TypeScript, Vite, Vitest and
 CommonJS module-format patterns. For React DOM legacy render, hydration or
 unmount syntax, the card links to the official codemod and gives verification
 instructions. Other packages can still produce import and file observations.
-Common config filenames are reported even when the optional host parser is
-unavailable. Root-owned and workspace-owned imports are distinguished.
+Common config filenames are reported when the parser is unavailable. Root-owned and workspace-owned imports are distinguished.
 References outside the selected declaration owners are possible consumers
 whose installed versions and post-upgrade resolution need investigation.
 Existing ESLint and strip-json-comments cards retain their fields.
