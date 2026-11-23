@@ -74,8 +74,10 @@ on a shared filesystem, then resolves the lock and verifies peers, held
 dependencies and project checks using npm. A stale inventory rejects the patch.
 
 Set `migrationCard: true` for local project observations and suggested checks
-under `migrationCard.projectImpact`. See [Official migration evidence](OFFICIAL_MIGRATION_EVIDENCE.md)
-for the optional host parser and its scope. For the ESLint 8.57.1 to 9.0.0
+under `migrationCard.projectImpact`. This includes a local signed-cache lookup.
+Set `migrationEvidenceMode: "ON_DEMAND"` only for authorized public-source
+retrieval. See [Official migration evidence](OFFICIAL_MIGRATION_EVIDENCE.md)
+for the optional parser, source policy and budgets. For the ESLint 8.57.1 to 9.0.0
 transition, a host may opt into a donor
 recipe by setting `DEPLOOM_MCP_MIGRATION_RECIPE_PATH` to the canonical absolute
 path of a file outside the project and `DEPLOOM_MCP_MIGRATION_RECIPE_SHA256` to its exact

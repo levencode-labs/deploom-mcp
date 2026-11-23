@@ -9,6 +9,8 @@ TTL=86400
 SHA=re.compile(r'[0-9a-f]{40}\Z')
 HEX=re.compile(r'[0-9a-f]{64}\Z')
 ORIGINS={'api.github.com','raw.githubusercontent.com'}
+_NPM_ORIGIN='registry.npmjs.org'
+_NPM_PATH=re.compile(r'/(?:%40[a-z0-9][a-z0-9._~-]*%2F)?[a-z0-9][a-z0-9._~-]*/(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\Z')
 CATALOG={
  ('eslint','8.57.1','9.0.0'):[
   ('beforePackage','eslint/eslint','v8.57.1','package.json'),
@@ -35,7 +37,8 @@ def encoded(value):return json.dumps(value,sort_keys=True,separators=(',',':'),e
 
 def validate_url(url):
     parts=urlsplit(url)
-    if (parts.scheme!='https' or parts.hostname not in ORIGINS or parts.username or parts.password
+    allowed = parts.hostname in ORIGINS or (parts.hostname == _NPM_ORIGIN and _NPM_PATH.fullmatch(parts.path))
+    if (parts.scheme!='https' or not allowed or parts.username or parts.password
             or parts.port not in (None,443) or parts.query or parts.fragment or not parts.path.startswith('/')
             or '\\' in parts.path or any(x in parts.path for x in ('\r','\n','\x00'))):
         raise EvidenceUnavailable('OFFICIAL_ORIGIN_REJECTED')
@@ -145,7 +148,11 @@ class SourceStore:
         try:raw=self.transport.read(url,deadline=self.deadline,max_bytes=min(131072,remaining_bytes))
         except (EvidenceUnavailable,OSError,ValueError,http.client.HTTPException) as exc:
             failure=exc if isinstance(exc,EvidenceUnavailable) else EvidenceUnavailable('OFFICIAL_TRANSPORT_UNAVAILABLE')
-            self.metrics['responseBodyBytesComplete']=False;self._stream_failed=True;self._http_memo[url]=failure
+            # A definite 404 is an absent artifact, not an unbounded body read.
+            if str(failure) != 'OFFICIAL_HTTP_404':
+                self.metrics['responseBodyBytesComplete']=False
+                self._stream_failed=True
+            self._http_memo[url]=failure
             raise failure from None
         if not isinstance(raw,bytes):raise EvidenceUnavailable('OFFICIAL_BODY_INVALID')
         self.metrics['responseBodyBytes']+=len(raw)
@@ -157,10 +164,13 @@ class SourceStore:
         try:return json.loads(raw)
         except (ValueError,UnicodeError):raise EvidenceUnavailable('OFFICIAL_METADATA_INVALID') from None
     def pin(self,repo,tag):
+        allowed={(r,t) for rows in CATALOG.values() for _,r,t,_ in rows}
+        if (repo,tag) not in allowed:raise EvidenceUnavailable('UNVERIFIED_PACKAGE_REPOSITORY')
+        return self._pin(repo,tag)
+
+    def _pin(self,repo,tag):
         key=(repo,tag)
         if key in self._pins:return self._pins[key]
-        allowed={(r,t) for rows in CATALOG.values() for _,r,t,_ in rows}
-        if key not in allowed:raise EvidenceUnavailable('UNVERIFIED_PACKAGE_REPOSITORY')
         cache_key=digest(encoded([VERSION,self.authority,repo,tag]))
         path=self.root/'pins'/(cache_key+'.json');record=self._load(path);now=self.clock()
         if record is not None:
@@ -183,35 +193,53 @@ class SourceStore:
                 raise EvidenceUnavailable('OFFICIAL_COMMIT_INVALID')
             if obj.get('type')=='commit':break
             if obj.get('type')!='tag':raise EvidenceUnavailable('OFFICIAL_TAG_OBJECT_UNSUPPORTED')
-            obj=self._json('https://api.github.com/repos/'+repo+'/git/tags/'+obj['sha']).get('object')
+            annotated=self._json('https://api.github.com/repos/'+repo+'/git/tags/'+obj['sha'])
+            obj=annotated.get('object') if isinstance(annotated,dict) else None
         else:raise EvidenceUnavailable('ANNOTATED_TAG_DEPTH_LIMIT')
         commit=obj['sha']
         if record is not None and record['commit']!=commit:raise EvidenceUnavailable('PIN_DRIFT')
         record={'repo':repo,'tag':tag,'commit':commit,'observedAt':now,'transport':self.authority}
         self._save(path,encoded({'record':record,'sha256':digest(encoded(record))}));self._pins[key]=record;return record
     def document(self,kind,repo,tag,artifact):
-        pin=self.pin(repo,tag);key=(repo,pin['commit'],artifact)
-        if key in self._bodies:return self._bodies[key]
         if (kind,repo,tag,artifact) not in [x for rows in CATALOG.values() for x in rows]:
             raise EvidenceUnavailable('OFFICIAL_ARTIFACT_REJECTED')
-        source_key=digest(encoded([VERSION,self.authority,*key]));path=self.root/'sources'/(source_key+'.json');record=self._load(path)
+        pin=self.pin(repo,tag)
         url='https://raw.githubusercontent.com/'+repo+'/'+pin['commit']+'/'+artifact
+        value=self._text(url,[repo,pin['commit'],artifact])
+        return {**value,'kind':kind,'repo':repo,'tag':tag,'resolvedCommit':pin['commit'],'artifact':artifact,
+                'verified':True,'retrievedAt':pin['observedAt'],'freshness':'WITHIN_PIN_TTL'}
+
+    def _text(self,url,cache_key,*,max_age=None):
+        key=tuple(cache_key)
+        if key in self._bodies:return self._bodies[key]
+        source_key=digest(encoded([VERSION,self.authority,*key]))
+        path=self.root/'sources'/(source_key+'.json')
+        record=self._load(path)
+        refreshed=record is None
+        if record is not None and max_age is not None:
+            observed=record.get('observedAt') if isinstance(record,dict) else None
+            now=self.clock()
+            if (isinstance(observed,bool) or not isinstance(observed,(float,int))
+                    or not math.isfinite(observed) or now < observed):
+                raise EvidenceUnavailable('CACHE_CLOCK_WENT_BACKWARD_OR_INVALID')
+            refreshed=now-observed>max_age
         if record is not None:
-            if (not isinstance(record,dict) or set(record)!={'url','sha256','bytes','transport'} or record['url']!=url
+            fields={'url','sha256','bytes','transport'} | ({'observedAt'} if max_age is not None else set())
+            if (not isinstance(record,dict) or set(record)!=fields or record['url']!=url
                     or record['transport']!=self.authority or not isinstance(record['sha256'],str) or not HEX.fullmatch(record['sha256'])):
                 raise EvidenceUnavailable('CACHE_SOURCE_IDENTITY_INVALID')
             blob=self._safe(self.root/'blobs'/record['sha256'])
             if not blob.is_file() or blob.stat().st_size>131072:raise EvidenceUnavailable('CACHE_BODY_INVALID')
             raw=blob.read_bytes()
             if digest(raw)!=record['sha256'] or len(raw)!=record['bytes']:raise EvidenceUnavailable('CACHE_HASH_MISMATCH')
-            self.metrics['cacheHits']+=1;cache_status='HIT'
-        else:
+        if refreshed:
             self.metrics['cacheMisses']+=1;raw=self._fetch(url)
             record={'url':url,'sha256':digest(raw),'bytes':len(raw),'transport':self.authority}
+            if max_age is not None:record['observedAt']=self.clock()
             self._save(self.root/'blobs'/record['sha256'],raw);self._save(path,encoded({'record':record,'sha256':digest(encoded(record))}));cache_status='MISS'
+        else:
+            self.metrics['cacheHits']+=1;cache_status='HIT'
         try:text=raw.decode('utf-8')
         except UnicodeError:raise EvidenceUnavailable('OFFICIAL_DOCUMENT_NOT_UTF8') from None
-        value={'kind':kind,'repo':repo,'tag':tag,'resolvedCommit':pin['commit'],'artifact':artifact,'url':url,
-            'sha256':record['sha256'],'bytes':len(raw),'verified':True,'transport':self.authority,
-            'retrievedAt':pin['observedAt'],'freshness':'WITHIN_PIN_TTL','cacheStatus':cache_status,'text':text}
+        value={**record,'cacheStatus':cache_status,'text':text}
         self._bodies[key]=value;return value

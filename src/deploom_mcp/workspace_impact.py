@@ -1,6 +1,7 @@
 """Advisory project observations for the exact transitions selected by EDITS."""
 from __future__ import annotations
 
+import os
 import re
 import time
 from collections import defaultdict
@@ -9,6 +10,11 @@ from pathlib import Path, PurePosixPath
 from semantic_version import Version
 
 from deploom_mcp.goal_execution_registry import configured_state_root
+from deploom_mcp.host_evidence_policy import external_network_evidence_disabled, mirror_knowledge_only
+from deploom_mcp.knowledge_contract_v2 import PKG, VERSION
+from deploom_mcp.migration_release import PUBLIC_NPM, collect_workspace_releases
+from deploom_mcp.shared_knowledge_batch import _private_package, lookup_batch
+from deploom_mcp.shared_records import directory as knowledge_directory
 from deploom_mcp.migration_usage import inspect_usage
 from deploom_mcp.workspace_inventory import _read_bytes
 
@@ -106,9 +112,98 @@ def _signals(rows, before, after, package):
             })
     return changes
 
-def build_project_impact(project: Path, targets: list[dict], owners: list[str], inventory_digest: str) -> dict:
+def _reference_mentions(transition, reference):
+    symbols = {
+        symbol
+        for finding in transition["matchedPatterns"]
+        for symbol in (finding.get("key"), *finding.get("knownImportedSymbols", ()))
+        if symbol
+    }
+    hints = []
+    for document in reference.get("documents", []):
+        texts = " ".join(document["excerpts"])
+        mentioned = sorted(symbol for symbol in symbols if f"`{symbol}`" in texts)
+        if mentioned:
+            hints.append({"status": "SOURCE_MENTION_REVIEW_REQUIRED",
+                          "symbols": mentioned[:8], "source": document["source"]["url"]})
+    return hints
+
+
+def _transition_evidence(project, state, transitions, integrities, registry, mode):
+    if not transitions:
+        return {}
+    queries = [{"package": row["package"], "from_version": row["fromVersion"],
+                "to_version": row["toVersion"], "package_manager": "npm"} for row in transitions
+               if PKG.fullmatch(row["package"]) and VERSION.fullmatch(row["fromVersion"])
+               and VERSION.fullmatch(row["toVersion"])]
+    lookup = lookup_batch(knowledge_directory(), queries) if queries else {}
+    signed = {(row["package"], row["from_version"], row["to_version"]): row
+              for row in lookup.get("results", [])}
+    offline = (mode != "ON_DEMAND" or external_network_evidence_disabled() or mirror_knowledge_only()
+               or os.environ.get("DEPLOOM_MCP_MIGRATION_OFFLINE") == "1")
+    pending = []
+    for row in transitions:
+        key = (row["package"], row["fromVersion"], row["toVersion"])
+        matched = signed.get(key, {})
+        records = matched.get("knowledge", [])
+        row["evidence"] = {
+            "signedKnowledge": {
+                "status": matched.get("status", lookup.get("status", "UNAVAILABLE")),
+                "snapshotRevision": lookup.get("snapshotRevision"),
+                "matchingCount": matched.get("matchingCount", 0),
+                "omittedCount": max(0, matched.get("matchingCount", 0) - len(records[:1])),
+                "records": [{**{k: record[k] for k in ("id", "kind", "title", "summary", "matchStrength",
+                                                       "sourceCommit", "evidence")},
+                             **{k: record[k][:3] for k in ("conditions", "actions", "verification", "negativeControls")},
+                             "recipientApplicability": "UNKNOWN"}
+                            for record in records[:1]],
+            },
+            "official": {"status": "UNAVAILABLE"},
+        }
+        evidence = row["evidence"]
+        if _private_package(key[0]) or registry != PUBLIC_NPM:
+            evidence["official"]["reason"] = "PUBLIC_ROUTE_NOT_AUTHORIZED"
+            continue
+        if len(integrities.get(key, ())) != 1 or None in integrities[key]:
+            evidence["official"]["reason"] = "PUBLIC_BASELINE_UNPROVEN"
+            continue
+        if Version(key[1]) >= Version(key[2]) or Version(key[2]).prerelease or Version(key[2]).build:
+            evidence["official"]["reason"] = "STABLE_FORWARD_TRANSITION_REQUIRED"
+            continue
+        if any(record["matchStrength"] == "verified-exact-transition" for record in records):
+            evidence["official"]["reason"] = "SIGNED_EXACT_KNOWLEDGE_AVAILABLE"
+            continue
+        if len(pending) >= 2:
+            evidence["official"]["reason"] = "OFFICIAL_TRANSITION_LIMIT"
+            continue
+        pending.append((row, (*key, next(iter(integrities[key])))))
+    no_network = {"mode": "CACHE_ONLY" if offline else "ON_DEMAND", "httpTransactions": 0}
+    if not pending:
+        return no_network
+    try:
+        local, checkout = state.resolve(), project.resolve()
+        if local.is_relative_to(checkout) or checkout.is_relative_to(local):
+            for row, _ in pending:
+                row["evidence"]["official"]["reason"] = "EVIDENCE_STATE_OVERLAP_REJECTED"
+            return no_network
+        batch = collect_workspace_releases(state, [query for _, query in pending], offline=offline)
+    except (OSError, ValueError, RuntimeError, TypeError, KeyError):
+        for row, _ in pending:
+            row["evidence"]["official"]["reason"] = "OFFICIAL_EVIDENCE_UNAVAILABLE"
+        return no_network if offline else {**no_network, "httpTransactions": None}
+    for (row, _), reference in zip(pending, batch["rows"], strict=True):
+        row["evidence"]["official"] = reference
+        mentions = _reference_mentions(row, reference)
+        if mentions:
+            row["officialPatternHints"] = mentions
+    return batch["metrics"]
+
+
+def build_project_impact(project: Path, targets: list[dict], owners: list[str], inventory_digest: str,
+                         *, registry=None, evidence_mode="CACHE_ONLY") -> dict:
     # Bound response and parsing work independently of the size of the solver assignment.
     transitions = defaultdict(set)
+    integrities = defaultdict(set)
     unresolved = 0
     for row in targets:
         owner, _, package = row["declaration"]
@@ -122,6 +217,7 @@ def build_project_impact(project: Path, targets: list[dict], owners: list[str], 
             unresolved += 1
             continue
         transitions[package, old, new].add(owner)
+        integrities[package, str(old), str(new)].add(row.get("publicNpmIntegrity"))
     selected = list(transitions.items())[:8]
     result = {"authority": "RECOMMENDATION_ONLY", "coverage": None, "transitions": [],
               "inventoryDigest": inventory_digest, "omittedTransitions": len(transitions) - len(selected),
@@ -180,4 +276,5 @@ def build_project_impact(project: Path, targets: list[dict], owners: list[str], 
             "confidence": "STATIC_ONLY" if rows else "UNKNOWN",
             "unknowns": ["EFFECTIVE_CONFIG_AND_MODULE_RESOLUTION", "CROSS_WORKSPACE_VERSION_ATTRIBUTION"],
         })
+    result["evidenceMetrics"] = _transition_evidence(project, state, result["transitions"], integrities, registry, evidence_mode)
     return result

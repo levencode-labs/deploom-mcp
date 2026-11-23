@@ -316,13 +316,16 @@ def build_migration_card(project: Path, targets: list[dict], model_status: str, 
     return describe_exact_migrations(project, targets if model_status == "SAT_IN_MODELED_DOMAIN" else [], **context)
 
 
-def describe_exact_migrations(project: Path, targets: list[dict], *, owners=(), inventory_digest=None) -> dict:
+def describe_exact_migrations(project: Path, targets: list[dict], *, owners=(), inventory_digest=None,
+                              registry=None, evidence_mode="CACHE_ONLY") -> dict:
     """Describe explicit transitions without a compatibility assertion."""
     result = _describe_migrations(project, targets)
     if inventory_digest is not None:
         from deploom_mcp.workspace_impact import build_project_impact
 
-        result["projectImpact"] = build_project_impact(project, targets, owners, inventory_digest)
+        result["projectImpact"] = build_project_impact(
+            project, targets, owners, inventory_digest, registry=registry, evidence_mode=evidence_mode,
+        )
     return result
 
 

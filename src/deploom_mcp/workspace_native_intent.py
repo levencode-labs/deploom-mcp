@@ -13,6 +13,7 @@ from semantic_version import NpmSpec, Version
 
 from deploom_mcp.dependency_audit import AuditError
 from deploom_mcp.goal_contract import GoalContractError, canonical_digest
+from deploom_mcp.migration_release import public_npm_integrity
 from deploom_mcp.workspace_goal_request import validate_goal_request
 from deploom_mcp.workspace_inventory import observe_npm_workspace
 from deploom_mcp.workspace_plan_details import root_peer_evidence
@@ -53,7 +54,7 @@ def _baseline_version(record, name, declared, target, registry):
 
 def prepare_native_intent(project, request, resolution_slots, *, render, save, root_peer_checker=None):
     goal = {key: value for key, value in request.items()
-            if key not in {"responseMode", "migrationCard", "compactEdits", "editsStrategy"}}
+            if key not in {"responseMode", "migrationCard", "compactEdits", "editsStrategy", "migrationEvidenceMode"}}
     validate_goal_request(goal, allow_additions=True)
     if "candidateLimit" in goal:
         raise GoalContractError("NATIVE_INTENT_REQUIRES_EXACT_TARGETS")
@@ -73,7 +74,7 @@ def prepare_native_intent(project, request, resolution_slots, *, render, save, r
         targets[key] = (version, adding)
     requested = _requested_registry(goal, online_metadata=True)
     configured = os.environ.get("DEPLOOM_WORKSPACE_NPM_REGISTRY")
-    # This local manifest proposal never fetches registry metadata.
+    # Baseline binding is local. Optional reference retrieval follows the completed proposal.
     if configured is None and requested == _PUBLIC_REGISTRY:
         configured = _PUBLIC_REGISTRY
     if not configured:
@@ -113,7 +114,8 @@ def prepare_native_intent(project, request, resolution_slots, *, render, save, r
                 has_upgrade |= baseline != version
                 updated_count += 1
                 card_targets.append({"declaration": list(key), "baselineLock": [slot, baseline],
-                                     "selectedVersion": version})
+                                     "selectedVersion": version,
+                                     "publicNpmIntegrity": public_npm_integrity(name, baseline, packages.get(slot))})
             change = {"owner": owner, "section": section, "name": name,
                       "fromSpec": declared, "toVersion": version}
             grouped.setdefault(manifest, []).append(change)
@@ -161,5 +163,8 @@ def prepare_native_intent(project, request, resolution_slots, *, render, save, r
     if request.get("migrationCard"):
         from deploom_mcp.workspace_migration_card import describe_exact_migrations
 
-        response["migrationCard"] = describe_exact_migrations(project, card_targets, owners=owners, inventory_digest=digest)
+        response["migrationCard"] = describe_exact_migrations(
+            project, card_targets, owners=owners, inventory_digest=digest, registry=requested,
+            evidence_mode=request.get("migrationEvidenceMode", "CACHE_ONLY"),
+        )
     return response

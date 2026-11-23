@@ -319,16 +319,22 @@ def plan_workspace_snapshot(project: Path, request: dict, *, model_only: bool = 
             # Summarize the same bound read used by the solver, including owners
             # with no declarations. Baseline resolution remains lockfile evidence.
             owners = sorted({Path(path).parent.as_posix() for path in inputs if path.endswith("package.json")})
+            from deploom_mcp.migration_release import public_npm_integrity
+
+            target_rows = []
+            public_baselines = []
+            for key in sorted(admitted):
+                owner, _, package = key
+                lock = npm_lock_resolved_instance(packages, package, "" if owner == "." else owner)
+                target_rows.append({"declaration": list(key), "declaredSpec": declarations[key],
+                                    "baselineLock": lock,
+                                    "selectedVersion": (result["assignment"] or {}).get(declaration_id(key))})
+                public_baselines.append(public_npm_integrity(package, lock[1], packages.get(lock[0])) if lock else None)
             result["workspaceEvidence"] = {
                 "owners": owners, "declarationCount": len(rows),
                 "constraintDeclarationCount": len(declarations),
                 "ownerPeerConstraintCount": result.get("ownerPeerConstraintCount", 0),
-                "targets": [
-                    {"declaration": list(key), "declaredSpec": declarations[key],
-                     "baselineLock": npm_lock_resolved_instance(packages, key[2], "" if key[0] == "." else key[0]),
-                     "selectedVersion": (result["assignment"] or {}).get(declaration_id(key))}
-                    for key in sorted(admitted)
-                ],
+                "targets": target_rows, "publicMigrationBaselines": public_baselines,
             }
         finally:
             sys.path.pop(0)

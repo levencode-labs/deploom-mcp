@@ -137,3 +137,43 @@ Existing ESLint and strip-json-comments cards retain their fields.
 Static findings guide review. They carry no verification or execution
 authority. The project impact scan makes no network requests. The existing
 manifest patch, resolver and project checks still govern acceptance.
+
+### Exact migration knowledge in EDITS
+
+The default `migrationEvidenceMode: "CACHE_ONLY"` reads the local signed
+Knowledge Cache v2 once for the selected transitions and checks the local
+official-source cache for eligible misses. The response reports signed
+fixture evidence separately from official references. Knowledge Cache v2
+retains its existing signature and scope checks. The Skill uses the lookup
+already present in the card and batches only exact transitions absent from it.
+
+Explicit `migrationEvidenceMode: "ON_DEMAND"` allows bounded retrieval for
+an authorized public npmjs route. The source version and integrity come from
+the lockfile. The npm registry must report the exact packages and versions,
+including matching baseline tarball integrity. The package repository and
+subdirectory must agree at both ends, with an exact published `gitHead` and
+matching `package.json` at each commit. Repository metadata serves as a
+nomination. The transport constructs its own allowlisted URLs and validates
+publication and source identity. This evidence does not independently attest
+that either tarball was built from that Git commit.
+
+DepLoom includes only excerpts and source digests from relevant version
+sections, authenticated package metadata and bounded target guides or
+release notes. A release tag must resolve to the published commit. Guide
+and repository-release scope stay visible. Mentions of observed symbols
+are review hints. Check the provenance and recipient applicability before
+acting on a reference, and review a codemod's conditions before using it.
+
+The official path handles at most two transitions per plan and shares
+the existing 12-request, 128 KiB-per-body and 1 MiB budgets with a 9-second
+worker watchdog. Offline or corporate restrictions force local reads.
+It keeps the original TLS and redirect restrictions. Packages without
+matching public artifacts or source manifests, private scopes, relocated
+packages and unsupported repository layouts produce explicit gaps. Already
+obtained sources are reusable offline within their freshness window.
+
+Renovate also separates the npm repository URL and package directory,
+looks up release or changelog data, and filters by version. This path
+uses exact published commits and the existing DepLoom evidence transport
+to bind the smaller set of sources it returns.
+[Renovate changelog discovery](https://docs.renovatebot.com/key-concepts/changelogs/)

@@ -38,6 +38,24 @@ class WorkspaceImpactTests(unittest.TestCase):
         self.assertEqual(row["applicableChanges"], [])
         self.assertEqual(result["coverage"]["status"], "UNKNOWN")
 
+    def test_corporate_and_offline_policies_keep_reference_lookup_local(self):
+        row = target("typescript", "5.9.3", "6.0.3")
+        row["publicNpmIntegrity"] = "sha512-fixture"
+        settings = ("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE", "DEPLOOM_MCP_RECORDS_MIRROR_ONLY",
+                    "DEPLOOM_MCP_MIGRATION_OFFLINE", "DEPLOOM_MCP_LOCAL_CACHE_ONLY")
+        for setting in settings:
+            with self.subTest(setting=setting), patch.dict(os.environ, {setting: "1"}), patch(
+                "deploom_mcp.workspace_impact.collect_workspace_releases",
+                return_value={"rows": [{"status": "UNKNOWN"}], "metrics": {"httpTransactions": 0}},
+            ) as collect:
+                build_project_impact(self.project, [row], ["."], "a" * 64,
+                                     registry="https://registry.npmjs.org", evidence_mode="ON_DEMAND")
+                self.assertTrue(collect.call_args.kwargs["offline"])
+        with patch("deploom_mcp.workspace_impact.collect_workspace_releases") as collect:
+            build_project_impact(self.project, [row], ["."], "a" * 64,
+                                 registry="https://mirror.example.invalid/npm", evidence_mode="ON_DEMAND")
+            collect.assert_not_called()
+
     @unittest.skipUnless(os.environ.get("DEPLOOM_MCP_TYPESCRIPT_PATH"), "requires the pinned host parser")
     def test_parser_matches_only_the_selected_owner_and_exact_transition(self):
         self.write("packages/migrate/src/app.ts", "export {render as mount} from 'react-dom';")

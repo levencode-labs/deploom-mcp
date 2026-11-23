@@ -235,5 +235,7 @@ async def get_workspace_upgrade_plan(
         return {"ok": False, "error": {"code": "WORKSPACE_BLUEPRINT_SCHEMA_INVALID"}}
     retain_workspace_details(compact["details"]["planId"], detail_bytes)
     if include_migration_owners:
-        compact["migrationOwners"] = plan["workspaceEvidence"]["owners"]
+        evidence = plan["workspaceEvidence"]
+        compact["migrationOwners"] = evidence["owners"]
+        compact["publicMigrationBaselines"] = evidence.get("publicMigrationBaselines", [])
     return compact

@@ -49,13 +49,17 @@ a Core verdict. This workflow is client-neutral.
   each selector with this native-intent route.
   Report the listed consumers and versions before staging any patch. Use ordinary
   EDITS for a peer assignment, companion selection, or policy verdict.
-- Set `migrationCard: true` for a breaking transition. Read `projectImpact` for
+- Set `migrationCard: true` when reviewing migration impact or exact-version
+  knowledge. Read `projectImpact` for
   the selected owners, observed files and review-required change matches. Inspect
   the affected call sites and configuration before making authorized edits. Treat
   missing matches as inconclusive when coverage is incomplete or an effective
   configuration or dependency resolution is unknown. A suggested codemod needs
   applicability and diff review. Use each donor recipe part only when the recipient
   baseline satisfies its probe, and run the project checks after the upgrade.
+  The same card reads local migration knowledge. Use `migrationEvidenceMode:
+  "ON_DEMAND"` on that call when public official references are needed and the
+  task authorizes external evidence for the public npm registry.
 - For an authorized execution, apply a returned `SAT_IN_MODELED_DOMAIN` patch
   immediately. Stage a `MANIFEST_INTENT_ONLY` patch in the authorized
   verification copy before native resolution. Run
@@ -252,24 +256,21 @@ separate from compatibility evidence.
 
 ## Automatic, read-only collective migration knowledge
 
-After a real DepLoom upgrade plan identifies actionable **in-scope exact
-version transitions**, and before any authorized source edits, use
-`get_shared_migration_knowledge_batch` **once per coherent bounded batch**
-when that tool is available. Supply up to 32 distinct exact
-`{package, from_version, to_version, package_manager}` tuples actually
-established by the approved project inventory/plan. Do not fetch the whole
-dependency tree or invent old/new versions from ranges. A second call is
-only warranted for a genuinely distinct remaining batch, not to chase
-a miss, an error, or the same advice again. If no exact transition is known,
-or the tool is unavailable, proceed under the original planning/verification
-contract without claiming collective-knowledge coverage.
+Read the signed knowledge in `migrationCard.projectImpact` before any
+authorized source edits. Each transition with an evidence status already
+has a lookup result. For exact transitions absent from the card, including
+older MCP versions and other planning routes, use
+`get_shared_migration_knowledge_batch` once for the distinct uncovered
+transitions if the tool is available. Supply up to 32 exact
+`{package, from_version, to_version, package_manager}` tuples established
+by the approved project inventory or plan. Preserve omitted counts and
+continue with the project checks when coverage is unavailable.
 
-This is a **local read** of an already-signed edition: no package-lookup
-network requests and no code uploads. Skip private packages, private scopes,
-unconfirmed package origins, corporate-only registries, and projects with
-external evidence expressly disabled. Respect local-only/offline controls;
-an already verified local snapshot may be read in offline mode but must
-never be refreshed to serve this lookup. If the result reports
+The collective lookup reads an already-signed edition locally. Skip
+additional lookups for private scopes or unconfirmed public package origins.
+The host may provide a signed corporate mirror. Offline and corporate
+network controls govern official reference retrieval. Read official
+excerpts as source references with independent applicability checks. If the result reports
 `snapshot-unavailable`, `disabled-by-policy`, `skipped-private-scope`,
 `no-matching-record` or `duplicate-query`, do not retry without new
 authorized evidence or treat it as an upstream failure.
