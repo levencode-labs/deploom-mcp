@@ -113,9 +113,14 @@ def prepare_native_intent(project, request, resolution_slots, *, render, save, r
                 baseline = _baseline_version(packages.get(slot, {}), name, declared, version, registry)
                 has_upgrade |= baseline != version
                 updated_count += 1
-                card_targets.append({"declaration": list(key), "baselineLock": [slot, baseline],
-                                     "selectedVersion": version,
-                                     "publicNpmIntegrity": public_npm_integrity(name, baseline, packages.get(slot))})
+                if request.get("migrationCard") and baseline != version:
+                    from deploom_mcp.workspace_migration_card import snapshot_script_patterns
+
+                    record = packages[slot]
+                    card_targets.append({"declaration": list(key), "baselineLock": [slot, baseline],
+                                         "selectedVersion": version,
+                                         "publicNpmIntegrity": public_npm_integrity(name, baseline, record),
+                                         **snapshot_script_patterns(name, baseline, record, manifests[manifest])})
             change = {"owner": owner, "section": section, "name": name,
                       "fromSpec": declared, "toVersion": version}
             grouped.setdefault(manifest, []).append(change)

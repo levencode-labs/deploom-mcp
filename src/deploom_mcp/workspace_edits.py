@@ -252,8 +252,8 @@ async def plan_workspace_edits(project_path: str, request: dict) -> dict:
         from deploom_mcp.dependency_audit import checked_registry
         from deploom_mcp.workspace_migration_card import build_migration_card
 
-        baselines = plan.get("publicMigrationBaselines", [])
-        targets = [{**row, "publicNpmIntegrity": baselines[index] if index < len(baselines) else None}
+        baselines = plan.get("migrationBaselines", [])
+        targets = [{**row, **(baselines[index] if index < len(baselines) else {})}
                    for index, row in enumerate(plan["jointAssignment"]["targets"])]
         response["migrationCard"] = await asyncio.to_thread(
             build_migration_card, Path(project_path), targets, model["status"],

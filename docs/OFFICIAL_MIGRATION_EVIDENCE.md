@@ -132,6 +132,10 @@ specific checks for observed React DOM, TypeScript, Vite, Vitest and
 CommonJS module-format patterns. For React DOM legacy render, hydration or
 unmount syntax, the card links to the official codemod and gives verification
 instructions. Other packages can still produce import and file observations.
+The bound manifest and lockfile also flag unquoted command heads in npm scripts
+that match an exported binary of the selected owner's baseline package. This
+works offline without the parser. Shell wrappers and later compound commands
+are outside this scope. Actual PATH resolution and script effects remain unknown.
 Common config filenames are reported when the parser is unavailable. Root-owned and workspace-owned imports are distinguished.
 References outside the selected declaration owners are possible consumers
 whose installed versions and post-upgrade resolution need investigation.

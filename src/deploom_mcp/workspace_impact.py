@@ -118,7 +118,7 @@ def _reference_mentions(transition, reference):
     symbols = {
         symbol
         for finding in transition["matchedPatterns"]
-        for symbol in (finding.get("key"), *finding.get("knownImportedSymbols", ()))
+        for symbol in (finding.get("key"), finding.get("binary"), *finding.get("knownImportedSymbols", ()))
         if symbol
     }
     hints = []
@@ -203,6 +203,7 @@ def build_project_impact(project: Path, targets: list[dict], owners: list[str], 
     # Bound response and parsing work independently of the size of the solver assignment.
     transitions = defaultdict(set)
     integrities = defaultdict(set)
+    scripts = {}
     unresolved = 0
     for row in targets:
         owner, _, package = row["declaration"]
@@ -217,6 +218,8 @@ def build_project_impact(project: Path, targets: list[dict], owners: list[str], 
             continue
         transitions[package, old, new].add(owner)
         integrities[package, str(old), str(new)].add(row.get("publicNpmIntegrity"))
+        if "scriptPatterns" in row:
+            scripts[package, old, new, owner] = row
     selected = list(transitions.items())[:8]
     result = {"authority": "RECOMMENDATION_ONLY", "coverage": None, "transitions": [],
               "inventoryDigest": inventory_digest, "omittedTransitions": len(transitions) - len(selected),
@@ -249,8 +252,17 @@ def build_project_impact(project: Path, targets: list[dict], owners: list[str], 
 
     for (package, before, after), declarations in selected:
         current = observations_by_package[package]
+        owners_with_scripts = [(owner, scripts[package, before, after, owner]) for owner in sorted(declarations)
+                               if (package, before, after, owner) in scripts]
+        command_matches = [
+            {**pattern, "path": (PurePosixPath(owner) / "package.json").as_posix(), "workspace": owner,
+             "authority": "OBSERVED_SYNTAX_ONLY", "bindingOrRuntimeResolution": "UNKNOWN"}
+            for owner, row in owners_with_scripts for pattern in row["scriptPatterns"]
+        ]
+        if command_matches and result["coverage"]["status"] == "NOT_OBSERVED_SCOPED":
+            result["coverage"].update(status="OBSERVED_SYNTAX_ONLY", reason="OBSERVED_NPM_SCRIPT_COMMAND_HEAD")
         matching_owner = [row for row in current if row["workspace"] in declarations]
-        rows = matching_owner[:12]
+        rows = matching_owner[:12] + command_matches[:4]
         outside_owners = sorted({row["workspace"] for row in current if row["workspace"] not in declarations})
         changes = _signals(rows, before, after, package)
         render_symbols = {"render", "hydrate", "unmountComponentAtNode"}
@@ -264,16 +276,25 @@ def build_project_impact(project: Path, targets: list[dict], owners: list[str], 
                 "source": "https://react.dev/blog/2024/04/25/react-19-upgrade-guide#removed-reactdomrender",
                 "verification": "Review the transform against the observed call sites, inspect the diff, and verify mount, hydration and unmount as applicable.",
             })
+        unknowns = ["EFFECTIVE_CONFIG_AND_MODULE_RESOLUTION", "CROSS_WORKSPACE_VERSION_ATTRIBUTION"]
+        if owners_with_scripts:
+            unknowns.append("NPM_SCRIPT_SHELL_AND_COMMAND_RESOLUTION")
+        if len(command_matches) > 4 or any(row["scriptPatternsLimited"] for _, row in owners_with_scripts):
+            unknowns.append("NPM_SCRIPT_SCAN_LIMIT")
         result["transitions"].append({
             "package": package, "fromVersion": str(before), "toVersion": str(after),
             "dependencyOwners": sorted(declarations),
             "affectedWorkspaces": sorted({row["workspace"] for row in rows}),
             "affectedFiles": sorted({row["path"] for row in rows}),
-            "matchedPatterns": rows, "omittedPatterns": len(matching_owner) - len(rows), "applicableChanges": changes,
+            "matchedPatterns": rows, "omittedPatterns": len(matching_owner) + len(command_matches) - len(rows),
+            "applicableChanges": changes,
             "potentialConsumersOutsideDeclarationOwners": outside_owners,
             "availableCodemods": codemods,
             "confidence": "STATIC_ONLY" if rows else "UNKNOWN",
-            "unknowns": ["EFFECTIVE_CONFIG_AND_MODULE_RESOLUTION", "CROSS_WORKSPACE_VERSION_ATTRIBUTION"],
+            "unknowns": unknowns,
+            **({"suggestedChecks": [{"status": "NOT_RUN", "instruction":
+                                    "Review the indicated npm scripts and compare the affected CLI behavior in the normal project checks."}]}
+               if command_matches else {}),
         })
     result["evidenceMetrics"] = _transition_evidence(project, state, result["transitions"], integrities, registry, evidence_mode)
     return result

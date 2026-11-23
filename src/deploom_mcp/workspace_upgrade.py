@@ -237,5 +237,5 @@ async def get_workspace_upgrade_plan(
     if include_migration_owners:
         evidence = plan["workspaceEvidence"]
         compact["migrationOwners"] = evidence["owners"]
-        compact["publicMigrationBaselines"] = evidence.get("publicMigrationBaselines", [])
+        compact["migrationBaselines"] = evidence.get("migrationBaselines", [])
     return compact

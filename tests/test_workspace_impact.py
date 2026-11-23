@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from deploom_mcp.workspace_impact import build_project_impact
+from deploom_mcp.workspace_migration_card import snapshot_script_patterns
 
 
 def target(package, before, after, owner="."):
@@ -26,6 +27,16 @@ class WorkspaceImpactTests(unittest.TestCase):
         path = self.project / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
+
+    def test_snapshot_script_selector_is_bounded_and_bound_to_the_exact_record(self):
+        record = {"version": "1.0.0", "bin": {"tool": "bin/cli.js"}}
+        manifest = {"scripts": {f"check-{index}": "tool --check" for index in range(8)}}
+        patterns = snapshot_script_patterns("scoped-tool", "1.0.0", record, manifest)
+        self.assertEqual(len(patterns["scriptPatterns"]), 4)
+        self.assertTrue(patterns["scriptPatternsLimited"])
+        self.assertEqual(snapshot_script_patterns("scoped-tool", "1.0.1", record, manifest), {})
+        self.assertEqual(snapshot_script_patterns("scoped-tool", "1.0.0", {**record, "link": True}, manifest), {})
+        self.assertEqual(snapshot_script_patterns("scoped-tool", "1.0.0", {**record, "name": "alias"}, manifest), {})
 
     def test_config_filename_without_parser_is_only_partial(self):
         self.write("tsconfig.json", '{"compilerOptions":{"baseUrl":"src"}}')

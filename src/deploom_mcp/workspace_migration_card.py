@@ -37,6 +37,31 @@ _MOCHA_ENV = re.compile(r"""(?<![\w./-])mocha['"]?\s*:\s*true\b""")
 _MARKDOWN_PROCESSOR = re.compile(r"""(?<![\w./-])markdown/markdown(?=['"\s,}]|$)""")
 
 
+_SCRIPT_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}")
+_SCRIPT_HEAD = re.compile(r"^[ \t]*(?:\./node_modules/\.bin/)?([A-Za-z0-9][A-Za-z0-9._-]{0,127})(?=\s|$)")
+
+
+def snapshot_script_patterns(package, version, record, manifest):
+    """Observe a bounded set of literal commands using the already bound snapshot."""
+    bins = record.get("bin")
+    if (record.get("link") or record.get("name", package) != package
+            or record.get("version") != version or not isinstance(bins, dict) or not bins):
+        return {}
+    scripts = manifest.get("scripts")
+    if not isinstance(scripts, dict) or not scripts:
+        return {}
+    patterns = []
+    for script, command in islice(scripts.items(), 128):
+        if not _SCRIPT_ID.fullmatch(script) or not isinstance(command, str):
+            continue
+        head = _SCRIPT_HEAD.match(command)
+        if head and isinstance(bins.get(head[1]), str) and bins[head[1]]:
+            patterns.append({"form": "NPM_SCRIPT_BIN", "script": script, "binary": head[1]})
+            if len(patterns) == 5:
+                break
+    return {"scriptPatterns": patterns[:4], "scriptPatternsLimited": len(patterns) > 4 or len(scripts) > 128}
+
+
 def _eslint_script_observations(manifest: dict) -> list[dict]:
     scripts = manifest.get("scripts")
     if not isinstance(scripts, dict):
