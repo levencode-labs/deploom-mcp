@@ -22,5 +22,8 @@ Thumbs.db
 # IDE
 .idea/
 
+# Build-time input prepared by typescript_bundle.py
+/vendor/typescript/
+
 # Durable component-release state (never published)
 .component-release/

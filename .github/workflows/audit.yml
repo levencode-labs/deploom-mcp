@@ -46,6 +46,8 @@ jobs:
           from pathlib import Path
           with open(os.environ['GITHUB_PATH'], 'a', encoding='utf-8') as stream:
               stream.write(str(Path(os.environ['RUNNER_TEMP']) / 'audit-yarn-cli' / 'node_modules' / '.bin') + '\n')
+      - name: Prepare pinned TypeScript parser
+        run: python typescript_bundle.py
       - name: Build isolated package
         run: |
           python -m pip install build

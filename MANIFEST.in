@@ -1,4 +1,4 @@
-include build_support.py
+include build_support.py typescript_bundle.py
 include release-manifest.json
 include contracts/upgrade-blueprint.schema.json
 include contracts/workspace-upgrade-blueprint.schema.json

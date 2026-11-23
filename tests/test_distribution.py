@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from build_support import copy_resources, digest, inventory_digest, source_inventory, validate_release
 from deploom_mcp import distribution
+import typescript_bundle
 
 
 class DistributionTests(unittest.TestCase):
@@ -87,6 +88,31 @@ class DistributionTests(unittest.TestCase):
         self.assertIn("skills/deploom-upgrade/contract.json", files)
         self.assertNotIn("upstream/deploom/private-local.json", files)
         self.assertNotIn("skills/deploom-upgrade/local-note.md", files)
+
+    def test_typescript_requires_pinned_bytes_and_excludes_unlisted_files(self):
+        self.fixture()
+        bundled = self.write("vendor/typescript/lib/typescript.js", "mock parser")
+        self.write("vendor/typescript/unlisted.txt", "never package this file")
+        files = {"lib/typescript.js": (len(bundled.read_bytes()), digest(bundled.read_bytes()))}
+        dest = self.root / "wheel" / "deploom_mcp"
+        with patch.object(typescript_bundle, "FILES", files):
+            inventory = source_inventory(self.root, ["vendor/typescript/unlisted.txt"])
+            self.assertIn("vendor/typescript/lib/typescript.js", inventory)
+            self.assertNotIn("vendor/typescript/unlisted.txt", inventory)
+            copy_resources(self.root, dest)
+            parser_path = dest / "resources/typescript/lib/typescript.js"
+            self.assertEqual(parser_path.read_bytes(), bundled.read_bytes())
+            bundled.write_bytes(b"m0ck parser")
+            with self.assertRaisesRegex(ValueError, "TypeScript bundle hash mismatch"):
+                source_inventory(self.root, [])
+            with self.assertRaisesRegex(ValueError, "TypeScript bundle hash mismatch"):
+                copy_resources(self.root, dest)
+
+    def test_typescript_rejects_unpinned_tarball_before_staging(self):
+        tarball = self.write("untrusted.tgz", "not the pinned artifact")
+        with self.assertRaisesRegex(ValueError, "tarball SHA-512 mismatch"):
+            typescript_bundle.prepare(self.root, tarball)
+        self.assertFalse((self.root / "vendor/typescript").exists())
 
     def test_build_hook_refuses_to_clean_source_package(self):
         self.fixture()

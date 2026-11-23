@@ -60,6 +60,17 @@ core=resolve_core_dir()
 assert core.name == "_core" and core.is_relative_to(root / "venv"), core
 assert blueprint_schema_path().is_file() and release_manifest_path().is_file()
 assert (skill_root()/"contract.json").is_file()
+parser=release_manifest_path().parent/"typescript"
+for name in ("LICENSE.txt", "ThirdPartyNoticeText.txt", "package.json", "lib/typescript.js"):
+    assert (parser/name).is_file(), name
+from deploom_mcp.migration_usage import inspect_usage
+import time
+source=root/"syntax-project"
+source.mkdir()
+(source/"app.ts").write_text('import {render} from "react-dom"; render(App, root);', encoding="utf-8")
+impact=inspect_usage(source, ["react-dom"], root/"state", deadline=time.monotonic()+15, source_identity="packaged-smoke")
+assert impact["status"]=="OBSERVED_SYNTAX_ONLY", impact
+assert any(row["path"]=="app.ts" for row in impact["observations"]), impact
 # Core repin regression: the installed wheel must carry the newly pinned
 # diagnostics module. Import it from the wheel's private _core directory,
 # never from the source checkout or a globally installed Core.
