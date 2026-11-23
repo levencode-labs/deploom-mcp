@@ -1182,6 +1182,26 @@ async def explain_conflict_tool(
 
 
 @server.tool(
+    name="get_shared_migration_knowledge_batch",
+    title="Read signed migration knowledge for an approved batch",
+    description=(
+        "Read-only local lookup for 1-32 exact public dependency transitions. "
+        "Returns source-backed breaking changes, codemod guidance, incompatibilities, "
+        "playbooks and failure modes, with negative controls and exact-vs-candidate "
+        "strength. No network, execution, solver changes, user-data upload or cache refresh. "
+        "Provide each item with package, from_version, to_version and package_manager."
+    ),
+    annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=False),
+)
+async def get_shared_migration_knowledge_batch_tool(
+    transitions: list[dict[str, str]],
+) -> CallToolResult:
+    from deploom_mcp.shared_records import directory
+    from deploom_mcp.shared_knowledge_batch import lookup_batch
+    return _result(await asyncio.to_thread(lookup_batch, directory(), transitions))
+
+
+@server.tool(
     name="get_shared_migration_evidence",
     title="Read source-backed collective migration knowledge",
     description="Read locally signed v2 breaking changes, incompatibilities, codemods and playbooks. Source-exact hits and major-line candidates are advisory only.",

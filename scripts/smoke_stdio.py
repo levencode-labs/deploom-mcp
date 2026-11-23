@@ -31,6 +31,7 @@ async def main() -> int:
     assert len(listed.tools) >= 1, "no tools exposed"
     names = [t.name for t in listed.tools]
     assert "get_upgrade_plan" in names, f"get_upgrade_plan missing, got {names}"
+    assert "get_shared_migration_knowledge_batch" in names, "batch knowledge tool unavailable"
     print("smoke ok: initialize + list_tools over clean stdio")
     return 0
 
