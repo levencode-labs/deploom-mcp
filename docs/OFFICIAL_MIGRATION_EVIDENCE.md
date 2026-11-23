@@ -88,13 +88,14 @@ outside the inspected project. There is no automatic installation or loading of
 project-owned parsers, imports, plugins or configuration. A missing/mismatched
 host parser gives UNKNOWN rather than an absence claim.
 
-The pinned helper parses JS/TS text; it never executes it. Results expose literal
-imports/require syntax and limited Vite/Sass option syntax. require shadowing,
-runtime module resolution and semantic API compatibility are not established.
-Dynamic loads, aliases, callback/spread/computed configuration, parse failures,
-unsupported Vue/Svelte/Astro files and partial coverage stay UNKNOWN. An absence
-is only NOT_OBSERVED_SCOPED for the explicitly inspected JS/TS language scope,
-not UNUSED or project-wide safety. semanticApplicability remains UNKNOWN.
+The pinned helper parses JS/TS text without executing it. It records literal
+imports, re-exports, require calls, dynamic imports with static specifiers and
+member accesses tied to local import bindings. The helper also recognizes
+selected literal configuration keys. Runtime resolution, effective settings and
+semantic API compatibility remain unknown. Unresolved dynamic loads, aliases,
+callback, spread and computed configuration, parse failures, unsupported
+Vue/Svelte/Astro files and truncated coverage produce `UNKNOWN`. Scoped absence
+applies only to the inspected syntax.
 
 Coverage includes eligible/scanned/unreadable/unsupported counts and limits
 (256 files, 128 KiB per file, 1 MiB total source text). Findings are bound to the
@@ -115,14 +116,24 @@ client validation. Existing closed project trials are not repeated by this featu
 
 ## Migration cards in workspace EDITS
 
-In a v3 TARGETED_UPGRADE request, set `responseMode: "EDITS"` and
-`migrationCard: true` to include guidance for the selected transition.
-The initial card covers ESLint 8.57.1 to 9.0.0. The source version comes from
-the observed lockfile and the destination comes from the computed plan.
+In a v3 `TARGETED_UPGRADE` request, set `responseMode: "EDITS"` and
+`migrationCard: true`. Both modeled EDITS and `NATIVE_INTENT` attach
+`migrationCard.projectImpact` to the same response. The card uses the
+baseline lock version and the target selected for each declaration. Equal
+transitions share one card across owners. Different installed baselines in
+the same monorepo retain separate cards.
 
-The card reads known ESLint config files in the selected owner. It reports
-the observed filenames and whether their text references CI. It links to
-the official guidance and suggests checks marked NOT_RUN. Config discovery
-is scoped to the selected owner and does not resolve the effective ESLint
-configuration. The card uses local guidance and adds no registry or
-documentation requests.
+One bounded local scan covers all selected package names. It suggests
+specific checks for observed React DOM, TypeScript, Vite, Vitest and
+CommonJS module-format patterns. For React DOM legacy render, hydration or
+unmount syntax, the card links to the official codemod and gives verification
+instructions. Other packages can still produce import and file observations.
+Common config filenames are reported even when the optional host parser is
+unavailable. Root-owned and workspace-owned imports are distinguished.
+References outside the selected declaration owners are possible consumers
+whose installed versions and post-upgrade resolution need investigation.
+Existing ESLint and strip-json-comments cards retain their fields.
+
+Static findings guide review. They carry no verification or execution
+authority. The project impact scan makes no network requests. The existing
+manifest patch, resolver and project checks still govern acceptance.

@@ -27,6 +27,19 @@ jobs:
           node-version: '24.18.0'
       - name: Install package (runtime deps incl. jsonschema)
         run: python -m pip install --upgrade pip && python -m pip install -e .
+      - name: Prepare pinned TypeScript parser for syntax tests
+        shell: pwsh
+        run: |
+          $prefix = Join-Path $env:RUNNER_TEMP deploom-syntax-tests
+          npm install --prefix "$prefix" --ignore-scripts --no-package-lock --no-audit --no-fund typescript@6.0.3
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $parser = Join-Path $prefix node_modules/typescript/lib/typescript.js
+          $hash = (Get-FileHash -LiteralPath $parser -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne '569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39') {
+            throw 'The TypeScript parser differs from the pinned test artifact.'
+          }
+          "DEPLOOM_MCP_TYPESCRIPT_PATH=$parser" >> $env:GITHUB_ENV
+          "DEPLOOM_MCP_TYPESCRIPT_SHA256=$hash" >> $env:GITHUB_ENV
       - name: Full test suite
         run: python -m unittest discover -s tests -p "test_*.py" -v
       - name: Versioned Skill and release resources

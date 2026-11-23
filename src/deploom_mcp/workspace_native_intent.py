@@ -127,9 +127,10 @@ def prepare_native_intent(project, request, resolution_slots, *, render, save, r
         patch = None
         if not conflicts:
             patch = b"".join(render(path, inputs[path], rows) for path, rows in sorted(grouped.items()))
-        return digest, len(declarations) - updated_count, changes, card_targets, patch, conflicts
+        owners = [path[:-len("/package.json")] for path in manifests if path != "package.json"]
+        return digest, len(declarations) - updated_count, changes, card_targets, patch, conflicts, owners
 
-    digest, held, changes, card_targets, patch, conflicts = observe_npm_workspace(
+    digest, held, changes, card_targets, patch, conflicts, owners = observe_npm_workspace(
         project, plan_snapshot=bind, allow_root_only=True,
     )
     request_digest = canonical_digest(request)
@@ -160,5 +161,5 @@ def prepare_native_intent(project, request, resolution_slots, *, render, save, r
     if request.get("migrationCard"):
         from deploom_mcp.workspace_migration_card import describe_exact_migrations
 
-        response["migrationCard"] = describe_exact_migrations(project, card_targets)
+        response["migrationCard"] = describe_exact_migrations(project, card_targets, owners=owners, inventory_digest=digest)
     return response

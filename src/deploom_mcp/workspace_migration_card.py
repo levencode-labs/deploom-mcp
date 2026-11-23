@@ -312,13 +312,18 @@ def _strip_card(project: Path, owner: str, section: str) -> dict:
     }
 
 
-def build_migration_card(project: Path, targets: list[dict], model_status: str) -> dict:
-    return _describe_migrations(project, targets if model_status == "SAT_IN_MODELED_DOMAIN" else [])
+def build_migration_card(project: Path, targets: list[dict], model_status: str, **context) -> dict:
+    return describe_exact_migrations(project, targets if model_status == "SAT_IN_MODELED_DOMAIN" else [], **context)
 
 
-def describe_exact_migrations(project: Path, targets: list[dict]) -> dict:
+def describe_exact_migrations(project: Path, targets: list[dict], *, owners=(), inventory_digest=None) -> dict:
     """Describe explicit transitions without a compatibility assertion."""
-    return _describe_migrations(project, targets)
+    result = _describe_migrations(project, targets)
+    if inventory_digest is not None:
+        from deploom_mcp.workspace_impact import build_project_impact
+
+        result["projectImpact"] = build_project_impact(project, targets, owners, inventory_digest)
+    return result
 
 
 def _describe_migrations(project, targets):

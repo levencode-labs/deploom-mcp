@@ -198,7 +198,7 @@ def _compact_workspace_plan(plan: dict, request: dict) -> dict:
 
 
 async def get_workspace_upgrade_plan(
-    project_path: str, request: dict, *, model_only: bool = False,
+    project_path: str, request: dict, *, model_only: bool = False, include_migration_owners: bool = False,
 ) -> dict[str, Any]:
     """Run the isolated owning workspace worker and project a targeted plan."""
     try:
@@ -234,4 +234,6 @@ async def get_workspace_upgrade_plan(
     if _validate_blueprint_schema(compact, blueprint_schema_path(workspace=True)) is not None:
         return {"ok": False, "error": {"code": "WORKSPACE_BLUEPRINT_SCHEMA_INVALID"}}
     retain_workspace_details(compact["details"]["planId"], detail_bytes)
+    if include_migration_owners:
+        compact["migrationOwners"] = plan["workspaceEvidence"]["owners"]
     return compact

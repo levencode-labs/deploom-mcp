@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "name": "deploom-upgrade",
-  "contractVersion": "2.0.32",
+  "contractVersion": "2.0.33",
   "files": {
-    "SKILL.md": "51d4bf007be01b9fdb6505660698559d09568215ed5156b33af56e82e813328d",
+    "SKILL.md": "60d028cccf56913cd4e7bbd65703d7e9248fa7465024113c53f2a600970677d3",
     "examples/blocked-upgrade.md": "b921b3ffd59d054ca69bddb7bc317450cc9c40d836cb1d44f5de86c9b974bfe4",
     "examples/plan-only.md": "ccfaad2b5e5f00678ff019e5988bb32e95ac2b82b6050a8786ab87295ca6883b",
     "examples/yellow-exclude-react.md": "379ccdd540513232fc5a2f396b2d9d3ee9cb4a420d7d27912ecd10c95b0da16b",
@@ -16,5 +16,5 @@
     "references/verification-policy.md": "57d6d0dbb3d52816badfa582d416fb3504c4c1c2e78ef80eed64aaa57642318c",
     "scripts/validate_evidence.py": "c830e7fb2ee5dc7b3bd156fd46193cb583e49b60bb39af96ccdd439894730ccb"
   },
-  "bundleSha256": "72e0203511814f9271bebbe1b72bd64a4c8f3c0e374c4297bcd65b1c1bc38fdc"
+  "bundleSha256": "6a0a6946bd85a2c7d1000c5b31dd446807b4ea5fefb3e1784c77bea3e4969f6d"
 }

@@ -3,7 +3,7 @@ import hashlib,json,os,tempfile,time,unittest
 from pathlib import Path
 from unittest.mock import patch
 from deploom_mcp.migration_usage import inspect_usage
-HOST_PARSER=Path(__file__).resolve().parents[3]/'desktop/node_modules/typescript/lib/typescript.js'
+HOST_PARSER=Path(os.environ.get('DEPLOOM_MCP_TYPESCRIPT_PATH') or Path(__file__).resolve().parents[3]/'desktop/node_modules/typescript/lib/typescript.js')
 
 class MissingParserTests(unittest.TestCase):
     def test_missing_host_parser_is_unknown_not_unused(self):

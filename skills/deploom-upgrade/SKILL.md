@@ -5,7 +5,7 @@ description: Plan and execute JavaScript and TypeScript dependency upgrades with
 
 # deploom-upgrade
 
-**Contract version: 2.0.32.** Canonical file hashes are in `contract.json`.
+**Contract version: 2.0.33.** Canonical file hashes are in `contract.json`.
 
 Use `get_upgrade_plan` for health/policy planning evidence. For an explicitly
 agreed functional-maintenance or finite coupled goal, use `get_goal_plan` and
@@ -49,11 +49,13 @@ a Core verdict. This workflow is client-neutral.
   each selector with this native-intent route.
   Report the listed consumers and versions before staging any patch. Use ordinary
   EDITS for a peer assignment, companion selection, or policy verdict.
-- Set `migrationCard: true` for a breaking transition where local migration
-  guidance may help, such as ESLint 8.57.1 to 9.0.0. The card guides any authorized
-  config or source repair and identifies behavior to verify. If it includes a
-  donor recipe, use each part only when the recipient's baseline satisfies
-  its probe. Check the recipient again after applying the migration.
+- Set `migrationCard: true` for a breaking transition. Read `projectImpact` for
+  the selected owners, observed files and review-required change matches. Inspect
+  the affected call sites and configuration before making authorized edits. Treat
+  missing matches as inconclusive when coverage is incomplete or an effective
+  configuration or dependency resolution is unknown. A suggested codemod needs
+  applicability and diff review. Use each donor recipe part only when the recipient
+  baseline satisfies its probe, and run the project checks after the upgrade.
 - For an authorized execution, apply a returned `SAT_IN_MODELED_DOMAIN` patch
   immediately. Stage a `MANIFEST_INTENT_ONLY` patch in the authorized
   verification copy before native resolution. Run

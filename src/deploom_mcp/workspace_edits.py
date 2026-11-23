@@ -195,6 +195,7 @@ async def plan_workspace_edits(project_path: str, request: dict) -> dict:
     plan = await get_workspace_upgrade_plan(
         project_path, {key: value for key, value in request.items()
                        if key not in {"responseMode", "migrationCard", "compactEdits"}},
+        **({"include_migration_owners": True} if include_card else {}),
     )
     if not plan["ok"]:
         return plan
@@ -248,6 +249,7 @@ async def plan_workspace_edits(project_path: str, request: dict) -> dict:
 
         response["migrationCard"] = await asyncio.to_thread(
             build_migration_card, Path(project_path), plan["jointAssignment"]["targets"], model["status"],
+            owners=plan.get("migrationOwners", []), inventory_digest=plan["inventoryDigest"],
         )
     return response
 

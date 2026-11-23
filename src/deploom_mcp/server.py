@@ -1041,7 +1041,7 @@ def get_upgrade_plan(
         "For one local manifest patch and a short answer, set responseMode=EDITS on v3 "
         "TARGETED_UPGRADE and omit preflight. The patch is bound to the observed inventory. "
         "Optional compactEdits=true in EDITS returns a smaller response when a manifest patch is available. "
-        "Optional migrationCard=true in EDITS returns local migration guidance for supported exact transitions. "
+        "Optional migrationCard=true in EDITS adds local syntax observations and suggested checks for exact lock-to-target transitions. "
         "For an explicitly authorized new companion in an existing dependency section, "
         "use operation=ADD on that exact scope row in NATIVE_INTENT with a real upgrade. "
         "For explicitly pinned external npm dependencies, editsStrategy=NATIVE_INTENT returns only "
