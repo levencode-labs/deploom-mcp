@@ -117,6 +117,18 @@ def refresh(root, fetch=get, *, if_due=False):
            ("DEPLOOM_MCP_LOCAL_CACHE_ONLY", "DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE",
             "DEPLOOM_MCP_MIGRATION_OFFLINE")):
         return False
+    return _refresh(root, lambda path, limit: fetch(BASE + path, limit)[0], if_due=if_due)
+
+
+def refresh_from_mirror(root, read, *, if_due=False):
+    """Import signed bytes from a host-configured mirror using relative paths."""
+    if any(os.environ.get(flag) == "1" for flag in
+           ("DEPLOOM_MCP_LOCAL_CACHE_ONLY", "DEPLOOM_MCP_MIGRATION_OFFLINE")):
+        return False
+    return _refresh(root, read, if_due=if_due)
+
+
+def _refresh(root, read, *, if_due):
     try:
         root = Path(root)
         root.mkdir(parents=True, exist_ok=True)
@@ -128,8 +140,8 @@ def refresh(root, fetch=get, *, if_due=False):
             if old and if_due and 0 <= time.time() - old[1][2] < 86400:
                 db.rollback()
                 return True
-            raw, _ = fetch(BASE + "index.json", INDEX_LIMIT)
-            signature, _ = fetch(BASE + "index.sig", 64)
+            raw = read("index.json", INDEX_LIMIT)
+            signature = read("index.sig", 64)
             index = verified_index(raw, signature)
             if old and (index["revision"] < old[0]["revision"]
                         or index["revision"] == old[0]["revision"] and raw != old[1][0]):
@@ -139,7 +151,7 @@ def refresh(root, fetch=get, *, if_due=False):
             count = 0
             for bucket, descriptors in index["buckets"].items():
                 for desc in descriptors:
-                    payload, _ = fetch(BASE + desc["path"], desc["bytes"])
+                    payload = read(desc["path"], desc["bytes"])
                     records = verified_shard(payload, desc, bucket)
                     for record in records:
                         if record["id"] in all_ids:

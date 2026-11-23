@@ -75,6 +75,26 @@ class SharedKnowledgeV2Tests(unittest.TestCase):
             raise ValueError("oversized")
         return raw, None
 
+    def test_configured_mirror_preserves_external_and_offline_policy(self):
+        def read(path, limit):
+            return self.fetch(v2.BASE + path, limit)[0]
+
+        with patch.dict("os.environ", {
+            "DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE": "1",
+            "DEPLOOM_MCP_LOCAL_CACHE_ONLY": "0",
+            "DEPLOOM_MCP_MIGRATION_OFFLINE": "0",
+        }):
+            self.assertFalse(v2.refresh(self.root, self.fetch))
+            self.assertEqual(self.calls, [])
+            self.assertTrue(v2.refresh_from_mirror(self.root, read))
+            self.assertEqual(v2.lookup(self.root, "react-dom", "18.2.0", "18.3.1")["snapshotSource"],
+                             "verified-pages")
+            self.calls.clear()
+            for flag in ("DEPLOOM_MCP_LOCAL_CACHE_ONLY", "DEPLOOM_MCP_MIGRATION_OFFLINE"):
+                with patch.dict("os.environ", {flag: "1"}):
+                    self.assertFalse(v2.refresh_from_mirror(self.root, read))
+                    self.assertEqual(self.calls, [])
+
     def test_source_exact_and_major_candidacy_without_network(self):
         self.assertTrue(v2.refresh(self.root, self.fetch))
         self.calls.clear()
