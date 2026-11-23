@@ -11,7 +11,7 @@ from pathlib import Path
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
-from deploom_mcp.host_evidence_policy import cached_knowledge_disabled
+from deploom_mcp.host_evidence_policy import cached_knowledge_disabled, mirror_knowledge_only
 
 from .public_cache import get
 from .record_contract import CHECKS, KINDS, LIMIT, PACKAGES, RECIPES, VERSION, parse, validate
@@ -45,7 +45,7 @@ def bundled():
 
 
 def refresh(root, fetch=get, *, if_due=False):
-    if os.environ.get("DEPLOOM_MCP_LOCAL_CACHE_ONLY") == "1":
+    if mirror_knowledge_only() or os.environ.get("DEPLOOM_MCP_LOCAL_CACHE_ONLY") == "1":
         return False
     try:
         root.mkdir(parents=True, exist_ok=True)
@@ -90,8 +90,9 @@ def directory():
 
 
 def start_refresh():
-    if (os.environ.get("DEPLOOM_MCP_LOCAL_CACHE_ONLY") == "1" or
-            os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") == "1"):
+    if (mirror_knowledge_only()
+            or os.environ.get("DEPLOOM_MCP_LOCAL_CACHE_ONLY") == "1"
+            or os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") == "1"):
         return
     def update():
         from .shared_records_v2 import refresh as refresh_v2
@@ -109,6 +110,9 @@ def lookup(root, package, from_version, to_version):
     v2 = lookup_v2(root, package, from_version, to_version)
     if v2 is not None:
         return v2
+    if mirror_knowledge_only():
+        return {"ok": True, "authority": "ADVISORY_ONLY", "status": "snapshot-unavailable",
+                "snapshotSource": "none", "knowledge": [], "observations": [], "recipes": []}
     data = None
     if root is not None and (root / DATABASE).is_file():
         try:
