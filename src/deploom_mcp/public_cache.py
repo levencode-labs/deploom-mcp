@@ -148,7 +148,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("cache_directory", type=Path)
     from .shared_records import refresh as refresh_records
+    from .shared_records_v2 import refresh as refresh_records_v2
 
     root = parser.parse_args().cache_directory
     print(refresh(root))
-    refresh_records(root.parent / "records")
+    records = Path(os.environ.get("DEPLOOM_MCP_RECORDS_DIR") or root.parent / "records")
+    refresh_records_v2(records)
+    refresh_records(records)
