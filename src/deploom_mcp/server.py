@@ -46,6 +46,7 @@ import tempfile
 from pathlib import Path
 from typing import Annotated, Any, Dict, List, Literal, Optional, Tuple, TypedDict
 from deploom_mcp.dependency_audit import AuditError
+from deploom_mcp.host_evidence_policy import external_network_evidence_disabled
 from deploom_mcp.planning_registry import planning_registry
 
 from mcp.server.mcpserver import MCPServer
@@ -1328,7 +1329,6 @@ def main() -> int:
     parser.add_argument("--pilot-project", type=Path, help="Serve flat planning for one standalone project over HTTP")
     args = parser.parse_args()
     if os.environ.get("DEPLOOM_MCP_LOCAL_CACHE_ONLY") == "1":
-        os.environ["DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE"] = "1"
         os.environ["DEPLOOM_MCP_MIGRATION_OFFLINE"] = "1"
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535")
@@ -1346,7 +1346,7 @@ def main() -> int:
 
             if not args.pilot_project.is_absolute():
                 parser.error("--pilot-project requires an absolute path")
-            if os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") != "1":
+            if not external_network_evidence_disabled():
                 parser.error("--pilot-project requires DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE=1")
             try:
                 project = args.pilot_project.resolve(strict=True)

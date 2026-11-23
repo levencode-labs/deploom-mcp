@@ -11,6 +11,8 @@ from pathlib import Path
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
+from deploom_mcp.host_evidence_policy import cached_knowledge_disabled
+
 from .public_cache import get
 from .record_contract import CHECKS, KINDS, LIMIT, PACKAGES, RECIPES, VERSION, parse, validate
 
@@ -100,6 +102,9 @@ def start_refresh():
 
 
 def lookup(root, package, from_version, to_version):
+    if cached_knowledge_disabled():
+        return {"ok": True, "authority": "ADVISORY_ONLY", "status": "disabled-by-policy",
+                "snapshotSource": "none", "knowledge": [], "observations": [], "recipes": []}
     from .shared_records_v2 import lookup as lookup_v2
     v2 = lookup_v2(root, package, from_version, to_version)
     if v2 is not None:

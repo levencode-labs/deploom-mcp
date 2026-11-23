@@ -7,6 +7,7 @@ import sys
 import time
 
 from deploom_mcp.goal_contract import GoalContractError
+from deploom_mcp.host_evidence_policy import external_network_evidence_disabled
 
 
 def validate_workspace_policy(value: dict) -> dict:
@@ -87,7 +88,7 @@ def bind_workspace_policy_solver(options, packages, declarations, approved, exac
         advisory_source = registry
 
     policy = workspace_health_policy(options) if options is not None else None
-    external_disabled = os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") == "1"
+    external_disabled = external_network_evidence_disabled()
     allowed = frozenset()
     if policy and not registry_only and not external_disabled:
         allowed = frozenset(name.strip() for name in

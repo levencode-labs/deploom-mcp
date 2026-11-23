@@ -11,6 +11,7 @@ from semantic_version import NpmSpec
 
 from deploom_mcp.dependency_audit import AuditError, checked_registry
 from deploom_mcp.goal_contract import GoalContractError
+from deploom_mcp.host_evidence_policy import external_network_evidence_disabled
 from deploom_mcp.workspace_inventory import SECTIONS, _read, _read_bytes
 
 _PUBLIC = {"https://registry.npmjs.org", "https://registry.yarnpkg.com"}
@@ -39,7 +40,7 @@ def is_corporate_registry_url(value: str) -> bool:
 def private_metadata_registry(selected: str | None) -> str | None:
     approved = os.environ.get("DEPLOOM_MCP_ALLOWED_PROJECT_REGISTRY", "").rstrip("/")
     if (selected and selected.rstrip("/") == approved and is_corporate_registry_url(approved)
-            and os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") == "1"):
+            and external_network_evidence_disabled()):
         return approved
     return None
 
@@ -137,7 +138,7 @@ def _configured_yarn_yaml_routes(raw: bytes) -> tuple[set[str], bool]:
 
 def planning_registry(project: Path, explicit: str | None) -> str | None:
     approved = _url(os.environ.get("DEPLOOM_MCP_ALLOWED_PROJECT_REGISTRY"))
-    restricted = approved is not None and os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") == "1"
+    restricted = approved is not None and external_network_evidence_disabled()
     selected = _url(explicit.strip() if isinstance(explicit, str) else explicit)
     if selected is not None and restricted and selected != approved:
         raise AuditError("project-registry-not-authorized", "Planning registry must match the MCP host's approved registry")

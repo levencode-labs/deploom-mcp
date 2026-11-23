@@ -41,6 +41,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
+from deploom_mcp.host_evidence_policy import external_network_evidence_disabled
 from deploom_mcp.process_runner import ProcessRun, run_process, run_process_async
 from deploom_mcp.decisions import (
     MAX_DRAFT_CANDIDATES, enrich_decisions, normalize_decision_contract,
@@ -627,7 +628,7 @@ def _prepare_argv_full(
     ]
     if options.registry:
         argv += ["--registry", options.registry]
-    if os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") == "1":
+    if external_network_evidence_disabled():
         argv.append("--skip-release-intel")
     for package in policy.exclusions:
         argv += ["--exclude-dependency", f"{package}|{DEFAULT_EXCLUSION_REASON}"]
@@ -666,7 +667,7 @@ def _exec_env(policy: BlueprintPolicy, run_id: str, workspace_id: str, project_i
         from deploom_mcp.planning_registry import private_metadata_registry
         if private_registry := private_metadata_registry(options.registry):
             env["DEPLOOM_DRAFT_PRIVATE_METADATA_REGISTRY"] = private_registry
-    if os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") == "1":
+    if external_network_evidence_disabled():
         env["DEPLOOM_DRAFT_DISABLE_EXTERNAL_EVIDENCE"] = "1"
         approved_registry = os.environ.get("DEPLOOM_MCP_REGISTRY_ADVISORY_SOURCE")
         if approved_registry and options.registry and approved_registry.rstrip("/") == options.registry.rstrip("/"):
