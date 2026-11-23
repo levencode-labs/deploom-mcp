@@ -10,8 +10,6 @@ import json
 import shutil
 from pathlib import Path
 
-from typescript_bundle import VENDOR as TYPESCRIPT_VENDOR, checked_files as checked_typescript_files
-
 
 def digest(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
@@ -62,10 +60,12 @@ def validate_release(root: Path) -> dict:
 
 def source_inventory(root: Path, files: list[str]) -> list[str]:
     """Explicit Core/Skill inventory for an sdist, including rebuilt sdists."""
+    from typescript_bundle import VENDOR, checked_files
+
     manifest = validate_release(root)
     selected = [name for name in files if not name.replace("\\", "/").startswith(
-        ("upstream/deploom/", "skills/deploom-upgrade/", TYPESCRIPT_VENDOR.as_posix() + "/"))]
-    selected.extend(path.relative_to(root).as_posix() for path in checked_typescript_files(root))
+        ("upstream/deploom/", "skills/deploom-upgrade/", VENDOR.as_posix() + "/"))]
+    selected.extend(path.relative_to(root).as_posix() for path in checked_files(root))
     selected.extend(f"upstream/deploom/{name}" for name in manifest["core"]["files"])
     skill = json.loads((root / "skills/deploom-upgrade/contract.json").read_text(encoding="utf-8"))
     selected.extend(f"skills/deploom-upgrade/{name}" for name in ["contract.json", *skill["files"]])
@@ -73,8 +73,10 @@ def source_inventory(root: Path, files: list[str]) -> list[str]:
 
 
 def copy_resources(root: Path, package: Path) -> None:
+    from typescript_bundle import VENDOR, checked_files
+
     manifest = validate_release(root)
-    parser_files = checked_typescript_files(root)
+    parser_files = checked_files(root)
     package = package.resolve()
     # These are build outputs owned by this hook. Never reuse stale files from
     # an earlier build, and never clean the canonical source resources.
@@ -94,7 +96,7 @@ def copy_resources(root: Path, package: Path) -> None:
     resources = package / "resources"
     resources.mkdir(parents=True, exist_ok=True)
     for path in parser_files:
-        target = resources / "typescript" / path.relative_to(root / TYPESCRIPT_VENDOR)
+        target = resources / "typescript" / path.relative_to(root / VENDOR)
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(path, target)
     for schema in ("upgrade-blueprint.schema.json", "workspace-upgrade-blueprint.schema.json"):
