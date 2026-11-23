@@ -30,9 +30,10 @@ class AuditStdioTests(unittest.TestCase):
                         "get_upgrade_plan", "evaluate_assignment", "explain_conflict", "audit_dependencies", "get_project_capabilities",
                         "get_goal_plan", "get_goal_report", "verify_goal_candidate", "apply_goal_candidate",
                         "get_goal_checkpoint", "observe_workspace_inventory_v1", "plan_workspace_snapshot_v1",
-                        "get_workspace_plan_details", "model_workspace_upgrade_v1", "get_shared_migration_evidence", "preview_public_migration_check",
+                        "get_workspace_plan_details", "model_workspace_upgrade_v1", "get_shared_migration_evidence",
                         "review_workspace_transitive_overrides_v1",
                     }, {tool.name for tool in tools.tools})
+                    self.assertNotIn("preview_public_migration_check", {tool.name for tool in tools.tools})
                     evidence = await session.call_tool("get_shared_migration_evidence", {
                         "package": "react-dom", "from_version": "18.2.0", "to_version": "18.3.1"})
                     self.assertFalse(evidence.is_error)

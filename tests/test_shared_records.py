@@ -22,21 +22,8 @@ class SharedRecordTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Conflicting"):
             records.validate("history", self.history + [dict(self.history[0], outcome="failed")])
 
-    def test_public_preview_is_bounded_and_respects_local_mode(self):
-        from unittest.mock import patch
-        args = ("react", "18.2.0", "18.3.1", "test", "passed")
-        with patch.dict(records.os.environ, {}, clear=True):
-            preview = records.contribution_preview(*args)
-            self.assertEqual(preview["status"], "awaiting-user")
-            self.assertEqual(preview["observation"], dict(zip(("package", "from", "to", "check", "outcome"), args)))
-            for index, value in enumerate(("@private/pkg", "18.2.0/path", "١.٢.٣", "notes", "unknown")):
-                changed = list(args)
-                changed[index] = value
-                self.assertEqual(records.contribution_preview(*changed), {"status": "ineligible"})
-            for flag in ("DEPLOOM_MCP_LOCAL_CACHE_ONLY", "DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE",
-                         "DEPLOOM_MCP_MIGRATION_OFFLINE"):
-                with patch.dict(records.os.environ, {flag: "1"}):
-                    self.assertEqual(records.contribution_preview(*args), {"status": "disabled"})
+    def test_user_submission_hook_is_retired(self):
+        self.assertFalse(hasattr(records, "contribution_preview"))
 
     def test_signed_refresh_recovery_and_fallback(self):
         from unittest.mock import patch
