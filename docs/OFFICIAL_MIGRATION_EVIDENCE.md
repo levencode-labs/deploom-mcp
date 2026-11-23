@@ -166,8 +166,11 @@ that either tarball was built from that Git commit.
 
 DepLoom includes only excerpts and source digests from relevant version
 sections, authenticated package metadata and bounded target guides or
-release notes. A release tag must resolve to the published commit. Guide
-and repository-release scope stay visible. Mentions of observed symbols
+release notes. Version sections can use hash headings or single-line
+underlined headings. When the standard changelog is missing, DepLoom also checks
+`History.md` and `HISTORY.md` in the same verified directory within the existing
+request budget. A release tag must resolve to the published commit. Guide and
+repository-release scope stay visible. Mentions of observed symbols
 are review hints. Check the provenance and recipient applicability before
 acting on a reference, and review a codemod's conditions before using it.
 

@@ -24,6 +24,8 @@ class FrozenRegistryAndGitHub:
         self.target_manifest_version = TO
         self.target_package_directory = "packages/core"
         self.with_documents = True
+        self.history_name = None
+        self.changelog_error = "OFFICIAL_HTTP_404"
         self.release_target = NEW
 
     def read(self, url, **_kwargs):
@@ -50,6 +52,13 @@ class FrozenRegistryAndGitHub:
             return b"## 2.2.0\nBreaking: future change.\n## 2.1.0\nBreaking: remove loadSync.\n## 2.0.0\nNode.js >=22 required.\n## 1.5.0\nBreaking: before migration.\n"
         if self.with_documents and parts.path.endswith("/packages/core/MIGRATION.md"):
             return b"# Migration guide\nCodemod: rename loadSync.\n"
+        if self.history_name and parts.path.endswith(f"/packages/core/{self.history_name}"):
+            return (b"2.2.0 / 2026-08-03\n=====\nBreaking: future change.\n\n"
+                    b"2.1.0 / 2026-07-12\n=====\n## Breaking changes\nRemoved loadSync.\n\n"
+                    b"2.0.0 / 2026-06-07\n=====\nNode.js >=22 required.\n\n"
+                    b"1.5.0 / 2025-12-03\n=====\nBreaking: before migration.\n")
+        if parts.path.endswith("/packages/core/CHANGELOG.md"):
+            raise EvidenceUnavailable(self.changelog_error)
         raise EvidenceUnavailable("OFFICIAL_HTTP_404")
 
 
@@ -135,6 +144,54 @@ class PublicReleaseTests(unittest.TestCase):
     def test_fenced_release_heading_is_not_a_version_section(self):
         text = "## 2.0.0\n~~~markdown\n## 2.1.0\nBreaking: example only.\n~~~\n"
         self.assertEqual(_ranges(text, Version("2.0.0"), Version("2.1.0")), ([], []))
+
+    def test_history_fallback_reads_underlined_version_sections_and_replays_offline(self):
+        parent = self.root
+        for name, calls in (("History.md", 7), ("HISTORY.md", 8)):
+            with self.subTest(name=name):
+                self.root = parent / f"fixture-{calls}"
+                self.http.with_documents = False
+                self.http.history_name = name
+                cold, metrics = self.collect()
+                self.assertEqual(metrics["httpTransactions"], calls)
+                row, = cold["documents"]
+                self.assertEqual(row["scope"], "VERSION_SECTIONS")
+                self.assertTrue(row["source"]["url"].endswith("/packages/core/" + name))
+                self.assertEqual(row["source"]["resolvedCommit"], NEW)
+                self.assertEqual(row["matchedVersions"], ["2.1.0", "2.0.0"])
+                self.assertIn("Removed loadSync.", row["excerpts"])
+                self.assertIn("Node.js >=22 required.", row["excerpts"])
+                self.assertNotIn("future change", json.dumps(row))
+                self.assertNotIn("before migration", json.dumps(row))
+                warm, metrics = self.collect(offline=True)
+                self.assertEqual(warm["documents"], cold["documents"])
+                self.assertEqual(warm["sources"], cold["sources"])
+                self.assertEqual(metrics["httpTransactions"], 0)
+
+    def test_history_discovery_stops_on_a_changelog_redirect(self):
+        self.http.with_documents = False
+        self.http.history_name = "History.md"
+        self.http.changelog_error = "OFFICIAL_REDIRECT_BLOCKED"
+        result, metrics = self.collect()
+        self.assertEqual(result["documents"], [])
+        self.assertEqual(metrics["httpTransactions"], 5)
+        self.assertFalse(any(url.endswith("History.md") for url in self.http.calls))
+
+    def test_version_range_keeps_actionable_replacement_heading(self):
+        text = (
+            "## 4.5.3\n### Use `futureOption` instead of `rollupOptions`\n"
+            "## 4.5.2\n"
+            "### Use `optimizeDeps.rollupOptions` instead of `optimizeDeps.esbuildOptions`\n"
+            "The old option is deprecated.\n"
+            "~~~markdown\n### Use `example` instead of `oldExample`\n~~~\n"
+            "## 4.5.1\n### Use `oldOption` instead of `legacyOption`\n"
+        )
+        versions, excerpts = _ranges(text, Version("4.5.1"), Version("4.5.2"))
+        self.assertEqual(versions, ["4.5.2"])
+        self.assertEqual(excerpts, [
+            "Use `optimizeDeps.rollupOptions` instead of `optimizeDeps.esbuildOptions`",
+            "The old option is deprecated.",
+        ])
 
     def test_cold_offline_replays_no_requests(self):
         result, metrics = self.collect(offline=True)

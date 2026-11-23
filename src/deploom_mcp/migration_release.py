@@ -25,11 +25,18 @@ _GITHUB_REPO = re.compile(
     r"([a-zA-Z0-9][a-zA-Z0-9_.-]{0,99}/[a-zA-Z0-9][a-zA-Z0-9_.-]{0,99})/?\Z"
 )
 _DIRECTORY = re.compile(r"[a-zA-Z0-9_@.-]+(?:/[a-zA-Z0-9_@.-]+)*\Z")
-_HEADING = re.compile(r"^(#{1,6})[ \t]+([^\n]+)", re.MULTILINE)
+_HEADING = re.compile(r"^(#{1,6})[ \t]+([^\n]+)")
+_SETEXT = re.compile(r"^ {0,3}(=+|-+)[ \t]*$")
+_SETEXT_TITLE = re.compile(r"^ {0,3}(?![ \t#>]|(?:[-+*]|\d+[.)])(?:[ \t]|$))\S")
+_MISSING_DOCUMENT = {"OFFICIAL_HTTP_404", "EVIDENCE_OFFLINE"}
 _VERSION_TITLE = re.compile(r"\[?v?(\d+\.\d+\.\d+)(?=\s|$|\])")
 _SIGNAL = re.compile(
     r"\bbreak(?:ing|s)?\b|\bmigrat\w+|\bremov\w+|\bdeprecat\w+|\brequir\w+|"
     r"\bdefaults?\b|\brenam\w+|\bcodemods?\b|\bnode\.?js\b|\bcompatib\w+",
+    re.IGNORECASE,
+)
+_REPLACEMENT_HEADING = re.compile(
+    r"^#{1,6}[ \t]+.*`[^`]{1,80}`[ \t]+instead of[ \t]+`[^`]{1,80}`",
     re.IGNORECASE,
 )
 _GUIDES = {
@@ -138,11 +145,24 @@ def _markdown_lines(text):
         offset += len(raw)
 
 
+def _heading_spans(text):
+    previous = None
+    for offset, line in _markdown_lines(text):
+        if heading := _HEADING.match(line):
+            yield offset, offset + heading.end(), len(heading[1]), heading[2]
+        elif previous is not None and (underline := _SETEXT.fullmatch(line)):
+            start, title = previous
+            if (text[start + len(title):offset] in {"\n", "\r\n", "\r"}
+                    and _SETEXT_TITLE.match(title)):
+                yield start, offset + len(line), 1 if underline[1][0] == "=" else 2, title.strip()
+        previous = offset, line
+
+
 def _notes(text):
     lines = []
     for _, raw in _markdown_lines(text):
         line = raw.strip()
-        if not _SIGNAL.search(line):
+        if not (_SIGNAL.search(line) or _REPLACEMENT_HEADING.match(line)):
             continue
         item = " ".join(line.lstrip("#*- ").split())[:240]
         if item and item not in lines:
@@ -153,10 +173,10 @@ def _notes(text):
 
 
 def _ranges(text, before, after):
-    headings = [(offset, heading) for offset, line in _markdown_lines(text) if (heading := _HEADING.match(line))]
+    headings = list(_heading_spans(text))
     versions, excerpts = [], []
-    for index, (offset, heading) in enumerate(headings):
-        matched = _VERSION_TITLE.match(heading[2])
+    for index, (_, start, level, title) in enumerate(headings):
+        matched = _VERSION_TITLE.match(title)
         if matched is None:
             continue
         try:
@@ -165,9 +185,9 @@ def _ranges(text, before, after):
             continue
         if before < version <= after:
             end = next((headings[i][0] for i in range(index + 1, len(headings))
-                        if len(headings[i][1][1]) <= len(heading[1])), len(text))
+                        if headings[i][2] <= level), len(text))
             versions.append(str(version))
-            excerpts.append(text[offset + heading.end():end])
+            excerpts.append(text[start:end])
     return versions[:20], _notes("\n".join(excerpts))
 
 
@@ -225,18 +245,27 @@ def collect_public_transition(store, package, before, after, baseline_integrity)
     candidates = ([(guide, "MIGRATION_GUIDE"), changelog] if guide else
                   [changelog, (base + "MIGRATION.md", "MIGRATION_GUIDE")])
     gaps = []
-    for artifact, kind in candidates:
+
+    def add_document(artifact, kind):
         try:
             document = _raw(store, repo, new_commit, artifact)
         except EvidenceUnavailable as exc:
             gaps.append({"kind": kind, "reason": str(exc)})
-            continue
+            return False
         versions, snippets = _ranges(document["text"], lower, upper) if kind == "CHANGELOG" else ([], _notes(document["text"]))
         source = _source(document, kind, after, new_commit)
         result["documents"].append({
             "source": source, "matchedVersions": versions, "excerpts": snippets,
             "scope": "VERSION_SECTIONS" if kind == "CHANGELOG" else "TARGET_COMMIT_GUIDE",
         })
+        return True
+
+    for artifact, kind in candidates:
+        add_document(artifact, kind)
+    if any(gap["kind"] == "CHANGELOG" and gap["reason"] in _MISSING_DOCUMENT for gap in gaps):
+        for name in ("History.md", "HISTORY.md"):
+            if add_document(base + name, "CHANGELOG") or gaps[-1]["reason"] not in _MISSING_DOCUMENT:
+                break
     if not any(doc["scope"] != "VERSION_SECTIONS" or doc["matchedVersions"] for doc in result["documents"]):
         # Independent monorepo package tags are preferred. A candidate tag must
         # resolve to the published commit before a release body is accepted.
