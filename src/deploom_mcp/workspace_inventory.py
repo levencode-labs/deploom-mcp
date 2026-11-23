@@ -7,6 +7,7 @@ import os
 import re
 import stat
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 
 from deploom_mcp.decisions import _glob_match
@@ -36,11 +37,16 @@ def _pairs(rows):
     return value
 
 
-def _read_bytes(path: Path, limit: int, *, root: Path | None = None, root_handle=None) -> bytes:
+def _read_bytes(path: Path, limit: int, *, root: Path | None = None, root_handle=None,
+                parent_binding=None) -> bytes:
+    if parent_binding is not None and path.parent != parent_binding.path:
+        raise GoalContractError("WORKSPACE_UNSAFE_INPUT")
     before = _safe(path)
     if before.st_size > limit:
         raise GoalContractError("WORKSPACE_INPUT_LIMIT")
-    with bound_directory(root or path.parent, path.parent, root_handle) as parent:
+    parent_context = (nullcontext(parent_binding) if parent_binding is not None else
+                      bound_directory(root or path.parent, path.parent, root_handle))
+    with parent_context as parent:
         with open_bound_file(path, parent) as stream:
             opened = os.fstat(stream.fileno())
             if (before.st_dev, before.st_ino) != (opened.st_dev, opened.st_ino):

@@ -51,6 +51,13 @@ class WorkspaceInventoryTests(unittest.TestCase):
         with self.assertRaisesRegex(GoalContractError, code):
             observe_npm_workspace(self.root)
 
+    def test_bound_read_rejects_a_file_in_another_directory(self):
+        from deploom_mcp.workspace_input_io import bound_directory
+
+        with bound_directory(self.root, self.root / 'packages/a') as parent:
+            with self.assertRaisesRegex(GoalContractError, 'WORKSPACE_UNSAFE_INPUT'):
+                workspace_inventory._read_bytes(self.root / 'packages/b/package.json', 4096, parent_binding=parent)
+
     def test_continuity_read_rejects_bytes_changed_after_json_validation(self):
         read_bytes = workspace_inventory._read_bytes
         lock_reads = 0
