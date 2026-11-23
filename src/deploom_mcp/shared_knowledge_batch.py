@@ -13,6 +13,8 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
+from deploom_mcp.host_evidence_policy import cached_knowledge_disabled
+
 from . import shared_records_v2 as signed
 from .knowledge_contract_v2 import MANAGERS, PKG, SOURCE, VERSION, projection, query_match
 
@@ -127,8 +129,7 @@ def lookup_batch(root, requests):
     except (ValueError, TypeError, OverflowError) as exc:
         return _error(str(exc))
 
-    if (os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") == "1"
-            or os.environ.get("DEPLOOM_MCP_KNOWLEDGE_DISABLED") == "1"):
+    if cached_knowledge_disabled():
         return _bounded(_status_only(requests, "disabled-by-policy"))
 
     # Offline/local-only mode does NOT disable trusted already-downloaded data.

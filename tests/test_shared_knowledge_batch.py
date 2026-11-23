@@ -136,6 +136,51 @@ class SignedBatchKnowledgeTests(unittest.TestCase):
             response = batch.lookup_batch(self.root, [query()])
             self.assertEqual("found", response["results"][0]["status"])
 
+    def test_stdio_startup_keeps_verified_local_knowledge_and_explicit_denial(self):
+        import os
+        import sys
+        from deploom_mcp import server, shared_records
+
+        for explicit, status, source in (("0", "found", "verified-pages"),
+                                         ("1", "disabled-by-policy", "none")):
+            with self.subTest(explicit=explicit):
+                def serve(*, transport):
+                    self.assertEqual("stdio", transport)
+                    self.assertEqual("1", os.environ.get("DEPLOOM_MCP_MIGRATION_OFFLINE"))
+                    reply = batch.lookup_batch(self.root, [query()])
+                    self.assertEqual(status, reply["results"][0]["status"])
+                    self.assertEqual(source, reply["snapshotSource"])
+                    single = shared_records.lookup(self.root, "react-dom", "18.2.0", "18.3.1")
+                    self.assertEqual(status, single["status"])
+                    self.assertEqual(source, single["snapshotSource"])
+
+                with (patch.dict("os.environ", {"DEPLOOM_MCP_LOCAL_CACHE_ONLY": "1",
+                                                "DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE": explicit,
+                                                "DEPLOOM_MCP_KNOWLEDGE_DISABLED": "0"}),
+                      patch.object(sys, "argv", ["deploom-mcp"]),
+                      patch.object(server.server, "run", side_effect=serve) as run,
+                      patch("deploom_mcp.shared_records.threading.Thread",
+                            side_effect=AssertionError("Cache refresh not allowed in local-only mode"))):
+                    self.assertEqual(0, server.main())
+                    run.assert_called_once_with(transport="stdio")
+
+    def test_local_only_preserves_the_approved_registry_and_audit_guards(self):
+        import asyncio
+        from deploom_mcp.dependency_audit import AuditError, audit_dependencies
+        from deploom_mcp.planning_registry import planning_registry, private_metadata_registry
+
+        approved = "https://packages.example.test/npm"
+        with patch.dict("os.environ", {"DEPLOOM_MCP_LOCAL_CACHE_ONLY": "1",
+                                       "DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE": "0",
+                                       "DEPLOOM_MCP_ALLOWED_PROJECT_REGISTRY": approved}):
+            self.assertEqual(approved, private_metadata_registry(approved))
+            self.assertEqual(approved, planning_registry(self.root, approved))
+            with self.assertRaises(AuditError) as error:
+                planning_registry(self.root, "https://registry.npmjs.org")
+            self.assertEqual("project-registry-not-authorized", error.exception.code)
+            audit = asyncio.run(audit_dependencies(project_path=str(self.root / "missing")))
+            self.assertEqual("standalone-audit-external-evidence-disabled", audit["error"]["code"])
+
     def test_invalid_batch_is_error_not_silent_fallback(self):
         invalid = [
             [], [query()] * 33, "not-a-list",

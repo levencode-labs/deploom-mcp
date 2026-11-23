@@ -17,6 +17,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from deploom_mcp.audit_evidence import AuditError
+from deploom_mcp.host_evidence_policy import external_network_evidence_disabled
 from deploom_mcp.proxy_settings import ProxySettingError, resolve_system_proxy
 
 LOCKS = ("npm-shrinkwrap.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml")
@@ -147,7 +148,7 @@ async def audit_dependencies(*, project_path: str, package_manager: str = "auto"
     worker/npm/Yarn process tree. No synthetic successful report on timeout.
     """
     try:
-        restricted_host = os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") == "1"
+        restricted_host = external_network_evidence_disabled()
         if restricted_host and _candidate_binding is None:
             raise AuditError(
                 "standalone-audit-external-evidence-disabled",
