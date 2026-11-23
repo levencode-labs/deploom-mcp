@@ -95,6 +95,33 @@ class SharedKnowledgeV2Tests(unittest.TestCase):
                     self.assertFalse(v2.refresh_from_mirror(self.root, read))
                     self.assertEqual(self.calls, [])
 
+    def test_host_mirror_mode_reads_signed_queries_without_public_fallback(self):
+        from deploom_mcp import shared_records
+        from deploom_mcp.shared_knowledge_batch import lookup_batch
+
+        def read(path, limit):
+            return self.fetch(v2.BASE + path, limit)[0]
+
+        query = dict(package="react-dom", from_version="18.2.0", to_version="18.3.1", package_manager="npm")
+        with patch.dict("os.environ", {"DEPLOOM_MCP_RECORDS_MIRROR_ONLY": "1",
+                                      "DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE": "0"}):
+            self.assertFalse(v2.refresh(self.root, self.fetch))
+            self.assertFalse(shared_records.refresh(self.root, self.fetch))
+            self.assertEqual(self.calls, [])
+            self.assertEqual(shared_records.lookup(self.root, "react-dom", "18.2.0", "18.3.1")["status"],
+                             "snapshot-unavailable")
+            self.assertTrue(v2.refresh_from_mirror(self.root, read))
+            self.calls.clear()
+            with patch.dict("os.environ", {"DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE": "1"}):
+                hit = shared_records.lookup(self.root, "react-dom", "18.2.0", "18.3.1")
+                self.assertEqual(hit["snapshotSource"], "verified-pages")
+                batch = lookup_batch(self.root, [query])
+                self.assertEqual(batch["results"][0]["status"], "found")
+                with patch.dict("os.environ", {"DEPLOOM_MCP_KNOWLEDGE_DISABLED": "1"}):
+                    self.assertFalse(v2.refresh_from_mirror(self.root, read))
+                    self.assertEqual(lookup_batch(self.root, [query])["status"], "disabled-by-policy")
+            self.assertEqual(self.calls, [])
+
     def test_source_exact_and_major_candidacy_without_network(self):
         self.assertTrue(v2.refresh(self.root, self.fetch))
         self.calls.clear()

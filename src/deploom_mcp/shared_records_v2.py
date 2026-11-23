@@ -16,6 +16,7 @@ from pathlib import Path
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
+from .host_evidence_policy import mirror_knowledge_only
 from .knowledge_contract_v2 import PKG, VERSION, validate_record, query_match, projection
 from .public_cache import get
 from .record_contract import parse
@@ -113,7 +114,7 @@ def _tables(db):
 
 def refresh(root, fetch=get, *, if_due=False):
     """Download a complete publisher-chosen edition or retain the last trusted one."""
-    if any(os.environ.get(flag) == "1" for flag in
+    if mirror_knowledge_only() or any(os.environ.get(flag) == "1" for flag in
            ("DEPLOOM_MCP_LOCAL_CACHE_ONLY", "DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE",
             "DEPLOOM_MCP_MIGRATION_OFFLINE")):
         return False
@@ -123,7 +124,7 @@ def refresh(root, fetch=get, *, if_due=False):
 def refresh_from_mirror(root, read, *, if_due=False):
     """Import signed bytes from a host-configured mirror using relative paths."""
     if any(os.environ.get(flag) == "1" for flag in
-           ("DEPLOOM_MCP_LOCAL_CACHE_ONLY", "DEPLOOM_MCP_MIGRATION_OFFLINE")):
+           ("DEPLOOM_MCP_LOCAL_CACHE_ONLY", "DEPLOOM_MCP_MIGRATION_OFFLINE", "DEPLOOM_MCP_KNOWLEDGE_DISABLED")):
         return False
     return _refresh(root, read, if_due=if_due)
 
