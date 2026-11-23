@@ -6,7 +6,9 @@ import unittest
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
-from deploom_mcp.migration_release import PUBLIC_NPM, collect_public_transition
+from semantic_version import Version
+
+from deploom_mcp.migration_release import PUBLIC_NPM, collect_public_transition, _ranges
 from deploom_mcp.migration_sources import EvidenceUnavailable, SourceStore, encoded
 
 PACKAGE = "@example/core"
@@ -118,6 +120,21 @@ class PublicReleaseTests(unittest.TestCase):
         result, _ = self.collect()
         self.assertEqual(result["documents"], [])
         self.assertIn("PIN_DRIFT", {gap["reason"] for gap in result["unknowns"]})
+
+    def test_range_excludes_later_unreleased_and_prerelease_sections(self):
+        for heading in ("## Unreleased", "## 3.0.0-rc.1"):
+            with self.subTest(heading=heading):
+                versions, excerpts = _ranges(
+                    "## 2.1.0\n### Migration\nRemoved old option.\n" + heading + "\nBreaking: future release.",
+                    Version("1.5.0"), Version("2.1.0"),
+                )
+                self.assertEqual(versions, ["2.1.0"])
+                self.assertIn("Removed old option.", excerpts)
+                self.assertFalse(any("future" in line for line in excerpts))
+
+    def test_fenced_release_heading_is_not_a_version_section(self):
+        text = "## 2.0.0\n~~~markdown\n## 2.1.0\nBreaking: example only.\n~~~\n"
+        self.assertEqual(_ranges(text, Version("2.0.0"), Version("2.1.0")), ([], []))
 
     def test_cold_offline_replays_no_requests(self):
         result, metrics = self.collect(offline=True)

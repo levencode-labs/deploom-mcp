@@ -16,7 +16,7 @@ class WorkspaceImpactTests(unittest.TestCase):
     def setUp(self):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
-        self.project = Path(temp.name) / "project"
+        self.project = Path(temp.name).resolve() / "project"
         self.project.mkdir()
         state = patch("deploom_mcp.workspace_impact.configured_state_root", return_value=self.project.parent / "state")
         state.start()
@@ -63,6 +63,9 @@ class WorkspaceImpactTests(unittest.TestCase):
         self.write("packages/migrate/src/ns.ts",
                    "import * as DOM from 'react-dom'; DOM['render'](app); "
                    "function shadow(DOM) { DOM.hydrate(app); }")
+        self.write("packages/migrate/src/shadow.js",
+                   "function shadow(require) { const {hydrate} = require('react-dom'); }")
+        self.write("packages/migrate/src/type.ts", "import type DOM = require('react-dom');")
         self.write("packages/migrate/tsconfig.json", '{ // JSONC is allowed\n "compilerOptions":{"baseUrl":"src"},}')
         self.write("packages/held/app.ts", "import {hydrate} from 'react-dom';")
         self.write("packages/held/component.vue", "<template/>")
@@ -75,9 +78,9 @@ class WorkspaceImpactTests(unittest.TestCase):
         )
         react, patch_release, ts = result["transitions"]
         self.assertEqual(react["affectedFiles"],
-                         ["packages/migrate/src/app.ts", "packages/migrate/src/client.ts", "packages/migrate/src/ns.ts"])
+                         ["packages/migrate/src/app.ts", "packages/migrate/src/client.ts", "packages/migrate/src/ns.ts", "packages/migrate/src/type.ts"])
         self.assertEqual({row["form"] for row in react["matchedPatterns"]},
-                         {"MODULE_REEXPORT", "DYNAMIC_IMPORT_LITERAL", "MODULE_IMPORT", "IMPORTED_MEMBER_ACCESS"})
+                         {"MODULE_REEXPORT", "DYNAMIC_IMPORT_LITERAL", "MODULE_IMPORT", "IMPORTED_MEMBER_ACCESS", "IMPORT_EQUALS_REQUIRE"})
         member_names = [row["knownImportedSymbols"] for row in react["matchedPatterns"]
                         if row["form"] == "IMPORTED_MEMBER_ACCESS"]
         self.assertEqual(member_names, [["render"]])

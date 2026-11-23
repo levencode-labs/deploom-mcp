@@ -56,6 +56,16 @@ class ActualTypeScriptBoundaryTests(unittest.TestCase):
     def test_file_count_limit_keeps_denominator(self):
         for n in range(257):self.write(str(n)+'.js','export const x=1;')
         result=self.inspect();self.assertEqual(result['status'],'UNKNOWN');self.assertEqual(result['localCoverage']['eligible'],257);self.assertEqual(result['localCoverage']['scanned'],256)
+    def test_rejects_project_owned_node_binary(self):
+        local = self.project / ("node.exe" if os.name == "nt" else "node")
+        local.write_bytes(b"not an executable")
+        with patch("deploom_mcp.migration_usage.shutil.which", return_value=str(local)), patch(
+            "deploom_mcp.migration_usage.run_process"
+        ) as run:
+            result = self.inspect()
+        self.assertEqual(result["reason"], "PROJECT_NODE_EXECUTABLE_REJECTED")
+        run.assert_not_called()
+
     def test_changed_parser_hash_rejected_before_loading(self):
         with patch.dict(os.environ,{'DEPLOOM_MCP_TYPESCRIPT_SHA256':'b'*64}):result=self.inspect()
         self.assertEqual(result['reason'],'HOST_PARSER_IDENTITY_REJECTED');self.assertFalse(self.state.exists())

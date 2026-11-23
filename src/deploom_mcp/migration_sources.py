@@ -80,8 +80,9 @@ class OfficialHTTP:
             if response.getheader('Content-Encoding','identity').lower() not in ('','identity'):
                 raise EvidenceUnavailable('UNSUPPORTED_CONTENT_ENCODING')
             length=response.getheader('Content-Length')
-            if length is not None and (not length.isdigit() or int(length)>max_bytes):
-                raise EvidenceUnavailable('DOCUMENT_BYTE_LIMIT')
+            if length is not None:
+                if not length.isdigit():raise EvidenceUnavailable('DOCUMENT_LENGTH_INVALID')
+                if int(length)>max_bytes:raise EvidenceUnavailable('DOCUMENT_CONTENT_LENGTH_LIMIT')
             chunks=[];total=0
             while True:
                 remaining=deadline-time.monotonic()
@@ -148,8 +149,8 @@ class SourceStore:
         try:raw=self.transport.read(url,deadline=self.deadline,max_bytes=min(131072,remaining_bytes))
         except (EvidenceUnavailable,OSError,ValueError,http.client.HTTPException) as exc:
             failure=exc if isinstance(exc,EvidenceUnavailable) else EvidenceUnavailable('OFFICIAL_TRANSPORT_UNAVAILABLE')
-            # A definite 404 is an absent artifact, not an unbounded body read.
-            if str(failure) != 'OFFICIAL_HTTP_404':
+            # These responses stop before any body bytes are read.
+            if str(failure) not in {'OFFICIAL_HTTP_404','DOCUMENT_CONTENT_LENGTH_LIMIT'}:
                 self.metrics['responseBodyBytesComplete']=False
                 self._stream_failed=True
             self._http_memo[url]=failure

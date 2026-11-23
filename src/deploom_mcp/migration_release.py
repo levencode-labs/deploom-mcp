@@ -25,9 +25,8 @@ _GITHUB_REPO = re.compile(
     r"([a-zA-Z0-9][a-zA-Z0-9_.-]{0,99}/[a-zA-Z0-9][a-zA-Z0-9_.-]{0,99})/?\Z"
 )
 _DIRECTORY = re.compile(r"[a-zA-Z0-9_@.-]+(?:/[a-zA-Z0-9_@.-]+)*\Z")
-_SECTION = re.compile(
-    r"^#{1,4}\s+(?:\[)?(?:v)?(?P<version>\d+\.\d+\.\d+)(?=\s|$|\])", re.MULTILINE,
-)
+_HEADING = re.compile(r"^(#{1,6})[ \t]+([^\n]+)", re.MULTILINE)
+_VERSION_TITLE = re.compile(r"\[?v?(\d+\.\d+\.\d+)(?=\s|$|\])")
 _SIGNAL = re.compile(
     r"\bbreak(?:ing|s)?\b|\bmigrat\w+|\bremov\w+|\bdeprecat\w+|\brequir\w+|"
     r"\bdefaults?\b|\brenam\w+|\bcodemods?\b|\bnode\.?js\b|\bcompatib\w+",
@@ -122,15 +121,28 @@ def _source(doc, kind, version, commit=None):
     }
 
 
+def _markdown_lines(text):
+    fence = None
+    offset = 0
+    for raw in text.splitlines(keepends=True):
+        line = raw.rstrip("\r\n")
+        marker = re.match(r"^ {0,3}(\x60{3,}|~{3,})(.*)$", line)
+        if marker:
+            symbols, trailing = marker.groups()
+            if fence is None:
+                fence = symbols
+            elif symbols[0] == fence[0] and len(symbols) >= len(fence) and not trailing.strip():
+                fence = None
+        elif fence is None:
+            yield offset, line
+        offset += len(raw)
+
+
 def _notes(text):
     lines = []
-    in_code = False
-    for raw in text.splitlines():
+    for _, raw in _markdown_lines(text):
         line = raw.strip()
-        if line.startswith(("~~~", "\x60\x60\x60")):
-            in_code = not in_code
-            continue
-        if in_code or not _SIGNAL.search(line):
+        if not _SIGNAL.search(line):
             continue
         item = " ".join(line.lstrip("#*- ").split())[:240]
         if item and item not in lines:
@@ -141,17 +153,21 @@ def _notes(text):
 
 
 def _ranges(text, before, after):
-    headings = list(_SECTION.finditer(text))
+    headings = [(offset, heading) for offset, line in _markdown_lines(text) if (heading := _HEADING.match(line))]
     versions, excerpts = [], []
-    for index, heading in enumerate(headings):
+    for index, (offset, heading) in enumerate(headings):
+        matched = _VERSION_TITLE.match(heading[2])
+        if matched is None:
+            continue
         try:
-            version = Version(heading["version"])
+            version = Version(matched[1])
         except ValueError:
             continue
         if before < version <= after:
-            end = headings[index + 1].start() if index + 1 < len(headings) else len(text)
+            end = next((headings[i][0] for i in range(index + 1, len(headings))
+                        if len(headings[i][1][1]) <= len(heading[1])), len(text))
             versions.append(str(version))
-            excerpts.append(text[heading.end():end])
+            excerpts.append(text[offset + heading.end():end])
     return versions[:20], _notes("\n".join(excerpts))
 
 
@@ -205,7 +221,9 @@ def collect_public_transition(store, package, before, after, baseline_integrity)
 
     lower, upper = Version(before), Version(after)
     guide = _GUIDES.get((package, upper.major)) if lower.major < upper.major else None
-    candidates = [(base + "CHANGELOG.md", "CHANGELOG"), (guide or base + "MIGRATION.md", "MIGRATION_GUIDE")]
+    changelog = (base + "CHANGELOG.md", "CHANGELOG")
+    candidates = ([(guide, "MIGRATION_GUIDE"), changelog] if guide else
+                  [changelog, (base + "MIGRATION.md", "MIGRATION_GUIDE")])
     gaps = []
     for artifact, kind in candidates:
         try:

@@ -95,8 +95,10 @@ def _signals(rows, before, after, package):
             continue
         matches = []
         for index, finding in enumerate(rows):
+            if finding.get("typeOnly"):
+                continue
             if field == "symbol":
-                if finding.get("typeOnly") or finding.get("specifier") != package:
+                if finding.get("specifier") != package:
                     continue
                 values = finding.get("knownImportedSymbols", ())
             else:
@@ -169,9 +171,6 @@ def _transition_evidence(project, state, transitions, integrities, registry, mod
             continue
         if Version(key[1]) >= Version(key[2]) or Version(key[2]).prerelease or Version(key[2]).build:
             evidence["official"]["reason"] = "STABLE_FORWARD_TRANSITION_REQUIRED"
-            continue
-        if any(record["matchStrength"] == "verified-exact-transition" for record in records):
-            evidence["official"]["reason"] = "SIGNED_EXACT_KNOWLEDGE_AVAILABLE"
             continue
         if len(pending) >= 2:
             evidence["official"]["reason"] = "OFFICIAL_TRANSITION_LIMIT"

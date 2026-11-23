@@ -249,6 +249,7 @@ async def plan_workspace_edits(project_path: str, request: dict) -> dict:
         response["constraintModel"] = {"status": model["status"]}
         response["compactEdits"] = True
     if include_card:
+        from deploom_mcp.dependency_audit import checked_registry
         from deploom_mcp.workspace_migration_card import build_migration_card
 
         baselines = plan.get("publicMigrationBaselines", [])
@@ -257,7 +258,8 @@ async def plan_workspace_edits(project_path: str, request: dict) -> dict:
         response["migrationCard"] = await asyncio.to_thread(
             build_migration_card, Path(project_path), targets, model["status"],
             owners=plan.get("migrationOwners", []), inventory_digest=plan["inventoryDigest"],
-            registry=request.get("registry"), evidence_mode=request.get("migrationEvidenceMode", "CACHE_ONLY"),
+            registry=checked_registry(request.get("registry")),
+            evidence_mode=request.get("migrationEvidenceMode", "CACHE_ONLY"),
         )
     return response
 

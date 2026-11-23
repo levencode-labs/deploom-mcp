@@ -38,7 +38,7 @@ for(const file of payload.files){
  const kind=ext.endsWith('.tsx')?ts.ScriptKind.TSX:ext.endsWith('.jsx')?ts.ScriptKind.JSX:/\.(?:[cm]?ts)$/.test(ext)?ts.ScriptKind.TS:ts.ScriptKind.JS;
  const source=ext.endsWith('.json')?ts.parseJsonText(file.path,file.text):ts.createSourceFile(file.path,file.text,ts.ScriptTarget.Latest,true,kind);
  if(source.parseDiagnostics.length){parseErrors+=source.parseDiagnostics.length;continue;}
- const viteConfigNames=new Set(),moduleBindings=new Map();
+ const viteConfigNames=new Map(),moduleBindings=new Map();
  let checker;
  function localSymbol(node){
   if(!checker){
@@ -53,6 +53,12 @@ for(const file of payload.files){
    checker=ts.createProgram([file.path],options,host).getTypeChecker();
   }
   return checker.getSymbolAtLocation(node);
+ }
+ function isViteConfigCall(node){
+  const expression=node.expression;
+  if(!ts.isIdentifier(expression))return false;
+  const imported=viteConfigNames.get(expression.text);
+  return !!imported&&imported===localSymbol(expression);
  }
  function add(node,packageName,form,extra={}){
   const count=counts.get(packageName)||0;
@@ -108,10 +114,12 @@ for(const file of payload.files){
     }
    }
   }
-  if(ts.isImportDeclaration(statement)&&ts.isStringLiteral(statement.moduleSpecifier)&&statement.moduleSpecifier.text==='vite'){
+  if(targets.has('vite')&&ts.isImportDeclaration(statement)&&!statement.importClause?.isTypeOnly
+    &&ts.isStringLiteral(statement.moduleSpecifier)&&statement.moduleSpecifier.text==='vite'){
    const bindings=statement.importClause?.namedBindings;
    if(bindings&&ts.isNamedImports(bindings))for(const element of bindings.elements)
-    if((element.propertyName||element.name).text==='defineConfig')viteConfigNames.add(element.name.text);
+    if(!element.isTypeOnly&&(element.propertyName||element.name).text==='defineConfig')
+     viteConfigNames.set(element.name.text,localSymbol(element.name));
   }
  }
  function visit(node){
@@ -127,7 +135,7 @@ for(const file of payload.files){
   }
   if(ts.isImportEqualsDeclaration(node)&&ts.isExternalModuleReference(node.moduleReference)){
    const specifier=literal(node.moduleReference.expression),packageName=specifier&&targetOf(specifier);
-   if(packageName)add(node,packageName,'IMPORT_EQUALS_REQUIRE',{specifier,executionOrUseProven:false});
+   if(packageName)add(node,packageName,'IMPORT_EQUALS_REQUIRE',{specifier,typeOnly:!!node.isTypeOnly,executionOrUseProven:false});
   }
   if(moduleBindings.size&&(ts.isPropertyAccessExpression(node)||ts.isElementAccessExpression(node))
     &&ts.isIdentifier(node.expression)){
@@ -144,7 +152,7 @@ for(const file of payload.files){
     if(specifier===null||(!isImport&&node.arguments.length!==1))dynamicLoads++;
     else{
      const packageName=targetOf(specifier);
-     if(packageName){
+     if(packageName&&(!isRequire||!localSymbol(node.expression)?.declarations?.length)){
       const parent=node.parent;
       const names=ts.isVariableDeclaration(parent)&&ts.isObjectBindingPattern(parent.name)?importedNames(parent.name):[];
       if(ts.isPropertyAccessExpression(parent)&&parent.expression===node)names.push(parent.name.text);
@@ -153,7 +161,7 @@ for(const file of payload.files){
      }
     }
    }
-   if(ts.isIdentifier(node.expression)&&viteConfigNames.has(node.expression.text)&&targets.has('vite')){
+   if(isViteConfigCall(node)){
     const argument=node.arguments[0];if(!argument||!ts.isObjectLiteralExpression(argument))dynamicConfigs++;
     else if(argument.properties.some(p=>ts.isSpreadAssignment(p)))dynamicConfigs++;
    }
@@ -161,19 +169,19 @@ for(const file of payload.files){
   if(targets.has('vite')&&(ts.isSpreadAssignment(node)||ts.isComputedPropertyName(node))){
    let parent=node.parent;
    while(parent&&!ts.isSourceFile(parent)){
-    if(ts.isCallExpression(parent)&&ts.isIdentifier(parent.expression)&&viteConfigNames.has(parent.expression.text)){dynamicConfigs++;break;}
+    if(ts.isCallExpression(parent)&&isViteConfigCall(parent)){dynamicConfigs++;break;}
     parent=parent.parent;
    }
   }
   if(ts.isPropertyAssignment(node)&&targets.has('vite')){
    const context=propertyPath(node);
-   if(context&&ts.isIdentifier(context.call.expression)&&viteConfigNames.has(context.call.expression.text)
+   if(context&&isViteConfigCall(context.call)
      &&context.parts[0]==='css'&&(ts.isIdentifier(node.initializer)||ts.isCallExpression(node.initializer)||ts.isPropertyAccessExpression(node.initializer)))dynamicConfigs++;
   }
   if(ts.isVariableDeclaration(node)&&node.initializer&&ts.isIdentifier(node.initializer)&&node.initializer.text==='require')aliasLoads++;
   if(ts.isPropertyAssignment(node)&&nameOf(node.name)==='api'&&ts.isStringLiteral(node.initializer)&&targets.has('vite')){
    const context=propertyPath(node);
-   if(context&&ts.isIdentifier(context.call.expression)&&viteConfigNames.has(context.call.expression.text)
+   if(context&&isViteConfigCall(context.call)
      &&['css.preprocessorOptions.scss.api','css.preprocessorOptions.sass.api'].includes(context.parts.join('.'))){
     const allowed=['legacy','modern','modern-compiler'];
     add(node,'vite','VITE_SASS_API_LITERAL',{value:allowed.includes(node.initializer.text)?node.initializer.text:'OTHER_LITERAL',configEvaluation:'NOT_PERFORMED'});

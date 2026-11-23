@@ -1046,7 +1046,7 @@ def get_upgrade_plan(
         "For an explicitly authorized new companion in an existing dependency section, "
         "use operation=ADD on that exact scope row in NATIVE_INTENT with a real upgrade. "
         "For explicitly pinned external npm dependencies, editsStrategy=NATIVE_INTENT returns only "
-        "a manifest patch from the observed lock, with no registry lookup or compatibility verdict. "
+        "a manifest patch from the observed lock, with no registry lookup by default and no compatibility verdict. "
         "It requires the host-authorized npm registry. Native resolution and independent checks are required. "
         "Omit preflight for planning. Ambiguous scope returns validSelectors; held declarations "
         "and lock versions remain fixed. environment is optional; missing engine facts stay UNKNOWN. "

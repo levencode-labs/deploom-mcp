@@ -511,7 +511,7 @@ class WorkspaceGoalRequestTests(unittest.TestCase):
             self.assertEqual(plan["migrationCard"]["uncoveredCount"], 1)
             impact = plan["migrationCard"]["projectImpact"]
             self.assertEqual([(row["fromVersion"], row["dependencyOwners"]) for row in impact["transitions"]],
-                             [("3.0.0", ["packages/a"]), ("4.0.0", ["packages/b"])])
+                             [("3.0.0", ["packages/a"])])
             self.assertEqual(impact["evidenceMetrics"]["httpTransactions"], 0)
             subprocess.run(["git", "init", "-q"], cwd=self.root, check=True)
             apply_workspace_patch(self.root, plan["inventoryDigest"], Path(plan["patch"]["path"]),
