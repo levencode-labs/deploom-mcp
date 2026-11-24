@@ -151,7 +151,8 @@ def _transition_evidence(project, state, transitions, integrities, registry, mod
         row["evidence"] = {
             "signedKnowledge": {
                 "status": matched.get("status", lookup.get("status", "UNAVAILABLE")),
-                "snapshotRevision": lookup.get("snapshotRevision"),
+                "snapshotRevision": None if "snapshotSha256" in matched else lookup.get("snapshotRevision"),
+                **{key: matched[key] for key in ("snapshotSource", "snapshotSha256") if key in matched},
                 "matchingCount": matched.get("matchingCount", 0),
                 "omittedCount": max(0, matched.get("matchingCount", 0) - len(records[:1])),
                 "records": [{**{k: record[k] for k in ("id", "kind", "title", "summary", "matchStrength",

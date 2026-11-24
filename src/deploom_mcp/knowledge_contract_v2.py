@@ -57,7 +57,7 @@ def _major(version):
     return int(version.split(".", 1)[0])
 
 
-def validate_record(row):
+def validate_record(row, *, source_pattern=SOURCE):
     _fields(row, {"schema", "id", "kind", "package", "fromMajor", "toMajor",
                   "packageManagers", "verifiedTransitions", "title", "summary",
                   "conditions", "actions", "verification", "negativeControls",
@@ -102,7 +102,7 @@ def validate_record(row):
         _string(control["fixtureAssertion"], 100)
     e = row["evidence"]
     _fields(e, {"source", "fixtureSha256", "claim"})
-    _expect(isinstance(e["source"], str) and SOURCE.fullmatch(e["source"]),
+    _expect(isinstance(e["source"], str) and source_pattern.fullmatch(e["source"]),
             "source must be first-party immutable fixture")
     _expect(isinstance(e["fixtureSha256"], str) and SHA.fullmatch(e["fixtureSha256"]),
             "fixture sha256")
@@ -123,7 +123,7 @@ def validate_record(row):
     return row
 
 
-def validate_corpus(raw):
+def validate_corpus(raw, *, source_pattern=SOURCE):
     _expect(isinstance(raw, bytes) and 0 < len(raw) <= MAX_CORPUS_BYTES,
             "corpus bytes")
     def unique(pairs):
@@ -138,7 +138,7 @@ def validate_corpus(raw):
     seen_ids = set()
     seen_content = set()
     for record in data["records"]:
-        validate_record(record)
+        validate_record(record, source_pattern=source_pattern)
         _expect(record["id"] not in seen_ids, "duplicate knowledge ID")
         seen_ids.add(record["id"])
         canonical = {key: value for key, value in record.items() if key != "id"}

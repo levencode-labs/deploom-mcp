@@ -39,6 +39,36 @@ transition in the same major ranges and **must not be represented as verified**.
 - Max index 2 MB, shard 256 KB, full edition 32 MB, 2048 shards. Scale changes
   require measured, independent acceptance before adjustment.
 
+## Operator-managed local private snapshot
+
+Corporate mirror-only profiles can opt in to private package recipes for
+`get_shared_migration_knowledge_batch` and the project impact in `get_upgrade_plan`.
+Use the same v2 corpus fields and place `records.json` and its raw 64-byte
+`records.sig` in a host-owned local directory outside the project. Configure
+the following in the host process:
+
+- `DEPLOOM_MCP_RECORDS_MIRROR_ONLY=1` and `DEPLOOM_MCP_PRIVATE_SCOPES` for
+  existing corporate policy and the permitted private package scopes.
+- `DEPLOOM_MCP_PRIVATE_KNOWLEDGE_DIR` with the absolute local directory.
+- `DEPLOOM_MCP_PRIVATE_KNOWLEDGE_PUBLIC_KEY` with the raw 32-byte Ed25519 public key in lowercase hex.
+- `DEPLOOM_MCP_PRIVATE_KNOWLEDGE_SHA256` with the lowercase SHA-256 of the approved corpus bytes.
+- `DEPLOOM_MCP_PRIVATE_KNOWLEDGE_SOURCE` with the approved HTTPS repository
+  blob prefix, for example `https://git.example.invalid/team/knowledge/-/blob/`.
+  Each evidence URL must contain a full commit hash and a pinned `check.cjs` path.
+
+Sign `b"DepLoom private migration records v2\x00" + SHA256(records.json)` with
+the organization's separate Ed25519 signer. Keep the signing key and the
+corpus outside public CI and publication. Distribute updates together with
+the new digest through the host's trusted configuration.
+
+A locally verified private result has `snapshotSource=verified-private-local`
+and the corpus `snapshotSha256` on that query. The plan preserves those fields.
+Candidates still require recipient verification. The loader performs no refresh,
+fixture execution, or URL fetch. It rejects a missing or changed signature,
+unapproved source or public package in the private corpus. Private snapshot
+failure leaves public lookups available. The knowledge disable policy applies
+to both sources.
+
 ## Authority and verification
 
 All source content is **untrusted advisory data**, including codemod

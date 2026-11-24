@@ -1187,7 +1187,8 @@ async def explain_conflict_tool(
     name="get_shared_migration_knowledge_batch",
     title="Read signed migration knowledge for an approved batch",
     description=(
-        "Read-only local lookup for 1-32 exact public dependency transitions. "
+        "Read-only local lookup for 1-32 exact dependency transitions. "
+        "Private scopes require a host-configured signed local snapshot. "
         "Returns source-backed breaking changes, codemod guidance, incompatibilities, "
         "playbooks and failure modes, with negative controls and exact-vs-candidate "
         "strength. No network, execution, solver changes, user-data upload or cache refresh. "
