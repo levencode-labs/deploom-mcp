@@ -3,7 +3,7 @@ import hashlib,json,os,tempfile,time,unittest
 from pathlib import Path
 from unittest.mock import patch
 from deploom_mcp.migration_usage import inspect_usage
-HOST_PARSER=Path(__file__).resolve().parents[3]/'desktop/node_modules/typescript/lib/typescript.js'
+HOST_PARSER=Path(os.environ.get('DEPLOOM_MCP_TYPESCRIPT_PATH') or Path(__file__).resolve().parents[3]/'desktop/node_modules/typescript/lib/typescript.js')
 
 class MissingParserTests(unittest.TestCase):
     def test_missing_host_parser_is_unknown_not_unused(self):
@@ -56,6 +56,46 @@ class ActualTypeScriptBoundaryTests(unittest.TestCase):
     def test_file_count_limit_keeps_denominator(self):
         for n in range(257):self.write(str(n)+'.js','export const x=1;')
         result=self.inspect();self.assertEqual(result['status'],'UNKNOWN');self.assertEqual(result['localCoverage']['eligible'],257);self.assertEqual(result['localCoverage']['scanned'],256)
+    def test_rejects_project_owned_node_binary(self):
+        local = self.project / ("node.exe" if os.name == "nt" else "node")
+        local.write_bytes(b"not an executable")
+        with patch("deploom_mcp.migration_usage.shutil.which", return_value=str(local)), patch(
+            "deploom_mcp.migration_usage.run_process"
+        ) as run:
+            result = self.inspect()
+        self.assertEqual(result["reason"], "PROJECT_NODE_EXECUTABLE_REJECTED")
+        run.assert_not_called()
+
+    def test_bundled_parser_is_used_without_host_settings(self):
+        self.write('entry.js', "import strip from 'strip-json-comments';")
+        settings = {key: value for key, value in os.environ.items()
+                    if key not in {'DEPLOOM_MCP_TYPESCRIPT_PATH', 'DEPLOOM_MCP_TYPESCRIPT_SHA256'}}
+        with patch.dict(os.environ, settings, clear=True), patch(
+            'deploom_mcp.migration_usage._BUNDLED_PARSER', HOST_PARSER,
+        ):
+            result = self.inspect()
+        self.assertEqual(result['status'], 'OBSERVED_SYNTAX_ONLY')
+        self.assertEqual(result['parser']['sha256'], self.sha)
+
+    def test_reuses_one_bound_directory_per_pass(self):
+        from deploom_mcp import migration_usage
+
+        for filename in ('src/first.js', 'src/second.js', 'src/third.js'):
+            self.write(filename, "import strip from 'strip-json-comments';")
+        with patch.object(migration_usage, 'bound_directory', wraps=migration_usage.bound_directory) as bound:
+            result = self.inspect()
+        self.assertEqual(result['status'], 'OBSERVED_SYNTAX_ONLY')
+        self.assertEqual(len(result['observations']), 3)
+        self.assertEqual(bound.call_count, 2)
+        self.assertTrue(all(call.args[1].name == 'src' for call in bound.call_args_list))
+
+    def test_oversized_source_keeps_coverage_incomplete(self):
+        self.write('big.js', ' ' * 131073)
+        result = self.inspect()
+        self.assertEqual(result['status'], 'UNKNOWN')
+        self.assertTrue(result['localCoverage']['limitReached'])
+        self.assertEqual(result['localCoverage']['unreadable'], 0)
+
     def test_changed_parser_hash_rejected_before_loading(self):
         with patch.dict(os.environ,{'DEPLOOM_MCP_TYPESCRIPT_SHA256':'b'*64}):result=self.inspect()
         self.assertEqual(result['reason'],'HOST_PARSER_IDENTITY_REJECTED');self.assertFalse(self.state.exists())

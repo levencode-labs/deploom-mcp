@@ -81,20 +81,25 @@ canonical commit URLs and full content hashes remain available.
 
 ## Local syntax inspection
 
-`localApplicability: ON` optionally uses an already installed **host** TypeScript
-6.0.3 library. Configure DEPLOOM_MCP_TYPESCRIPT_PATH to its absolute typescript.js
-path and DEPLOOM_MCP_TYPESCRIPT_SHA256 to the exact file hash. The library must be
-outside the inspected project. There is no automatic installation or loading of
-project-owned parsers, imports, plugins or configuration. A missing/mismatched
-host parser gives UNKNOWN rather than an absence claim.
+Release wheels include a pinned TypeScript 6.0.3 parser. Both the workspace
+card and `localApplicability: ON` use it with an available host Node executable.
+This works offline with the same wheel used by the npm installer. A host can
+override the parser with an absolute `DEPLOOM_MCP_TYPESCRIPT_PATH` and the
+corresponding `DEPLOOM_MCP_TYPESCRIPT_SHA256`. The parser and executable must
+resolve outside the inspected project. The analysis loads only the verified
+parser and its own helper. Missing or mismatched runtime resources give
+`UNKNOWN`. To prepare a wheel from source without network access, run
+`python typescript_bundle.py --tarball <verified-local-archive>` before
+building it.
 
-The pinned helper parses JS/TS text; it never executes it. Results expose literal
-imports/require syntax and limited Vite/Sass option syntax. require shadowing,
-runtime module resolution and semantic API compatibility are not established.
-Dynamic loads, aliases, callback/spread/computed configuration, parse failures,
-unsupported Vue/Svelte/Astro files and partial coverage stay UNKNOWN. An absence
-is only NOT_OBSERVED_SCOPED for the explicitly inspected JS/TS language scope,
-not UNUSED or project-wide safety. semanticApplicability remains UNKNOWN.
+The pinned helper parses JS/TS text without executing it. It records literal
+imports, re-exports, require calls, dynamic imports with static specifiers and
+member accesses tied to local import bindings. The helper also recognizes
+selected literal configuration keys. Runtime resolution, effective settings and
+semantic API compatibility remain unknown. Unresolved dynamic loads, aliases,
+callback, spread and computed configuration, parse failures, unsupported
+Vue/Svelte/Astro files and truncated coverage produce `UNKNOWN`. Scoped absence
+applies only to the inspected syntax.
 
 Coverage includes eligible/scanned/unreadable/unsupported counts and limits
 (256 files, 128 KiB per file, 1 MiB total source text). Findings are bound to the
@@ -115,14 +120,70 @@ client validation. Existing closed project trials are not repeated by this featu
 
 ## Migration cards in workspace EDITS
 
-In a v3 TARGETED_UPGRADE request, set `responseMode: "EDITS"` and
-`migrationCard: true` to include guidance for the selected transition.
-The initial card covers ESLint 8.57.1 to 9.0.0. The source version comes from
-the observed lockfile and the destination comes from the computed plan.
+In a v3 `TARGETED_UPGRADE` request, set `responseMode: "EDITS"` and
+`migrationCard: true`. Both modeled EDITS and `NATIVE_INTENT` attach
+`migrationCard.projectImpact` to the same response. The card uses the
+baseline lock version and the target selected for each declaration. Equal
+transitions share one card across owners. Different installed baselines in
+the same monorepo retain separate cards.
 
-The card reads known ESLint config files in the selected owner. It reports
-the observed filenames and whether their text references CI. It links to
-the official guidance and suggests checks marked NOT_RUN. Config discovery
-is scoped to the selected owner and does not resolve the effective ESLint
-configuration. The card uses local guidance and adds no registry or
-documentation requests.
+One bounded local scan covers all selected package names. It suggests
+specific checks for observed React DOM, TypeScript, Vite, Vitest and
+CommonJS module-format patterns. For React DOM legacy render, hydration or
+unmount syntax, the card links to the official codemod and gives verification
+instructions. Other packages can still produce import and file observations.
+The bound manifest and lockfile also flag unquoted command heads in npm scripts
+that match an exported binary of the selected owner's baseline package. This
+works offline without the parser. Shell wrappers and later compound commands
+are outside this scope. Actual PATH resolution and script effects remain unknown.
+Common config filenames are reported when the parser is unavailable. Root-owned and workspace-owned imports are distinguished.
+References outside the selected declaration owners are possible consumers
+whose installed versions and post-upgrade resolution need investigation.
+Existing ESLint and strip-json-comments cards retain their fields.
+
+Static findings guide review. They carry no verification or execution
+authority. The project impact scan makes no network requests. The existing
+manifest patch, resolver and project checks still govern acceptance.
+
+### Exact migration knowledge in EDITS
+
+The default `migrationEvidenceMode: "CACHE_ONLY"` reads the local signed
+Knowledge Cache v2 once for the selected transitions and checks the local
+official-source cache for eligible misses. The response reports signed
+fixture evidence separately from official references. Knowledge Cache v2
+retains its existing signature and scope checks. The Skill uses the lookup
+already present in the card and batches only exact transitions absent from it.
+
+Explicit `migrationEvidenceMode: "ON_DEMAND"` allows bounded retrieval for
+an authorized public npmjs route. The source version and integrity come from
+the lockfile. The npm registry must report the exact packages and versions,
+including matching baseline tarball integrity. The package repository and
+subdirectory must agree at both ends, with an exact published `gitHead` and
+matching `package.json` at each commit. Repository metadata serves as a
+nomination. The transport constructs its own allowlisted URLs and validates
+publication and source identity. This evidence does not independently attest
+that either tarball was built from that Git commit.
+
+DepLoom includes only excerpts and source digests from relevant version
+sections, authenticated package metadata and bounded target guides or
+release notes. Version sections can use hash headings or single-line
+underlined headings. When the standard changelog is missing, DepLoom also checks
+`History.md` and `HISTORY.md` in the same verified directory within the existing
+request budget. A release tag must resolve to the published commit. Guide and
+repository-release scope stay visible. Mentions of observed symbols
+are review hints. Check the provenance and recipient applicability before
+acting on a reference, and review a codemod's conditions before using it.
+
+The official path handles at most two transitions per plan and shares
+the existing 12-request, 128 KiB-per-body and 1 MiB budgets with a 9-second
+worker watchdog. Offline or corporate restrictions force local reads.
+It keeps the original TLS and redirect restrictions. Packages without
+matching public artifacts or source manifests, private scopes, relocated
+packages and unsupported repository layouts produce explicit gaps. Already
+obtained sources are reusable offline within their freshness window.
+
+Renovate also separates the npm repository URL and package directory,
+looks up release or changelog data, and filters by version. This path
+uses exact published commits and the existing DepLoom evidence transport
+to bind the smaller set of sources it returns.
+[Renovate changelog discovery](https://docs.renovatebot.com/key-concepts/changelogs/)

@@ -63,6 +63,7 @@ jobs:
       - name: Build exact checked-out wheel
         id: wheel
         run: |
+          python typescript_bundle.py
           python -m build --no-isolation
           python scripts/component_release.py --wheel-output
       - name: Recreate P2 public frozen input and verify independent oracle

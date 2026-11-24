@@ -117,6 +117,9 @@ def reference_transition(store,row,detail):
     result={**row,'reference':{'authority':'REFERENCE_ONLY','status':'UNKNOWN','sources':[],'controls':[],
         'conflicts':[],'suggestedChecks':[],'codemodApplicability':'NOT_ESTABLISHED','coverage':{'status':'PARTIAL','missingKinds':['RUNTIME','SEMANTIC_LOCAL_APPLICABILITY'] }},'applicability':_app()}
     ref=result['reference'];key=(row['package'],row['from'],row['to'])
+    from deploom_mcp.shared_knowledge_batch import _private_package
+    if _private_package(row['package']):
+        ref.update(status='IDENTITY_UNVERIFIED',reason='PRIVATE_PACKAGE_SCOPE');return result
     if row['from']==row['to']:ref.update(status='NO_TRANSITION');return result
     from semantic_version import Version
     if Version(row['to']).prerelease:ref.update(status='UNSUPPORTED',reason='PRERELEASE_TARGET_REQUIRES_SEPARATE_POLICY');return result

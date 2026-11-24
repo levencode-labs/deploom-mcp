@@ -149,6 +149,10 @@ def _validate_edits_request(request: dict) -> None:
         raise GoalContractError("WORKSPACE_EDITS_REQUIRES_V3_TARGETED_PLAN")
     if type(request.get("migrationCard", False)) is not bool:
         raise GoalContractError("INVALID_WORKSPACE_MIGRATION_CARD_OPTION")
+    if "migrationEvidenceMode" in request and (
+        not request.get("migrationCard") or request["migrationEvidenceMode"] not in ("CACHE_ONLY", "ON_DEMAND")
+    ):
+        raise GoalContractError("INVALID_WORKSPACE_MIGRATION_EVIDENCE_MODE")
     if type(request.get("compactEdits", False)) is not bool:
         raise GoalContractError("INVALID_WORKSPACE_COMPACT_EDITS_OPTION")
     if "editsStrategy" in request and request["editsStrategy"] != "NATIVE_INTENT":
@@ -194,7 +198,8 @@ async def plan_workspace_edits(project_path: str, request: dict) -> dict:
     compact = request.get("compactEdits", False)
     plan = await get_workspace_upgrade_plan(
         project_path, {key: value for key, value in request.items()
-                       if key not in {"responseMode", "migrationCard", "compactEdits"}},
+                       if key not in {"responseMode", "migrationCard", "compactEdits", "migrationEvidenceMode"}},
+        **({"include_migration_owners": True} if include_card else {}),
     )
     if not plan["ok"]:
         return plan
@@ -244,10 +249,17 @@ async def plan_workspace_edits(project_path: str, request: dict) -> dict:
         response["constraintModel"] = {"status": model["status"]}
         response["compactEdits"] = True
     if include_card:
+        from deploom_mcp.dependency_audit import checked_registry
         from deploom_mcp.workspace_migration_card import build_migration_card
 
+        baselines = plan.get("migrationBaselines", [])
+        targets = [{**row, **(baselines[index] if index < len(baselines) else {})}
+                   for index, row in enumerate(plan["jointAssignment"]["targets"])]
         response["migrationCard"] = await asyncio.to_thread(
-            build_migration_card, Path(project_path), plan["jointAssignment"]["targets"], model["status"],
+            build_migration_card, Path(project_path), targets, model["status"],
+            owners=plan.get("migrationOwners", []), inventory_digest=plan["inventoryDigest"],
+            registry=checked_registry(request.get("registry")),
+            evidence_mode=request.get("migrationEvidenceMode", "CACHE_ONLY"),
         )
     return response
 

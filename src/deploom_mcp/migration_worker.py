@@ -5,6 +5,7 @@ from pathlib import Path
 from deploom_mcp.goal_contract import GoalContractError,assert_current_binding
 from deploom_mcp.goal_worker import observe_goal_source
 from deploom_mcp.goal_execution_registry import configured_state_root
+from deploom_mcp.host_evidence_policy import external_network_evidence_disabled, mirror_knowledge_only
 from deploom_mcp.migration_sources import SourceStore,EvidenceUnavailable
 from deploom_mcp.migration_evidence import build_reference_section,validate_request,unknown,_app
 
@@ -24,7 +25,8 @@ def run_evidence(context,seconds):
         if row['package'] not in observed['roots'] or record.get('version')!=row['from'] or context['assignment'].get(row['package'])!=row['to']:
             raise EvidenceUnavailable('GOAL_TRANSITION_MISMATCH')
     store=SourceStore(state/'migration-evidence',deadline=deadline,
-        offline=os.environ.get('DEPLOOM_MCP_MIGRATION_OFFLINE')=='1')
+        offline=(os.environ.get('DEPLOOM_MCP_MIGRATION_OFFLINE')=='1'
+                 or external_network_evidence_disabled() or mirror_knowledge_only()))
     section=build_reference_section(request,store,binding_digest=binding['bindingDigest'])
     if request['localApplicability']=='ON':
         from deploom_mcp.migration_usage import inspect_usage

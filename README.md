@@ -18,7 +18,7 @@ If the OSV snapshot has a coverage gap, the planner can send a package name and 
 
 Deploom MCP connects a headless dependency-planning engine to MCP-compatible coding agents. It helps make upgrade scope, version choices, compatibility constraints, and missing evidence explicit, so an agent can act on a structured plan instead of guessing what an update means.
 
-The published wheel bundles the **exact pinned [Deploom Core](https://github.com/levencode-labs/deploom-core)**, schemas, and canonical `deploom-upgrade` Skill. Electron/Desktop and a separate Core checkout are not required to use the wheel.
+The published wheel bundles the **exact pinned [Deploom Core](https://github.com/levencode-labs/deploom-core)**, schemas, the canonical `deploom-upgrade` Skill, and a pinned TypeScript parser for read-only JS/TS analysis. A trusted Node.js executable is required for syntax analysis. Electron/Desktop and a separate Core checkout are not required to use the wheel.
 
 ## What you get
 
@@ -55,7 +55,9 @@ python -m pip install -e .
 python -m deploom_mcp
 ```
 
-The last command starts a protocol server on stdio, **not** a web UI. For reproducible installed-wheel trials, follow the [user guide](USERGUIDE.md), not an editable source install. The Core gitlink is pinned and must not be rewritten as part of a cosmetic/docs change.
+For a local wheel with the same parser as the release, run `python typescript_bundle.py` before `python -m build`. Pass `--tarball` with the pinned npm artifact for an offline build. The release sdist already includes the parser, package metadata and license notices.
+
+The last command starts the stdio protocol server. For reproducible installed-wheel trials, follow the [user guide](USERGUIDE.md), not an editable source install. The Core gitlink is pinned and must not be rewritten as part of a cosmetic/docs change.
 
 ## Explore
 

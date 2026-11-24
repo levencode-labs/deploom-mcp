@@ -73,6 +73,7 @@ def build_assets(tag):
     run([sys.executable,'scripts/check-public-sanitization.py'])
     if value['package']=='deploom-mcp':
         run([sys.executable,'scripts/check_skill.py']);run([sys.executable,'scripts/update_release_manifest.py','--check'])
+        run([sys.executable,'typescript_bundle.py'])
     run([sys.executable,'-m','build','--no-isolation','--outdir',str(out)])
     wheel,=out.glob('*.whl');sdist,=out.glob('*.tar.gz')
     if value['package']=='deploom-mcp':

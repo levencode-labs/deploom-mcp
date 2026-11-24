@@ -64,6 +64,53 @@ class WorkspaceGoalRequestTests(unittest.TestCase):
             planner = plan_workspace_edits if request.get("responseMode") == "EDITS" else get_workspace_upgrade_plan
             return asyncio.run(planner(str(self.root), request))
 
+    def test_edits_report_literal_scripts_for_only_the_selected_owner(self):
+        owner = self.root / "packages/a/package.json"
+        other = self.root / "packages/b/package.json"
+        record = self.fixture.lock["packages"]["node_modules/kleur"]
+        record.update(
+            resolved=f"{REGISTRY}/kleur/-/kleur-3.0.0.tgz",
+            integrity="sha512-" + base64.b64encode(bytes(64)).decode(),
+            bin={"sample-cli": "bin/cli.js"},
+        )
+        self.fixture.save()
+        for manifest, scripts in (
+            (owner, {"check:tool": "sample-cli --check", "generate": "./node_modules/.bin/sample-cli --force",
+                     "echo": 'echo "&& sample-cli --force"', "wrapper": "npm run sample-cli",
+                     "compound": "true && sample-cli"}),
+            (other, {"other": "sample-cli"}),
+        ):
+            document = json.loads(manifest.read_bytes())
+            manifest.write_text(json.dumps({**document, "scripts": scripts}, indent=2) + "\n", encoding="utf-8")
+        scope = [{"selector": {"name": "kleur", "owner": "packages/a", "section": "dependencies"},
+                  "approvedLines": [3], "exactTarget": "3.0.1"}]
+        request = {**self.request, "scope": scope, "responseMode": "EDITS", "migrationCard": True}
+        original = owner.read_bytes()
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+                os.environ, {"DEPLOOM_WORKSPACE_NPM_REGISTRY": REGISTRY}), patch(
+                "deploom_mcp.workspace_edits.configured_state_root", return_value=Path(directory)), patch(
+                "deploom_mcp.workspace_impact.configured_state_root", return_value=Path(directory)), patch(
+                "deploom_mcp.workspace_impact.knowledge_directory", return_value=Path(directory) / "records"):
+            for mode in ("MODELED", "NATIVE_INTENT"):
+                with self.subTest(mode=mode):
+                    result = (self.run_plan(request) if mode == "MODELED" else
+                              asyncio.run(plan_workspace_edits(str(self.root), {**request, "editsStrategy": mode})))
+                    self.assertTrue(result["ok"], result)
+                    impact = result["migrationCard"]["projectImpact"]["transitions"][0]
+                    self.assertEqual(impact["affectedFiles"], ["packages/a/package.json"])
+                    self.assertEqual(impact["affectedWorkspaces"], ["packages/a"])
+                    self.assertEqual([(row["form"], row["script"], row["binary"])
+                                      for row in impact["matchedPatterns"]],
+                                     [("NPM_SCRIPT_BIN", "check:tool", "sample-cli"),
+                                      ("NPM_SCRIPT_BIN", "generate", "sample-cli")])
+                    self.assertTrue(all(row["authority"] == "OBSERVED_SYNTAX_ONLY"
+                                        and row["bindingOrRuntimeResolution"] == "UNKNOWN"
+                                        for row in impact["matchedPatterns"]))
+                    self.assertEqual(impact["suggestedChecks"][0]["status"], "NOT_RUN")
+                    self.assertEqual(impact["applicableChanges"], [])
+                    self.assertIn("NPM_SCRIPT_SHELL_AND_COMMAND_RESOLUTION", impact["unknowns"])
+                    self.assertEqual(owner.read_bytes(), original)
+
     def test_manifest_patch_applies_exact_target_and_refuses_drift(self):
         manifest = self.root / "packages/a/package.json"
         original = manifest.read_bytes()
@@ -509,6 +556,10 @@ class WorkspaceGoalRequestTests(unittest.TestCase):
             self.assertNotIn("target", plan)
             self.assertEqual([row["owner"] for row in plan["targets"]], ["packages/a", "packages/b"])
             self.assertEqual(plan["migrationCard"]["uncoveredCount"], 1)
+            impact = plan["migrationCard"]["projectImpact"]
+            self.assertEqual([(row["fromVersion"], row["dependencyOwners"]) for row in impact["transitions"]],
+                             [("3.0.0", ["packages/a"])])
+            self.assertEqual(impact["evidenceMetrics"]["httpTransactions"], 0)
             subprocess.run(["git", "init", "-q"], cwd=self.root, check=True)
             apply_workspace_patch(self.root, plan["inventoryDigest"], Path(plan["patch"]["path"]),
                                   plan["patch"]["sha256"])

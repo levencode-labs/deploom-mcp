@@ -319,16 +319,33 @@ def plan_workspace_snapshot(project: Path, request: dict, *, model_only: bool = 
             # Summarize the same bound read used by the solver, including owners
             # with no declarations. Baseline resolution remains lockfile evidence.
             owners = sorted({Path(path).parent.as_posix() for path in inputs if path.endswith("package.json")})
+            from deploom_mcp.migration_release import public_npm_integrity
+            from deploom_mcp.workspace_migration_card import snapshot_script_patterns
+
+            target_rows = []
+            migration_baselines = []
+            script_manifests = {}
+            for key in sorted(admitted):
+                owner, _, package = key
+                lock = npm_lock_resolved_instance(packages, package, "" if owner == "." else owner)
+                selected = (result["assignment"] or {}).get(declaration_id(key))
+                target_rows.append({"declaration": list(key), "declaredSpec": declarations[key],
+                                    "baselineLock": lock, "selectedVersion": selected})
+                baseline = {}
+                if lock and selected and lock[1] != selected:
+                    record = packages[lock[0]]
+                    baseline = {"publicNpmIntegrity": public_npm_integrity(package, lock[1], record)}
+                    if isinstance(record.get("bin"), dict) and record["bin"]:
+                        manifest = "package.json" if owner == "." else f"{owner}/package.json"
+                        if manifest not in script_manifests:
+                            script_manifests[manifest] = json.loads(inputs[manifest])
+                        baseline.update(snapshot_script_patterns(package, lock[1], record, script_manifests[manifest]))
+                migration_baselines.append(baseline)
             result["workspaceEvidence"] = {
                 "owners": owners, "declarationCount": len(rows),
                 "constraintDeclarationCount": len(declarations),
                 "ownerPeerConstraintCount": result.get("ownerPeerConstraintCount", 0),
-                "targets": [
-                    {"declaration": list(key), "declaredSpec": declarations[key],
-                     "baselineLock": npm_lock_resolved_instance(packages, key[2], "" if key[0] == "." else key[0]),
-                     "selectedVersion": (result["assignment"] or {}).get(declaration_id(key))}
-                    for key in sorted(admitted)
-                ],
+                "targets": target_rows, "migrationBaselines": migration_baselines,
             }
         finally:
             sys.path.pop(0)

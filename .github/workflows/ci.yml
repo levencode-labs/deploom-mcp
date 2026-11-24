@@ -27,6 +27,18 @@ jobs:
           node-version: '24.18.0'
       - name: Install package (runtime deps incl. jsonschema)
         run: python -m pip install --upgrade pip && python -m pip install -e .
+      - name: Prepare pinned TypeScript parser for syntax tests
+        shell: pwsh
+        run: |
+          python typescript_bundle.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $parser = (Resolve-Path vendor/typescript/lib/typescript.js).Path
+          $hash = (Get-FileHash -LiteralPath $parser -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne '569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39') {
+            throw 'The TypeScript parser differs from the pinned test artifact.'
+          }
+          "DEPLOOM_MCP_TYPESCRIPT_PATH=$parser" >> $env:GITHUB_ENV
+          "DEPLOOM_MCP_TYPESCRIPT_SHA256=$hash" >> $env:GITHUB_ENV
       - name: Full test suite
         run: python -m unittest discover -s tests -p "test_*.py" -v
       - name: Versioned Skill and release resources
@@ -48,6 +60,24 @@ jobs:
           python scripts/install_skill.py --client opencode --scope project --project "${{ runner.temp }}/skill-project" --verify
           python scripts/install_skill.py --client codex --scope user --config-home "${{ runner.temp }}/skill-home" --verify
           python scripts/install_skill.py --client opencode --scope project --project "${{ runner.temp }}/skill-project" --dry-run
+
+  live-migration-evidence:
+    name: Pinned public migration evidence and offline replay
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify one exact public npm transition
+        run: |
+          python -m pip install semantic_version
+          PYTHONPATH="$PWD/src" python scripts/smoke_live_migration_evidence.py
 
   linux-container:
     name: Linux amd64 container smoke
@@ -100,6 +130,8 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install build setuptools wheel
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python typescript_bundle.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m build --wheel --no-isolation
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
