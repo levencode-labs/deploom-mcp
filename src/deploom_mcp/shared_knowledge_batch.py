@@ -15,6 +15,7 @@ from pathlib import Path
 
 from deploom_mcp.host_evidence_policy import cached_knowledge_disabled
 
+from . import private_knowledge_snapshot as private
 from . import shared_records_v2 as signed
 from .knowledge_contract_v2 import MANAGERS, PKG, SOURCE, VERSION, projection, query_match
 
@@ -50,7 +51,7 @@ def _validate(requests):
                 or not isinstance(start, str) or len(start) > 70 or not VERSION.fullmatch(start)
                 or not isinstance(target, str) or len(target) > 70 or not VERSION.fullmatch(target)
                 or start == target or not isinstance(manager, str) or manager not in MANAGERS):
-            raise ValueError("Invalid public npm identity, exact version, or package manager")
+            raise ValueError("Invalid npm identity, exact version, or package manager")
     return requests
 
 
@@ -122,8 +123,47 @@ def _bounded(response):
     return response
 
 
+def _set_findings(row, records, source_pattern):
+    findings = []
+    for record in records:
+        strength = query_match(record, row["package"], row["from_version"],
+                               row["to_version"], row["package_manager"])
+        if strength:
+            card = projection(record, strength)
+            card["recordId"] = card["id"]
+            card["sourceCommit"] = source_pattern.fullmatch(card["evidence"]["source"]).group(1)
+            findings.append(card)
+    findings.sort(key=lambda card: (
+        0 if card["matchStrength"] == "verified-exact-transition" else 1,
+        card["kind"], card["recordId"]))
+    row["status"] = "found" if findings else "no-matching-record"
+    row["matchingCount"] = len(findings)
+    row["knowledge"] = findings[:MAX_CARDS_PER_QUERY]
+    row["omittedCount"] = len(findings) - len(row["knowledge"])
+
+
+def _attach_private(response):
+    rows = [row for row in response["results"] if row["status"] == "skipped-private-scope"]
+    if not rows:
+        return
+    try:
+        snapshot = private.load_snapshot(_private_package)
+    except private.SNAPSHOT_ERRORS:
+        for row in rows:
+            row["status"] = "private-snapshot-unavailable"
+        return
+    if snapshot is None:
+        return
+    records, source_pattern, digest = snapshot
+    if response["status"] == "snapshot-unavailable":
+        response.update(status="ready", snapshotSource=private.SOURCE, snapshotSchema=2)
+    for row in rows:
+        row.update(snapshotSource=private.SOURCE, snapshotSha256=digest)
+        _set_findings(row, records.get(row["package"], ()), source_pattern)
+
+
 def lookup_batch(root, requests):
-    """Look up many transitions against one signed local edition and one SQLite view."""
+    """Read the configured signed editions once per batch."""
     try:
         requests = _validate(requests)
     except (ValueError, TypeError, OverflowError) as exc:
@@ -134,13 +174,17 @@ def lookup_batch(root, requests):
 
     # Offline/local-only mode does NOT disable trusted already-downloaded data.
     # It only prohibits refresh; this reader performs no network calls.
-    root = Path(root) if root is not None else None
-    if root is None or not (root / signed.DB).is_file():
-        return _bounded(_status_only(requests, "snapshot-unavailable"))
+    response = (_lookup_public(Path(root), requests) if root is not None
+                else _status_only(requests, "snapshot-unavailable"))
+    _attach_private(response)
+    return _bounded(response)
 
+
+def _lookup_public(root, requests):
+    if not (root / signed.DB).is_file():
+        return _status_only(requests, "snapshot-unavailable")
     response = _status_only(requests, "ready", source="verified-pages")
     response["snapshotSchema"] = 2
-    seen = {}
     try:
         with closing(sqlite3.connect((root / signed.DB).resolve().as_uri() + "?mode=ro", uri=True)) as db:
             trusted = signed._read(db)
@@ -151,14 +195,8 @@ def lookup_batch(root, requests):
             bucket_cache = {}
             for i, query in enumerate(requests):
                 row = response["results"][i]
-                if row["status"] == "skipped-private-scope":
+                if row["status"] in {"skipped-private-scope", "duplicate-query"}:
                     continue
-                identity = tuple(query[k] for k in ("package", "from_version", "to_version", "package_manager"))
-                if identity in seen:
-                    row["status"] = "duplicate-query"
-                    row["duplicateOf"] = seen[identity]
-                    continue
-                seen[identity] = i
                 bucket = hashlib.sha256(query["package"].encode("ascii")).hexdigest()[:2]
                 if bucket not in bucket_cache:
                     records, record_ids = [], set()
@@ -173,26 +211,9 @@ def lookup_batch(root, requests):
                             record_ids.add(record["id"])
                             records.append(record)
                     bucket_cache[bucket] = records
-                findings = []
-                for record in bucket_cache[bucket]:
-                    strength = query_match(
-                        record, query["package"], query["from_version"],
-                        query["to_version"], query["package_manager"])
-                    if strength:
-                        card = projection(record, strength)
-                        # Source commit comes from the signed, strictly validated fixture URL.
-                        card["recordId"] = card["id"]
-                        card["sourceCommit"] = SOURCE.fullmatch(card["evidence"]["source"]).group(1)
-                        findings.append(card)
-                findings.sort(key=lambda c: (
-                    0 if c["matchStrength"] == "verified-exact-transition" else 1,
-                    c["kind"], c["recordId"]))
-                row["status"] = "found" if findings else "no-matching-record"
-                row["matchingCount"] = len(findings)
-                row["knowledge"] = findings[:MAX_CARDS_PER_QUERY]
-                row["omittedCount"] = len(findings) - len(row["knowledge"])
+                _set_findings(row, bucket_cache[bucket], SOURCE)
     except (OSError, sqlite3.Error, ValueError, TypeError, KeyError, UnicodeError, IndexError):
         # All-or-nothing: a bad shard anywhere in the requested buckets means
         # do not expose *any* tentative knowledge from this edition.
-        return _bounded(_status_only(requests, "snapshot-unavailable"))
-    return _bounded(response)
+        return _status_only(requests, "snapshot-unavailable")
+    return response

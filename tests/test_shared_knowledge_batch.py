@@ -94,6 +94,118 @@ class SignedBatchKnowledgeTests(unittest.TestCase):
 
         self.assertTrue(signed.refresh(self.root, fetch))
 
+    def _private_snapshot(self, *, records=None, domain=None):
+        directory = self.root.resolve() / "private"
+        directory.mkdir(exist_ok=True)
+        repository = "https://git.example.invalid/team/knowledge/-/blob/"
+        key = Ed25519PrivateKey.generate()
+        if records is None:
+            record = self._record()
+            record["package"] = record["evidence"]["claim"]["package"] = "@org/widget"
+            record["evidence"]["source"] = repository + "b" * 40 + "/fixtures/widget/check.cjs"
+            records = [record]
+        raw = compact({"schema": 2, "records": records})
+        digest = hashlib.sha256(raw)
+        (directory / "records.json").write_bytes(raw)
+        (directory / "records.sig").write_bytes(
+            key.sign((domain or batch.private.DOMAIN) + digest.digest()))
+        return records, {
+            "DEPLOOM_MCP_PRIVATE_SCOPES": "@org",
+            "DEPLOOM_MCP_RECORDS_MIRROR_ONLY": "1",
+            "DEPLOOM_MCP_LOCAL_CACHE_ONLY": "1",
+            "DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE": "1",
+            "DEPLOOM_MCP_KNOWLEDGE_DISABLED": "0",
+            "DEPLOOM_MCP_PRIVATE_KNOWLEDGE_DIR": str(directory),
+            "DEPLOOM_MCP_PRIVATE_KNOWLEDGE_SHA256": digest.hexdigest(),
+            "DEPLOOM_MCP_PRIVATE_KNOWLEDGE_PUBLIC_KEY": key.public_key().public_bytes_raw().hex(),
+            "DEPLOOM_MCP_PRIVATE_KNOWLEDGE_SOURCE": repository,
+        }
+
+    def test_private_snapshot_batch_uses_existing_matcher_and_keeps_sources_separate(self):
+        _, settings = self._private_snapshot()
+        requests = [query("@org/widget"), query(), query("@org/widget", "18.1.0", "18.3.1"),
+                    query("@org/widget"), query("@org/missing"), query("@org/widget", manager="yarn")]
+        with patch.dict("os.environ", settings), patch("socket.getaddrinfo", side_effect=AssertionError("Offline")):
+            result = batch.lookup_batch(self.root, requests)
+            only_private = batch.lookup_batch(None, [requests[0]])
+        self.assertEqual(result["snapshotSource"], "verified-pages")
+        self.assertEqual(["found", "found", "found", "duplicate-query", "no-matching-record", "no-matching-record"],
+                         [row["status"] for row in result["results"]])
+        exact, public, candidate, duplicate, _, _ = result["results"]
+        self.assertEqual(duplicate["duplicateOf"], 0)
+        self.assertEqual(exact["snapshotSource"], "verified-private-local")
+        self.assertEqual(exact["snapshotSha256"], settings["DEPLOOM_MCP_PRIVATE_KNOWLEDGE_SHA256"])
+        self.assertEqual(exact["knowledge"][0]["matchStrength"], "verified-exact-transition")
+        self.assertEqual(exact["knowledge"][0]["sourceCommit"], "b" * 40)
+        self.assertTrue(exact["knowledge"][0]["requiresProjectVerification"])
+        self.assertEqual(candidate["knowledge"][0]["matchStrength"], "major-line-candidate")
+        self.assertEqual(public["knowledge"][0]["evidence"]["claim"]["package"], "react-dom")
+        self.assertNotIn("snapshotSha256", public)
+        self.assertEqual(only_private["status"], "ready")
+        self.assertEqual(only_private["snapshotSource"], "verified-private-local")
+
+    def test_private_snapshot_plan_preserves_provenance_and_disables_official_lookup(self):
+        _, settings = self._private_snapshot()
+        from deploom_mcp.workspace_impact import build_project_impact
+
+        project = self.root / "project"
+        project.mkdir()
+        target = {"declaration": [".", "dependencies", "@org/widget"],
+                  "baselineLock": ["unused", "18.2.0"], "selectedVersion": "18.3.1"}
+        with patch.dict("os.environ", settings), patch(
+            "deploom_mcp.workspace_impact.knowledge_directory", return_value=self.root,
+        ), patch("deploom_mcp.workspace_impact.collect_workspace_releases",
+                 side_effect=AssertionError("Private package cannot use public evidence")):
+            impact = build_project_impact(project, [target], ["."], "c" * 64,
+                                          registry="https://registry.npmjs.org", evidence_mode="ON_DEMAND")
+        signed_evidence = impact["transitions"][0]["evidence"]["signedKnowledge"]
+        self.assertEqual(signed_evidence["snapshotSource"], "verified-private-local")
+        self.assertEqual(signed_evidence["snapshotSha256"], settings["DEPLOOM_MCP_PRIVATE_KNOWLEDGE_SHA256"])
+        self.assertIsNone(signed_evidence["snapshotRevision"])
+        self.assertEqual(signed_evidence["records"][0]["recipientApplicability"], "UNKNOWN")
+        self.assertEqual(impact["evidenceMetrics"]["httpTransactions"], 0)
+
+    def test_private_snapshot_failures_preserve_public_knowledge(self):
+        records, settings = self._private_snapshot()
+        requests = [query("@org/widget"), query()]
+        bad_configs = (
+            {"DEPLOOM_MCP_PRIVATE_KNOWLEDGE_SHA256": "a" * 64},
+            {"DEPLOOM_MCP_PRIVATE_KNOWLEDGE_PUBLIC_KEY": "a" * 64},
+            {"DEPLOOM_MCP_PRIVATE_KNOWLEDGE_SOURCE": "https://other.example.invalid/team/knowledge/-/blob/"},
+            {"DEPLOOM_MCP_PRIVATE_KNOWLEDGE_DIR": "private-from-project"},
+        )
+        for overrides in bad_configs:
+            with self.subTest(overrides=overrides), patch.dict("os.environ", settings | overrides):
+                result = batch.lookup_batch(self.root, requests)
+                self.assertEqual(["private-snapshot-unavailable", "found"], [row["status"] for row in result["results"]])
+
+        foreign = copy.deepcopy(records[0])
+        foreign["id"] = "unscoped-public-package"
+        foreign["package"] = foreign["evidence"]["claim"]["package"] = "react-dom"
+        _, public_domain = self._private_snapshot(records=records, domain=signed.DOMAIN)
+        with patch.dict("os.environ", public_domain):
+            result = batch.lookup_batch(self.root, requests)
+            self.assertEqual(["private-snapshot-unavailable", "found"], [row["status"] for row in result["results"]])
+        _, mixed = self._private_snapshot(records=records + [foreign])
+        with patch.dict("os.environ", mixed):
+            result = batch.lookup_batch(self.root, requests)
+            self.assertEqual(["private-snapshot-unavailable", "found"], [row["status"] for row in result["results"]])
+
+    def test_private_snapshot_requires_operator_opt_in_and_respects_disabled_mode(self):
+        _, settings = self._private_snapshot()
+        requests = [query("@org/widget"), query()]
+        with patch.dict("os.environ", settings | {
+            "DEPLOOM_MCP_RECORDS_MIRROR_ONLY": "0", "DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE": "0",
+        }), patch.object(batch.private, "_read_bytes", side_effect=AssertionError("File access forbidden")):
+            response = batch.lookup_batch(self.root, requests)
+            self.assertEqual(["skipped-private-scope", "found"], [row["status"] for row in response["results"]])
+        with patch.dict("os.environ", settings | {"DEPLOOM_MCP_KNOWLEDGE_DISABLED": "1"}), patch.object(
+            batch.private, "load_snapshot", side_effect=AssertionError("Disabled"),
+        ):
+            response = batch.lookup_batch(self.root, requests)
+            self.assertEqual("disabled-by-policy", response["status"])
+            self.assertTrue(all(not row["knowledge"] for row in response["results"]))
+
     def test_exact_major_miss_duplicate_and_all_local(self):
         with patch.object(batch.signed, "get", side_effect=AssertionError("HTTP forbidden")):
             found = batch.lookup_batch(self.root, [
