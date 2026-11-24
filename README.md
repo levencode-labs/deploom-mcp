@@ -10,15 +10,18 @@
 
 </div>
 
-### Local-only cache
-
-Set `DEPLOOM_MCP_LOCAL_CACHE_ONLY=1` in the MCP server's environment and restart the client. DepLoom reads its verified local records or the bundled examples and skips GitHub cache updates, including manual refresh in a CLI with the same environment. Offline OSV coverage depends on the local edition and its expiry. Package installation and registry operations requested by a planning tool have separate network requirements.
-
-If the OSV snapshot has a coverage gap, the planner can send a package name and exact version to npm's Bulk Advisory endpoint only after verifying the version against anonymous public npm metadata. A completed zero-finding assessment needs no second query. Set `DEPLOOM_MCP_PUBLIC_ADVISORY_FALLBACK=0` to disable those public advisory requests.
-
 Deploom MCP connects a headless dependency-planning engine to MCP-compatible coding agents. It helps make upgrade scope, version choices, compatibility constraints, and missing evidence explicit, so an agent can act on a structured plan instead of guessing what an update means.
 
 The published wheel bundles the **exact pinned [Deploom Core](https://github.com/levencode-labs/deploom-core)**, schemas, the canonical `deploom-upgrade` Skill, and a pinned TypeScript parser for read-only JS/TS analysis. A trusted Node.js executable is required for syntax analysis. Electron/Desktop and a separate Core checkout are not required to use the wheel.
+
+## Quick start
+
+1. [Install the MCP server and Skill together](https://github.com/levencode-labs/deploom-npm#quick-start), or [install the wheel](USERGUIDE.md#1-install-the-release) and [connect your MCP client](USERGUIDE.md#3-connect-an-mcp-client).
+2. Restart the client and open a branch of an npm project with Vite and a `package-lock.json`.
+
+> Use the deploom-upgrade skill. Plan an upgrade of vite to the latest compatible patch in its current minor line. Show the exact versions, files and checks. Keep the project unchanged while planning.
+
+When the scope is right, ask the agent to apply the agreed blueprint in your branch, verify the installation and peer dependencies, and run the project's usual checks. Review the manifest and lockfile diff, the installed version and the check results. Optionally ask for a vulnerability audit with unknown coverage called out.
 
 ## What you get
 
@@ -32,12 +35,13 @@ The published wheel bundles the **exact pinned [Deploom Core](https://github.com
 
 **`PLANNING_ONLY` is not a successful upgrade.** An npm exit code, lockfile-only result, installed dependency tree, project tests, runtime checks, and final policy audit provide different kinds of evidence.
 
-## Quick start
+## Disable shared cache updates
 
-1. [Install a published wheel and optional Skill](USERGUIDE.md#1-install-the-release) (or [на русском](USERGUIDE.ru.md#1-установите-релиз)).
-2. [Connect your MCP client](USERGUIDE.md#3-connect-an-mcp-client): [Codex](integrations/codex/README.md), [OpenCode](integrations/opencode/README.md), or [Claude Code](integrations/claude-code/README.md).
-3. Start with a **plan-only** request on a small public/synthetic project; review the actual Blueprint and scope coverage.
-4. Authorize isolated edits and independent verification separately if you want the agent to perform a migration.
+Set `DEPLOOM_MCP_LOCAL_CACHE_ONLY=1` in the MCP server's environment and restart the client. DepLoom reads its verified local records or the bundled examples and skips GitHub cache updates, including manual refresh in a CLI with the same environment. Offline OSV coverage depends on the local edition and its expiry. Package installation and registry operations requested by a planning tool have separate network requirements.
+
+If the OSV snapshot has a coverage gap, the planner can send a package name and exact version to npm's Bulk Advisory endpoint only after verifying the version against anonymous public npm metadata. A completed zero-finding assessment needs no second query. Set `DEPLOOM_MCP_PUBLIC_ADVISORY_FALLBACK=0` to disable those public advisory requests.
+
+## Transport
 
 For HTTP/container use, see [Streamable HTTP deployment](docs/HTTP_DEPLOYMENT.md). The default local transport is **stdio**. **Remote HTTP has no built-in user authentication or per-user project isolation**; do not expose it without an authenticated gateway and least-privilege isolation.
 
