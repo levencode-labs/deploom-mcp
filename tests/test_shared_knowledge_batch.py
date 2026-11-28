@@ -211,13 +211,15 @@ class SignedBatchKnowledgeTests(unittest.TestCase):
             found = batch.lookup_batch(self.root, [
                 query(), query("react-dom", "18.1.0", "18.3.2"),
                 query("react-dom", "17.0.0", "18.3.1"),
-                query(), query("react", "18.2.0", "18.3.1")])
+                query(), query("react", "18.2.0", "18.3.1"), query("react-dom", "17.0.0", "18.0.0")])
         self.assertTrue(found["ok"], found)
         self.assertEqual("ADVISORY_ONLY", found["authority"])
         self.assertEqual("verified-pages", found["snapshotSource"])
         self.assertEqual(2, found["snapshotSchema"])
-        self.assertEqual(["found", "found", "no-matching-record", "duplicate-query",
-                          "no-matching-record"], [r["status"] for r in found["results"]])
+        self.assertEqual(["found", "found", "found", "duplicate-query",
+                          "no-matching-record", "no-matching-record"], [r["status"] for r in found["results"]])
+        self.assertEqual("intermediate-transition-candidate", found["results"][2]["knowledge"][0]["matchStrength"])
+        self.assertTrue(found["results"][2]["knowledge"][0]["requiresProjectVerification"])
         self.assertEqual(0, found["results"][3]["duplicateOf"])
         exact = found["results"][0]["knowledge"][0]
         self.assertEqual("verified-exact-transition", exact["matchStrength"])
@@ -325,7 +327,7 @@ class SignedBatchKnowledgeTests(unittest.TestCase):
 
     def test_large_hit_count_is_disclosed_never_silent(self):
         cards = []
-        for n in range(8):
+        for n in range(16):
             item = copy.deepcopy(self._record())
             item["id"] = "renderer-change-" + str(n).zfill(3)
             item["title"] = "Renderer change " + str(n)
@@ -334,10 +336,10 @@ class SignedBatchKnowledgeTests(unittest.TestCase):
         self._publish()
         result = batch.lookup_batch(self.root, [query()])
         self.assertEqual("found", result["results"][0]["status"])
-        self.assertEqual(8, result["results"][0]["matchingCount"])
+        self.assertEqual(16, result["results"][0]["matchingCount"])
         self.assertEqual(batch.MAX_CARDS_PER_QUERY, len(result["results"][0]["knowledge"]))
         self.assertTrue(result["truncation"]["truncated"])
-        self.assertEqual(8 - batch.MAX_CARDS_PER_QUERY, result["truncation"]["omittedRecords"])
+        self.assertEqual(16 - batch.MAX_CARDS_PER_QUERY, result["truncation"]["omittedRecords"])
 
     def test_full_output_respects_bytes_and_sorting_with_multiple_queries(self):
         cards = []
@@ -363,3 +365,4 @@ class SignedBatchKnowledgeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -46,7 +46,9 @@ class NativeKnowledgeContractTests(unittest.TestCase):
         self.assertEqual("major-line-candidate",
                          knowledge.query_match(row, "react-dom", "18.0.0", "18.3.2"))
         self.assertIsNone(knowledge.query_match(row, "react", "18.2.0", "18.3.1"))
-        self.assertIsNone(knowledge.query_match(row, "react-dom", "17.0.0", "18.3.1"))
+        self.assertEqual("intermediate-transition-candidate",
+                         knowledge.query_match(row, "react-dom", "17.0.0", "18.3.1"))
+        self.assertIsNone(knowledge.query_match(row, "react-dom", "17.0.0", "18.0.0"))
         self.assertTrue(knowledge.projection(row, "major-line-candidate")["requiresProjectVerification"])
         self.assertEqual("ADVISORY_ONLY",
                          knowledge.projection(row, "verified-exact-transition")["authority"])
@@ -112,3 +114,4 @@ class NativeKnowledgeContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

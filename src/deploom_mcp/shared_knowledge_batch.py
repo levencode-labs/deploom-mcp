@@ -17,12 +17,15 @@ from deploom_mcp.host_evidence_policy import cached_knowledge_disabled
 
 from . import private_knowledge_snapshot as private
 from . import shared_records_v2 as signed
+from . import shared_records_v3 as scoped
 from .knowledge_contract_v2 import MANAGERS, PKG, SOURCE, VERSION, projection, query_match
 
 MAX_QUERIES = 32
 MAX_INPUT_BYTES = 12_288
 MAX_OUTPUT_BYTES = 65_536
-MAX_CARDS_PER_QUERY = 3
+MAX_CARDS_PER_QUERY = 8
+_EVIDENCE_ORDER = {level: index for index, level in enumerate((
+    "fixture-behavior", "typecheck", "module-load", "source-inspection", "source-pinned-metadata", "UNKNOWN"))}
 REQUIRED = frozenset({"package", "from_version", "to_version", "package_manager"})
 
 
@@ -135,11 +138,29 @@ def _set_findings(row, records, source_pattern):
             findings.append(card)
     findings.sort(key=lambda card: (
         0 if card["matchStrength"] == "verified-exact-transition" else 1,
+        _EVIDENCE_ORDER[card["evidenceScope"]["level"]],
+        tuple(int(part) for part in card["testedTransition"]["to"].split("-", 1)[0].split(".")),
         card["kind"], card["recordId"]))
+    # Group only identical recommendations/conditions, retaining the strongest
+    # exact receipt first and disclosing the other source-record identities.
+    groups = {}
+    for card in findings:
+        identity = json.dumps({key: card[key] for key in
+                               ("kind", "title", "summary", "conditions", "actions", "verification")},
+                              sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+        groups.setdefault(identity, []).append(card)
+    distinct = []
+    for cards in groups.values():
+        card = cards[0]
+        card["relatedRecordCount"] = len(cards) - 1
+        card["relatedRecordIds"] = [other["recordId"] for other in cards[1:9]]
+        distinct.append(card)
     row["status"] = "found" if findings else "no-matching-record"
-    row["matchingCount"] = len(findings)
-    row["knowledge"] = findings[:MAX_CARDS_PER_QUERY]
-    row["omittedCount"] = len(findings) - len(row["knowledge"])
+    row["matchingRecordCount"] = len(findings)
+    row["matchingCount"] = len(distinct)
+    row["deduplicatedCount"] = len(findings) - len(distinct)
+    row["knowledge"] = distinct[:MAX_CARDS_PER_QUERY]
+    row["omittedCount"] = len(distinct) - len(row["knowledge"])
 
 
 def _attach_private(response):
@@ -181,10 +202,18 @@ def lookup_batch(root, requests):
 
 
 def _lookup_public(root, requests):
+    for reader in (scoped, signed):
+        result = _lookup_edition(root, requests, reader)
+        if result["status"] == "ready":
+            return result
+    return _status_only(requests, "snapshot-unavailable")
+
+
+def _lookup_edition(root, requests, signed):
     if not (root / signed.DB).is_file():
         return _status_only(requests, "snapshot-unavailable")
     response = _status_only(requests, "ready", source="verified-pages")
-    response["snapshotSchema"] = 2
+    response["snapshotSchema"] = signed.SCHEMA
     try:
         with closing(sqlite3.connect((root / signed.DB).resolve().as_uri() + "?mode=ro", uri=True)) as db:
             trusted = signed._read(db)
@@ -217,3 +246,4 @@ def _lookup_public(root, requests):
         # do not expose *any* tentative knowledge from this edition.
         return _status_only(requests, "snapshot-unavailable")
     return response
+

@@ -218,7 +218,10 @@ class OfflineCoverageEndToEndTests(unittest.TestCase):
             self.assertCountEqual(requests_seen, [("registry.npmjs.org", "/" + name.replace("/", "%2F")) for name in packages])
             requests_seen.clear()
             self.assertEqual(plan(), cold)
-            self.assertEqual(requests_seen, [])
+            # Valid metadata stays cached; an identity-mismatched packument must
+            # be rejected and retried, without granting advisory egress.
+            self.assertEqual(requests_seen, [("registry.npmjs.org", "/fixture-wrong-name")])
+            self.assertEqual(bulk_requests, [])
             with patch.dict(os.environ, {"DEPLOOM_MCP_OSV_DIR": str(self.root / "empty-osv"),
                                          "DEPLOOM_MCP_PUBLIC_ADVISORY_FALLBACK": "1"}):
                 fallback = plan()

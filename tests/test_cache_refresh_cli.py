@@ -10,7 +10,7 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 
 from deploom_mcp import public_cache as cache
-from deploom_mcp import shared_records
+from deploom_mcp import shared_records, shared_records_v3
 from deploom_mcp import shared_records_v2 as signed
 import test_public_cache as osv_fixtures
 import test_shared_records_v2 as knowledge_fixtures
@@ -43,7 +43,7 @@ class CacheRefreshCliTests(unittest.TestCase):
             raise HTTPError(url, 304, "Not modified", {}, None)
         return _Response(body, etag)
 
-    def _invoke(self, *, now=None, legacy_ok=True):
+    def _invoke(self, *, now=None, legacy_ok=True, scoped_ok=True):
         class Opener:
             open = staticmethod(self._open)
 
@@ -63,6 +63,7 @@ class CacheRefreshCliTests(unittest.TestCase):
               patch("urllib.request.build_opener", return_value=Opener()),
               patch.object(cache, "build_opener", return_value=Opener()),
               patch.object(shared_records, "refresh", return_value=legacy_ok) as legacy,
+              patch.object(shared_records_v3, "refresh", return_value=scoped_ok),
               contextlib.redirect_stdout(output), clock, warnings.catch_warnings()):
             warnings.simplefilter("ignore", RuntimeWarning)
             try:
@@ -80,7 +81,7 @@ class CacheRefreshCliTests(unittest.TestCase):
         result = json.loads(output)
         self.assertEqual(result["schemaVersion"], 1)
         self.assertEqual(result["status"], expected_status)
-        self.assertEqual(set(result["sources"]), {"osv", "knowledgeV2", "knowledgeV1"})
+        self.assertEqual(set(result["sources"]), {"osv", "knowledgeV3", "knowledgeV2", "knowledgeV1"})
         self.assertEqual(legacy_calls, 1, "Legacy refresh must be attempted independently too")
         return result["sources"]
 
@@ -102,6 +103,13 @@ class CacheRefreshCliTests(unittest.TestCase):
     def test_bad_new_signed_shard_is_partial_and_preserves_previous_knowledge(self):
         self.assertTrue(signed.refresh(self.records_dir, self.knowledge.fetch))
         self.knowledge.index["revision"] += 1
+        self.knowledge.record["summary"] = "A newly approved source-exact observation."
+        self.knowledge.shard = knowledge_fixtures.encode({"schema": 2, "records": [self.knowledge.record]})
+        self.knowledge.shard_sha = signed.digest(self.knowledge.shard)
+        self.knowledge.path = f"shards/{self.knowledge.bucket}/{self.knowledge.shard_sha}.json"
+        self.knowledge.index["buckets"][self.knowledge.bucket] = [{
+            "path": self.knowledge.path, "sha256": self.knowledge.shard_sha,
+            "bytes": len(self.knowledge.shard), "records": 1}]
         self.knowledge._update()
         self.knowledge.resources[signed.BASE + self.knowledge.path] = self.knowledge.shard[:-1]
         observed = self._invoke()
@@ -119,7 +127,7 @@ class CacheRefreshCliTests(unittest.TestCase):
 
     def test_all_sources_fail_exit_two_without_false_success(self):
         self.knowledge.resources[signed.BASE + "index.sig"] = b"\0" * 64
-        observed = self._invoke(now=self.osv.manifest["expires"] + 1, legacy_ok=False)
+        observed = self._invoke(now=self.osv.manifest["expires"] + 1, legacy_ok=False, scoped_ok=False)
         sources = self._result(observed, 2, "FAILED")
         self.assertTrue(all(row["status"] == "UNKNOWN" for row in sources.values()))
         self.assertEqual(sources["osv"]["reason"], "SNAPSHOT_STALE")

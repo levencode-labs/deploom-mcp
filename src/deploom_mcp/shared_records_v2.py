@@ -24,6 +24,7 @@ from .record_contract import parse
 BASE = "https://levencode-labs.github.io/deploom-npm/v2/"
 DOMAIN = b"DepLoom public migration records v2\x00"
 DB = "signed-records-v2.sqlite"
+SCHEMA = 2
 INDEX_LIMIT = 2_000_000
 SHARD_LIMIT = 256_000
 TOTAL_LIMIT = 32_000_000
@@ -38,16 +39,16 @@ def digest(raw):
     return hashlib.sha256(raw).hexdigest()
 
 
-def verified_index(raw, signature):
+def verified_index(raw, signature, *, domain=DOMAIN, schema=SCHEMA):
     if (not isinstance(raw, bytes) or len(raw) > INDEX_LIMIT
             or not isinstance(signature, bytes) or len(signature) != 64):
         raise ValueError("Invalid v2 signed index size")
     pin = bytes.fromhex(public_key_file.read_text(encoding="ascii").strip())
-    Ed25519PublicKey.from_public_bytes(pin).verify(signature, DOMAIN + hashlib.sha256(raw).digest())
+    Ed25519PublicKey.from_public_bytes(pin).verify(signature, domain + hashlib.sha256(raw).digest())
     data = parse(raw)
     if (not isinstance(data, dict)
             or set(data) != {"schema", "revision", "sourceSha256", "recordCount", "buckets"}
-            or type(data["schema"]) is not int or data["schema"] != 2
+            or type(data["schema"]) is not int or data["schema"] != schema
             or type(data["revision"]) is not int or not 25 <= data["revision"] < 2**53
             or type(data["recordCount"]) is not int or not 1 <= data["recordCount"] <= 50_000
             or not isinstance(data["sourceSha256"], str) or not HEX.fullmatch(data["sourceSha256"])
@@ -96,12 +97,12 @@ def verified_shard(raw, desc, bucket):
     return data["records"]
 
 
-def _read(db):
+def _read(db, *, domain=DOMAIN, schema=SCHEMA):
     row = db.execute("SELECT raw,sig,checked FROM edition WHERE id=1").fetchone()
     if not row:
         return None
     try:
-        return verified_index(row[0], row[1]), row
+        return verified_index(row[0], row[1], domain=domain, schema=schema), row
     except ERRORS:
         return None
 
@@ -112,38 +113,39 @@ def _tables(db):
     db.execute("CREATE TABLE IF NOT EXISTS shard (path TEXT PRIMARY KEY,data BLOB NOT NULL)")
 
 
-def refresh(root, fetch=get, *, if_due=False):
+def refresh(root, fetch=get, *, if_due=False, base=BASE, database=DB, domain=DOMAIN, schema=SCHEMA):
     """Download a complete publisher-chosen edition or retain the last trusted one."""
     if mirror_knowledge_only() or any(os.environ.get(flag) == "1" for flag in
            ("DEPLOOM_MCP_LOCAL_CACHE_ONLY", "DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE",
-            "DEPLOOM_MCP_MIGRATION_OFFLINE")):
+            "DEPLOOM_MCP_MIGRATION_OFFLINE", "DEPLOOM_MCP_KNOWLEDGE_DISABLED")):
         return False
-    return _refresh(root, lambda path, limit: fetch(BASE + path, limit)[0], if_due=if_due)
+    return _refresh(root, lambda path, limit: fetch(base + path, limit)[0], if_due=if_due,
+                    database=database, domain=domain, schema=schema)
 
 
-def refresh_from_mirror(root, read, *, if_due=False):
+def refresh_from_mirror(root, read, *, if_due=False, database=DB, domain=DOMAIN, schema=SCHEMA):
     """Import signed bytes from a host-configured mirror using relative paths."""
     if any(os.environ.get(flag) == "1" for flag in
            ("DEPLOOM_MCP_LOCAL_CACHE_ONLY", "DEPLOOM_MCP_MIGRATION_OFFLINE", "DEPLOOM_MCP_KNOWLEDGE_DISABLED")):
         return False
-    return _refresh(root, read, if_due=if_due)
+    return _refresh(root, read, if_due=if_due, database=database, domain=domain, schema=schema)
 
 
-def _refresh(root, read, *, if_due):
+def _refresh(root, read, *, if_due, database=DB, domain=DOMAIN, schema=SCHEMA):
     try:
         root = Path(root)
         root.mkdir(parents=True, exist_ok=True)
-        with closing(sqlite3.connect(root / DB, timeout=60)) as db:
+        with closing(sqlite3.connect(root / database, timeout=60)) as db:
             _tables(db)
             db.commit()
             db.execute("BEGIN IMMEDIATE")
-            old = _read(db)
+            old = _read(db, domain=domain, schema=schema)
             if old and if_due and 0 <= time.time() - old[1][2] < 86400:
                 db.rollback()
                 return True
             raw = read("index.json", INDEX_LIMIT)
             signature = read("index.sig", 64)
-            index = verified_index(raw, signature)
+            index = verified_index(raw, signature, domain=domain, schema=schema)
             if old and (index["revision"] < old[0]["revision"]
                         or index["revision"] == old[0]["revision"] and raw != old[1][0]):
                 raise ValueError("Signed revision rollback or substitution")
@@ -152,8 +154,16 @@ def _refresh(root, read, *, if_due):
             count = 0
             for bucket, descriptors in index["buckets"].items():
                 for desc in descriptors:
-                    payload = read(desc["path"], desc["bytes"])
-                    records = verified_shard(payload, desc, bucket)
+                    cached = db.execute("SELECT data FROM shard WHERE path=?", (desc["path"],)).fetchone()
+                    payload = cached[0] if cached is not None else None
+                    if payload is not None:
+                        try:
+                            records = verified_shard(payload, desc, bucket)
+                        except ERRORS:
+                            payload = None
+                    if payload is None:
+                        payload = read(desc["path"], desc["bytes"])
+                        records = verified_shard(payload, desc, bucket)
                     for record in records:
                         if record["id"] in all_ids:
                             raise ValueError("Knowledge ID duplicated across shards")
@@ -173,23 +183,23 @@ def _refresh(root, read, *, if_due):
         return False
 
 
-def lookup(root, package, from_version, to_version, *, manager="npm"):
+def lookup(root, package, from_version, to_version, *, manager="npm", database=DB, domain=DOMAIN, schema=SCHEMA):
     """Return None only if no complete locally trusted v2 edition is available."""
     if (not isinstance(package, str) or not PKG.fullmatch(package)
             or not isinstance(from_version, str) or not VERSION.fullmatch(from_version)
             or not isinstance(to_version, str) or not VERSION.fullmatch(to_version)):
         return None
-    if root is None or not (Path(root) / DB).is_file():
+    if root is None or not (Path(root) / database).is_file():
         return None
     try:
-        with closing(sqlite3.connect((Path(root) / DB).resolve().as_uri() + "?mode=ro", uri=True)) as db:
-            old = _read(db)
+        with closing(sqlite3.connect((Path(root) / database).resolve().as_uri() + "?mode=ro", uri=True)) as db:
+            old = _read(db, domain=domain, schema=schema)
             if not old:
                 return None
             index = old[0]
             bucket = hashlib.sha256(package.encode("ascii")).hexdigest()[:2]
             result = {"ok": True, "authority": "ADVISORY_ONLY", "status": "no-matching-record",
-                      "snapshotSource": "verified-pages", "snapshotSchema": 2,
+                      "snapshotSource": "verified-pages", "snapshotSchema": schema,
                       "knowledge": [], "observations": [], "recipes": []}
             for desc in index["buckets"].get(bucket, []):
                 shard = db.execute("SELECT data FROM shard WHERE path=?", (desc["path"],)).fetchone()
@@ -203,3 +213,4 @@ def lookup(root, package, from_version, to_version, *, manager="npm"):
             return result
     except ERRORS:
         return None
+

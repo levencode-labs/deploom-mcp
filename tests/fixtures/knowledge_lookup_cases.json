@@ -1,0 +1,559 @@
+{
+  "sourceRepository": "levencode-labs/deploom-npm",
+  "sourceCommit": "fd0e5fdecf167aed25d3b0d59df7873bcaf5ecf3",
+  "sourceCorpusSha256": "adcc64bd82ef8db6a7b7e8f891616d620af2e3573d3c6f9e1529c6588d81f728",
+  "records": [
+    {
+      "schema": 2,
+      "id": "typescript58-import-attributes",
+      "kind": "breaking-change",
+      "package": "typescript",
+      "fromMajor": 5,
+      "toMajor": 5,
+      "packageManagers": [
+        "npm"
+      ],
+      "verifiedTransitions": [
+        {
+          "from": "5.7.3",
+          "to": "5.8.2"
+        }
+      ],
+      "title": "Use import attributes for NodeNext JSON imports",
+      "summary": "TypeScript 5.8 reports TS2880 for a static JSON import with an import assertion under NodeNext.",
+      "conditions": [
+        "An ESM file in a NodeNext project uses import ... assert { type: 'json' }."
+      ],
+      "actions": [
+        "Replace assert with with and verify the runtime accepts import attributes."
+      ],
+      "verification": [
+        "Run the owning typecheck and load the emitted module using the target Node version."
+      ],
+      "negativeControls": [
+        {
+          "name": "hold-previous-usage",
+          "expected": "reject",
+          "fixtureAssertion": "assert.notEqual(broken.status, 0,"
+        }
+      ],
+      "evidence": {
+        "source": "https://github.com/levencode-labs/deploom-npm/blob/62b0c9eee41f4a80901b393fa7fd8a53bfe78e6c/fixtures/typescript-csv-transitions/check.cjs",
+        "fixtureSha256": "67d66a5c4e0fdec54d7c2fa26ce252bfe8cb6f113c0211e2cb20768ed3f84c91",
+        "claim": {
+          "package": "typescript",
+          "from": "5.7.3",
+          "to": "5.8.2",
+          "check": "typecheck",
+          "outcome": "passed"
+        }
+      }
+    },
+    {
+      "schema": 2,
+      "id": "typescript59-buffer-source",
+      "kind": "breaking-change",
+      "package": "typescript",
+      "fromMajor": 5,
+      "toMajor": 5,
+      "packageManagers": [
+        "npm"
+      ],
+      "verifiedTransitions": [
+        {
+          "from": "5.8.3",
+          "to": "5.9.2"
+        }
+      ],
+      "title": "Use ArrayBuffer-backed bytes for Blob parts",
+      "summary": "TypeScript 5.9 rejects a Uint8Array<ArrayBufferLike> in a BlobPart position.",
+      "conditions": [
+        "The project types input as Uint8Array and passes it to a DOM API requiring ArrayBuffer-backed bytes."
+      ],
+      "actions": [
+        "Keep the narrower buffer type if guaranteed, or copy the view with new Uint8Array(bytes) before creating the Blob."
+      ],
+      "verification": [
+        "Rerun typecheck and verify that the Blob preserves the incoming byte range."
+      ],
+      "negativeControls": [
+        {
+          "name": "hold-previous-usage",
+          "expected": "reject",
+          "fixtureAssertion": "assert.notEqual(broken.status, 0,"
+        }
+      ],
+      "evidence": {
+        "source": "https://github.com/levencode-labs/deploom-npm/blob/62b0c9eee41f4a80901b393fa7fd8a53bfe78e6c/fixtures/typescript-csv-transitions/check.cjs",
+        "fixtureSha256": "67d66a5c4e0fdec54d7c2fa26ce252bfe8cb6f113c0211e2cb20768ed3f84c91",
+        "claim": {
+          "package": "typescript",
+          "from": "5.8.3",
+          "to": "5.9.2",
+          "check": "typecheck",
+          "outcome": "passed"
+        }
+      }
+    },
+    {
+      "schema": 2,
+      "id": "batch001-jsdom-23.0.0-25.0.0",
+      "kind": "breaking-change",
+      "package": "jsdom",
+      "fromMajor": 23,
+      "toMajor": 25,
+      "packageManagers": [
+        "npm"
+      ],
+      "verifiedTransitions": [
+        {
+          "from": "23.0.0",
+          "to": "25.0.0"
+        }
+      ],
+      "title": "Use the DOM realm for EventTarget checks",
+      "summary": "An EventTarget from a separate jsdom script realm no longer inherits from the Node host Object after the prototype change.",
+      "conditions": [
+        "The tests use runScripts: 'outside-only' or 'dangerously' and compare realm-created objects against host constructors."
+      ],
+      "actions": [
+        "Use constructors from the object’s window, or explicitly check for the needed behavior across realms."
+      ],
+      "verification": [
+        "Run the owning DOM tests, including a separate jsdom realm and the default realm if both are used."
+      ],
+      "negativeControls": [
+        {
+          "name": "hold-old-contract",
+          "expected": "reject",
+          "fixtureAssertion": "assert.deepEqual(realm(end), { host: false, local: true });"
+        }
+      ],
+      "evidence": {
+        "source": "https://github.com/levencode-labs/deploom-npm/blob/32dfac84bd1534932a2d1cc40c559423338b99fd/fixtures/npm-migrations-batch-001/check.cjs",
+        "fixtureSha256": "992af1f4c280aa6f1e3e453fac8dbc38aedcbd936eb6ebd5b0a8068347bd084f",
+        "claim": {
+          "package": "jsdom",
+          "from": "23.0.0",
+          "to": "25.0.0",
+          "check": "test",
+          "outcome": "passed"
+        }
+      }
+    },
+    {
+      "schema": 2,
+      "id": "batch001-jsdom-23.0.0-26.0.0",
+      "kind": "breaking-change",
+      "package": "jsdom",
+      "fromMajor": 23,
+      "toMajor": 26,
+      "packageManagers": [
+        "npm"
+      ],
+      "verifiedTransitions": [
+        {
+          "from": "23.0.0",
+          "to": "26.0.0"
+        }
+      ],
+      "title": "Use the DOM realm for EventTarget checks",
+      "summary": "An EventTarget from a separate jsdom script realm no longer inherits from the Node host Object after the prototype change.",
+      "conditions": [
+        "The tests use runScripts: 'outside-only' or 'dangerously' and compare realm-created objects against host constructors."
+      ],
+      "actions": [
+        "Use constructors from the object’s window, or explicitly check for the needed behavior across realms."
+      ],
+      "verification": [
+        "Run the owning DOM tests, including a separate jsdom realm and the default realm if both are used."
+      ],
+      "negativeControls": [
+        {
+          "name": "hold-old-contract",
+          "expected": "reject",
+          "fixtureAssertion": "assert.equal(result(end), false);"
+        }
+      ],
+      "evidence": {
+        "source": "https://github.com/levencode-labs/deploom-npm/blob/32dfac84bd1534932a2d1cc40c559423338b99fd/fixtures/npm-migrations-batch-001/check.cjs",
+        "fixtureSha256": "992af1f4c280aa6f1e3e453fac8dbc38aedcbd936eb6ebd5b0a8068347bd084f",
+        "claim": {
+          "package": "jsdom",
+          "from": "23.0.0",
+          "to": "26.0.0",
+          "check": "test",
+          "outcome": "passed"
+        }
+      }
+    },
+    {
+      "schema": 2,
+      "id": "batch001-jsdom-23.0.0-27.0.0",
+      "kind": "breaking-change",
+      "package": "jsdom",
+      "fromMajor": 23,
+      "toMajor": 27,
+      "packageManagers": [
+        "npm"
+      ],
+      "verifiedTransitions": [
+        {
+          "from": "23.0.0",
+          "to": "27.0.0"
+        }
+      ],
+      "title": "Migrate jsdom VirtualConsole forwarding",
+      "summary": "The old sendTo method forwards page logs on the source, and is absent in the target. forwardTo preserves the tested log forwarding.",
+      "conditions": [
+        "Test environment code configures VirtualConsole.sendTo, especially with omitJSDOMErrors."
+      ],
+      "actions": [
+        "Use forwardTo with jsdomErrors: 'none' when the older option intentionally suppressed forwarding. Keep explicit listeners if they are used for assertions."
+      ],
+      "verification": [
+        "Run the owning DOM tests and confirm page logs and relevant jsdom errors still reach their intended consumers."
+      ],
+      "negativeControls": [
+        {
+          "name": "hold-old-contract",
+          "expected": "reject",
+          "fixtureAssertion": "assert.throws(() => legacyConsole(end), /sendTo is not a function/);"
+        }
+      ],
+      "evidence": {
+        "source": "https://github.com/levencode-labs/deploom-npm/blob/32dfac84bd1534932a2d1cc40c559423338b99fd/fixtures/npm-migrations-batch-001/check.cjs",
+        "fixtureSha256": "992af1f4c280aa6f1e3e453fac8dbc38aedcbd936eb6ebd5b0a8068347bd084f",
+        "claim": {
+          "package": "jsdom",
+          "from": "23.0.0",
+          "to": "27.0.0",
+          "check": "test",
+          "outcome": "passed"
+        }
+      }
+    },
+    {
+      "schema": 2,
+      "id": "batch001-jsdom-23.0.0-31.0.0",
+      "kind": "breaking-change",
+      "package": "jsdom",
+      "fromMajor": 23,
+      "toMajor": 31,
+      "packageManagers": [
+        "npm"
+      ],
+      "verifiedTransitions": [
+        {
+          "from": "23.0.0",
+          "to": "31.0.0"
+        }
+      ],
+      "title": "Adopt the new optional jsdom canvas backend",
+      "summary": "The target no longer declares canvas and instead declares @napi-rs/canvas with range ^1.0.13. The fixture verifies the manifest change and a DOM without the native peer.",
+      "conditions": [
+        "The tests use optional jsdom canvas drawing, image decoding, or custom fonts with canvas ^3.0.0."
+      ],
+      "actions": [
+        "Install a compatible @napi-rs/canvas release. Review direct backend calls and avoid assuming unchanged encoded output."
+      ],
+      "verification": [
+        "Install on the actual CI platform and rerun drawing, font, image decoding, and snapshot assertions."
+      ],
+      "negativeControls": [
+        {
+          "name": "hold-old-contract",
+          "expected": "reject",
+          "fixtureAssertion": "assert.equal(end.manifest.peerDependencies.canvas, undefined);"
+        }
+      ],
+      "evidence": {
+        "source": "https://github.com/levencode-labs/deploom-npm/blob/32dfac84bd1534932a2d1cc40c559423338b99fd/fixtures/npm-migrations-batch-001/check.cjs",
+        "fixtureSha256": "992af1f4c280aa6f1e3e453fac8dbc38aedcbd936eb6ebd5b0a8068347bd084f",
+        "claim": {
+          "package": "jsdom",
+          "from": "23.0.0",
+          "to": "31.0.0",
+          "check": "peer-compatibility",
+          "outcome": "passed"
+        }
+      }
+    },
+    {
+      "schema": 2,
+      "id": "batch001-jsdom-24.0.0-27.0.0",
+      "kind": "breaking-change",
+      "package": "jsdom",
+      "fromMajor": 24,
+      "toMajor": 27,
+      "packageManagers": [
+        "npm"
+      ],
+      "verifiedTransitions": [
+        {
+          "from": "24.0.0",
+          "to": "27.0.0"
+        }
+      ],
+      "title": "Migrate jsdom VirtualConsole forwarding",
+      "summary": "The old sendTo method forwards page logs on the source, and is absent in the target. forwardTo preserves the tested log forwarding.",
+      "conditions": [
+        "Test environment code configures VirtualConsole.sendTo, especially with omitJSDOMErrors."
+      ],
+      "actions": [
+        "Use forwardTo with jsdomErrors: 'none' when the older option intentionally suppressed forwarding. Keep explicit listeners if they are used for assertions."
+      ],
+      "verification": [
+        "Run the owning DOM tests and confirm page logs and relevant jsdom errors still reach their intended consumers."
+      ],
+      "negativeControls": [
+        {
+          "name": "hold-old-contract",
+          "expected": "reject",
+          "fixtureAssertion": "assert.throws(() => legacyConsole(end), /sendTo is not a function/);"
+        }
+      ],
+      "evidence": {
+        "source": "https://github.com/levencode-labs/deploom-npm/blob/32dfac84bd1534932a2d1cc40c559423338b99fd/fixtures/npm-migrations-batch-001/check.cjs",
+        "fixtureSha256": "992af1f4c280aa6f1e3e453fac8dbc38aedcbd936eb6ebd5b0a8068347bd084f",
+        "claim": {
+          "package": "jsdom",
+          "from": "24.0.0",
+          "to": "27.0.0",
+          "check": "test",
+          "outcome": "passed"
+        }
+      }
+    },
+    {
+      "schema": 2,
+      "id": "batch001-jsdom-27.0.0-28.0.0",
+      "kind": "breaking-change",
+      "package": "jsdom",
+      "fromMajor": 27,
+      "toMajor": 28,
+      "packageManagers": [
+        "npm"
+      ],
+      "verifiedTransitions": [
+        {
+          "from": "27.0.0",
+          "to": "28.0.0"
+        }
+      ],
+      "title": "Replace jsdom ResourceLoader instances",
+      "summary": "The ResourceLoader export disappears in the target. A resources options object preserves the fixture’s navigator.userAgent value.",
+      "conditions": [
+        "The project passes a ResourceLoader instance to JSDOM to configure an agent or overrides resource-loading behavior."
+      ],
+      "actions": [
+        "Move settings such as userAgent into resources options. Follow the release guide to port any custom fetch overrides to supported interceptors."
+      ],
+      "verification": [
+        "Rerun tests for page resources and assert the resulting agent, response, and error handling."
+      ],
+      "negativeControls": [
+        {
+          "name": "hold-old-contract",
+          "expected": "reject",
+          "fixtureAssertion": "assert.throws(() => new (end.js().ResourceLoader)({ userAgent }), /not a constructor/);"
+        }
+      ],
+      "evidence": {
+        "source": "https://github.com/levencode-labs/deploom-npm/blob/32dfac84bd1534932a2d1cc40c559423338b99fd/fixtures/npm-migrations-batch-001/check.cjs",
+        "fixtureSha256": "992af1f4c280aa6f1e3e453fac8dbc38aedcbd936eb6ebd5b0a8068347bd084f",
+        "claim": {
+          "package": "jsdom",
+          "from": "27.0.0",
+          "to": "28.0.0",
+          "check": "test",
+          "outcome": "passed"
+        }
+      }
+    },
+    {
+      "schema": 2,
+      "id": "batch001-jsdom-27.0.0-29.0.0",
+      "kind": "breaking-change",
+      "package": "jsdom",
+      "fromMajor": 27,
+      "toMajor": 29,
+      "packageManagers": [
+        "npm"
+      ],
+      "verifiedTransitions": [
+        {
+          "from": "27.0.0",
+          "to": "29.0.0"
+        }
+      ],
+      "title": "Replace jsdom ResourceLoader instances",
+      "summary": "The ResourceLoader export disappears in the target. A resources options object preserves the fixture’s navigator.userAgent value.",
+      "conditions": [
+        "The project passes a ResourceLoader instance to JSDOM to configure an agent or overrides resource-loading behavior."
+      ],
+      "actions": [
+        "Move settings such as userAgent into resources options. Follow the release guide to port any custom fetch overrides to supported interceptors."
+      ],
+      "verification": [
+        "Rerun tests for page resources and assert the resulting agent, response, and error handling."
+      ],
+      "negativeControls": [
+        {
+          "name": "hold-old-contract",
+          "expected": "reject",
+          "fixtureAssertion": "assert.throws(() => new (end.js().ResourceLoader)({ userAgent }), /not a constructor/);"
+        }
+      ],
+      "evidence": {
+        "source": "https://github.com/levencode-labs/deploom-npm/blob/32dfac84bd1534932a2d1cc40c559423338b99fd/fixtures/npm-migrations-batch-001/check.cjs",
+        "fixtureSha256": "992af1f4c280aa6f1e3e453fac8dbc38aedcbd936eb6ebd5b0a8068347bd084f",
+        "claim": {
+          "package": "jsdom",
+          "from": "27.0.0",
+          "to": "29.0.0",
+          "check": "test",
+          "outcome": "passed"
+        }
+      }
+    },
+    {
+      "schema": 2,
+      "id": "batch004-typescript-5.0.4-5.1.3",
+      "kind": "breaking-change",
+      "package": "typescript",
+      "fromMajor": 5,
+      "toMajor": 5,
+      "packageManagers": [
+        "npm"
+      ],
+      "verifiedTransitions": [
+        {
+          "from": "5.0.4",
+          "to": "5.1.3"
+        }
+      ],
+      "title": "Align Node.js with the target engine range",
+      "summary": "The published source accepts Node.js 12.22.12 under >=12.20. The target excludes it under >=14.17.",
+      "conditions": [
+        "Local development, deployment, or CI retains a Node.js version accepted by the source but outside >=14.17."
+      ],
+      "actions": [
+        "Update the runtime pins to a supported Node.js version in >=14.17 before installing the target."
+      ],
+      "verification": [
+        "Check the actual runtime in each environment, install with engine-strict, and run the owning project checks."
+      ],
+      "negativeControls": [
+        {
+          "name": "hold-old-contract",
+          "expected": "reject",
+          "fixtureAssertion": "assert.deepEqual(result, expected[i].report);"
+        }
+      ],
+      "evidence": {
+        "source": "https://github.com/levencode-labs/deploom-npm/blob/91470441ae9affc42168792ba2b81c1602ea397c/fixtures/npm-migrations-batch-004/check.cjs",
+        "fixtureSha256": "9c689d8ffce513186bce7a2dd4a0ce820da14b2d4575439a2e98322d02c3452c",
+        "claim": {
+          "package": "typescript",
+          "from": "5.0.4",
+          "to": "5.1.3",
+          "check": "test",
+          "outcome": "passed"
+        }
+      }
+    },
+    {
+      "schema": 2,
+      "id": "batch004-typescript-5.1.6-5.2.2",
+      "kind": "breaking-change",
+      "package": "typescript",
+      "fromMajor": 5,
+      "toMajor": 5,
+      "packageManagers": [
+        "npm"
+      ],
+      "verifiedTransitions": [
+        {
+          "from": "5.1.6",
+          "to": "5.2.2"
+        }
+      ],
+      "title": "Fix the source or compiler option rejected by the target",
+      "summary": "The exact target compiler emits TS5110 for a fixture accepted by the source. The updated fixture typechecks on 5.2.2.",
+      "conditions": [
+        "The compiler config uses moduleResolution Node16 with a different module mode."
+      ],
+      "actions": [
+        "Match the module and moduleResolution options to Node16."
+      ],
+      "verification": [
+        "Run the owning workspace's typecheck using its real compiler configuration."
+      ],
+      "negativeControls": [
+        {
+          "name": "hold-old-contract",
+          "expected": "reject",
+          "fixtureAssertion": "assert.deepEqual(result, expected[i].report);"
+        }
+      ],
+      "evidence": {
+        "source": "https://github.com/levencode-labs/deploom-npm/blob/91470441ae9affc42168792ba2b81c1602ea397c/fixtures/npm-migrations-batch-004/check.cjs",
+        "fixtureSha256": "9c689d8ffce513186bce7a2dd4a0ce820da14b2d4575439a2e98322d02c3452c",
+        "claim": {
+          "package": "typescript",
+          "from": "5.1.6",
+          "to": "5.2.2",
+          "check": "typecheck",
+          "outcome": "passed"
+        }
+      }
+    },
+    {
+      "schema": 2,
+      "id": "batch004-typescript-5.2.2-5.3.2",
+      "kind": "breaking-change",
+      "package": "typescript",
+      "fromMajor": 5,
+      "toMajor": 5,
+      "packageManagers": [
+        "npm"
+      ],
+      "verifiedTransitions": [
+        {
+          "from": "5.2.2",
+          "to": "5.3.2"
+        }
+      ],
+      "title": "Fix the source or compiler option rejected by the target",
+      "summary": "The exact target compiler emits TS2855 for a fixture accepted by the source. The updated fixture typechecks on 5.3.2.",
+      "conditions": [
+        "Subclass code accesses a superclass instance field through super."
+      ],
+      "actions": [
+        "Access the field through the instance or expose behavior through a superclass method."
+      ],
+      "verification": [
+        "Run the owning workspace's typecheck using its real compiler configuration."
+      ],
+      "negativeControls": [
+        {
+          "name": "hold-old-contract",
+          "expected": "reject",
+          "fixtureAssertion": "assert.deepEqual(result, expected[i].report);"
+        }
+      ],
+      "evidence": {
+        "source": "https://github.com/levencode-labs/deploom-npm/blob/91470441ae9affc42168792ba2b81c1602ea397c/fixtures/npm-migrations-batch-004/check.cjs",
+        "fixtureSha256": "9c689d8ffce513186bce7a2dd4a0ce820da14b2d4575439a2e98322d02c3452c",
+        "claim": {
+          "package": "typescript",
+          "from": "5.2.2",
+          "to": "5.3.2",
+          "check": "typecheck",
+          "outcome": "passed"
+        }
+      }
+    }
+  ]
+}

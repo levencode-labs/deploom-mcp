@@ -135,7 +135,10 @@ class SharedKnowledgeV2Tests(unittest.TestCase):
         candidate = v2.lookup(self.root, "react-dom", "18.1.0", "18.3.2")
         self.assertEqual("major-line-candidate", candidate["knowledge"][0]["matchStrength"])
         self.assertTrue(candidate["knowledge"][0]["requiresProjectVerification"])
-        self.assertEqual("no-matching-record", v2.lookup(self.root, "react-dom", "17.0.0", "18.3.1")["status"])
+        composed = v2.lookup(self.root, "react-dom", "17.0.0", "18.3.1")
+        self.assertEqual("intermediate-transition-candidate", composed["knowledge"][0]["matchStrength"])
+        self.assertTrue(composed["knowledge"][0]["requiresProjectVerification"])
+        self.assertEqual("no-matching-record", v2.lookup(self.root, "react-dom", "17.0.0", "18.0.0")["status"])
         self.assertEqual([], self.calls)
 
     def test_signature_corruption_rejected(self):
@@ -146,6 +149,14 @@ class SharedKnowledgeV2Tests(unittest.TestCase):
     def test_bad_shard_keeps_previous_trusted_edition(self):
         self.assertTrue(v2.refresh(self.root, self.fetch))
         self.index["revision"] = 30
+        # A valid local content-addressed shard is reusable. Exercise a genuinely
+        # new descriptor so the corrupted response must be fetched and rejected.
+        self.record["summary"] = "A new source-exact observation."
+        self.shard = encode({"schema": 2, "records": [self.record]})
+        self.shard_sha = hashlib.sha256(self.shard).hexdigest()
+        self.path = f"shards/{self.bucket}/{self.shard_sha}.json"
+        self.index["buckets"][self.bucket] = [{"path": self.path, "sha256": self.shard_sha,
+                                               "bytes": len(self.shard), "records": 1}]
         self._update()
         self.resources[v2.BASE + self.path] = self.shard[:-1]
         self.assertFalse(v2.refresh(self.root, self.fetch))
@@ -181,3 +192,4 @@ class SharedKnowledgeV2Tests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

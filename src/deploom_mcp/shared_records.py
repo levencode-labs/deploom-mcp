@@ -44,8 +44,14 @@ def bundled():
     return {kind: validate(kind, data[kind]) for kind in KINDS}
 
 
+def _public_refresh_disabled():
+    return mirror_knowledge_only() or any(os.environ.get(flag) == "1" for flag in
+        ("DEPLOOM_MCP_LOCAL_CACHE_ONLY", "DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE",
+         "DEPLOOM_MCP_MIGRATION_OFFLINE", "DEPLOOM_MCP_KNOWLEDGE_DISABLED"))
+
+
 def refresh(root, fetch=get, *, if_due=False):
-    if mirror_knowledge_only() or os.environ.get("DEPLOOM_MCP_LOCAL_CACHE_ONLY") == "1":
+    if _public_refresh_disabled():
         return False
     try:
         root.mkdir(parents=True, exist_ok=True)
@@ -90,14 +96,12 @@ def directory():
 
 
 def start_refresh():
-    if (mirror_knowledge_only()
-            or os.environ.get("DEPLOOM_MCP_LOCAL_CACHE_ONLY") == "1"
-            or os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") == "1"):
+    if _public_refresh_disabled():
         return
     def update():
-        from .shared_records_v2 import refresh as refresh_v2
+        from .shared_records_v3 import refresh_preferred
         while True:
-            refresh_v2(directory(), if_due=True)
+            refresh_preferred(directory(), if_due=True)
             time.sleep(86400)
     threading.Thread(target=update, daemon=True, name="deploom-records").start()
 
@@ -106,6 +110,10 @@ def lookup(root, package, from_version, to_version):
     if cached_knowledge_disabled():
         return {"ok": True, "authority": "ADVISORY_ONLY", "status": "disabled-by-policy",
                 "snapshotSource": "none", "knowledge": [], "observations": [], "recipes": []}
+    from .shared_records_v3 import lookup as lookup_v3
+    v3 = lookup_v3(root, package, from_version, to_version)
+    if v3 is not None:
+        return v3
     from .shared_records_v2 import lookup as lookup_v2
     v2 = lookup_v2(root, package, from_version, to_version)
     if v2 is not None:
@@ -136,3 +144,4 @@ def lookup(root, package, from_version, to_version):
                 result["observations"].append({key: row[key] for key in ("check", "outcome", "source")})
             result["status"] = "found"
     return result
+

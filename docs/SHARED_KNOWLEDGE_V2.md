@@ -1,6 +1,29 @@
-# DepLoom signed collective migration knowledge v2
+# DepLoom signed collective migration knowledge
 
-**Status: development-only draft; no live Pages publication or new wheel release.**
+Public v2 remains the compatibility format for existing clients. Scoped evidence
+uses a separate v3 edition so strict older clients can keep reading v2.
+
+## Compatible v2 and scoped v3 editions
+
+The publisher keeps the legacy corpus at `v2/`. Records with `evidenceScope`
+are published at `v3/` using index schema 3, native shard/record schema 2 and
+the signature domain `DepLoom public migration records v3\x00`. Both editions
+use the pinned publisher key, but have separate SQLite databases and rollback
+histories (`signed-records-v2.sqlite` and `signed-records-v3.sqlite`).
+
+New readers prefer a complete locally verified v3 edition. If v3 is missing or
+unusable, they can read v2 with evidence scope explicitly `UNKNOWN`. The
+background updater tries v3 first and falls back to refreshing v2. Neither
+path sends project package names or versions to the publisher. A bad update
+retains the last trusted edition in its own domain; a v2 signature cannot
+activate v3 or vice versa.
+
+Each refresh fetches the index and signature and verifies all referenced shard
+bytes. Locally cached content-addressed shards are reused only after checking
+their size, digest and native record contract. Missing or corrupt shards are
+downloaded again. An unchanged verified edition therefore needs no shard
+download, while every activation remains atomic. `DEPLOOM_MCP_KNOWLEDGE_DISABLED`
+also prevents public knowledge refresh and background updater startup.
 
 ## Reader contract
 
@@ -22,6 +45,40 @@ that exact transition. It does NOT prove the recipient's final dependency
 tree, build, runtime, security posture or policy coverage.
 `major-line-candidate` is only an advisory possibility for a different
 transition in the same major ranges and **must not be represented as verified**.
+Non-exact candidates require a stable forward query crossing the fixture's
+observed target version: `query.from < fixture.to <= query.to`. That version is
+a retrieval boundary, not a claim about the first release introducing a change.
+Downgrades and prereleases receive only their own exact fixture matches.
+
+`intermediate-transition-candidate` describes a fixture boundary crossed by a
+larger upgrade with different endpoint major versions. This composes review
+candidates, not proof that their combination works. For example, a jsdom 23 to
+31 query can include earlier VirtualConsole and ResourceLoader changes alongside
+the exact-pair canvas observation. Recipient conditions remain `UNKNOWN`.
+
+The batch reader and `projectImpact` retain up to eight distinct recommendations
+per query under the existing 64 KiB batch output cap. Identical kind, title,
+summary, conditions, actions and checks are grouped; source record counts and
+related IDs remain visible. `matchingRecordCount` counts matching receipts,
+`matchingCount` counts distinct recommendations, and `deduplicatedCount` records
+the difference. `omittedCount` discloses distinct recommendations omitted by
+the card or byte budget. The single-query evidence tool can inspect all receipts.
+
+An optional signed `evidenceScope` states which observation was retained:
+`source-pinned-metadata`, `source-inspection`, `module-load`, `typecheck` or
+`fixture-behavior`, bound to `retainedInputSha256`. It separately reports archive
+verification (`UNKNOWN`/`MISSING_ARCHIVE_EVIDENCE` or
+`VERIFIED`/`ARCHIVE_BYTES_VERIFIED`). Missing scope on legacy records is projected
+as `UNKNOWN`; a passed `claim.check` never implies a retained runtime result.
+Within the same exact-match priority, retained fixture behavior, typechecks and
+module loading precede source inspection and metadata observations. This orders
+review material without changing applicability or execution authority.
+`projectStatus` must stay `UNKNOWN` and `conditionsRequired` must stay true.
+Plans preserve these fields and explain `CONDITIONS_NOT_MACHINE_VERIFIED`.
+Plan applicability details separately show the matched package manager, requested
+and tested transitions, and declaration owners from the bound inventory. These
+observations do not satisfy semantic conditions or establish an unobserved
+runtime; those checks remain `UNKNOWN`.
 
 ## Transport/integrity
 
@@ -42,13 +99,13 @@ transition in the same major ranges and **must not be represented as verified**.
 ## Manual refresh results
 
 `python -m deploom_mcp.public_cache CACHE_DIRECTORY` attempts the OSV snapshot,
-signed knowledge v2 and legacy knowledge v1 independently. An unavailable or
+scoped knowledge v3, compatible knowledge v2 and legacy knowledge v1 independently. An unavailable or
 expired OSV edition does not prevent a valid signed knowledge update. Failed
 updates preserve the previously accepted data; an expired OSV snapshot remains
 `UNKNOWN` with reason `SNAPSHOT_STALE` and is never treated as fresh evidence.
 
 The command prints one JSON result with `schemaVersion: 1` and separate
-`sources.osv`, `sources.knowledgeV2` and `sources.knowledgeV1` entries. A source
+`sources.osv`, `sources.knowledgeV3`, `sources.knowledgeV2` and `sources.knowledgeV1` entries. A source
 reports `READY` after a successful refresh or `UNKNOWN` with a reason when its
 refresh failed. These entries describe this update attempt; they do not revoke
 an older verified knowledge edition that remains locally available.
@@ -107,3 +164,14 @@ the exact pinned consumer SHA, a real first-party fixture, a poisoned signed
 index and a separate manifest revision case. The production signing private
 key is never exposed to a CI pull-request job.
 
+
+## Offline status
+
+`python -m deploom_mcp.cache_status OSV_DIRECTORY --records-directory RECORDS_DIRECTORY`
+opens local data read-only, checks the OSV manifest/database and every signed
+knowledge shard, and reports each source independently. It performs no network
+requests and creates no cache files. `preferredKnowledgeSchema` is 3 for valid
+scoped knowledge, 2 for compatible legacy knowledge, or null when neither is
+usable. Status is `READY` when OSV and a native edition are usable; a missing
+v1 fallback does not make valid native knowledge unavailable. Expired OSV
+remains `UNKNOWN/SNAPSHOT_STALE`, even alongside `READY` knowledge.

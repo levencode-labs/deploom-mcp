@@ -1,7 +1,7 @@
 {
   "blueprintSchemaVersion": 2,
   "core": {
-    "contentSha256": "bb6da3ccbd5dbe2640ce826faf468ea3c4e5f0fb6d55e7094d794e43159d6133",
+    "contentSha256": "c42de75f997472f8dad46388af9f053c8352971bc51775289c3a57ffc48db2a1",
     "files": {
       "VERSION": "2698c63efcc74d9adc7a29889fc4ecc7fadfb58c4588db3f117f9d87cfaaff40",
       "analyze_verification_telemetry.py": "1ee235ef0b9cf275fe34c22cf16cb4049e88fb19953096ddaecbb73d7a700e6f",
@@ -49,7 +49,7 @@
       "dependency_audit_branch.py": "c556a4ce33f105eb10763e0d874e4f2a03043bb94744ab68336a063a5d779f15",
       "dependency_compatibility_evidence.py": "6233e7d8bedca194fd030fa883aac57d9c3d51e79a342cec21420b04f757d192",
       "dependency_interaction.py": "af9f4e3b2458f2d58e557b3e241aaf4bab4596c6fbf59a0b355d46bb7215196c",
-      "dependency_live_roadmap_generator.py": "95035c9da0c39c68a2aaf5fb43254e755326b95c2d6326400be6fde5174bacdc",
+      "dependency_live_roadmap_generator.py": "71251aa4dd3c67d629af4d81fec215903c4ddf5f70dfcc47006d0fec1b2245bd",
       "dependency_live_roadmap_worker.py": "1b76e6403c2964a45fd0fbca46031a0baa40bb5c3e4c6afdc943940973359aac",
       "dependency_release_branch.py": "072cec1182cf8d801fb9c727cd1266f0711f5eff49cb8799a304647ff17c87fe",
       "deploom_failure.py": "0f3d75cb02e3440379b736ab709cd916634a60e9f14d03b4be3cd14c162e8687",
@@ -113,7 +113,7 @@
       "proven_dependency_state.py": "675591dce5dcd8b59f301811ed1e8b4e12183289844369ce4a1ba0e4b27fc119",
       "public_npm_identity.py": "148f397e35f0cc727a073125c8d8f90577cea90a845b3ebd4946db812a77008d",
       "registry_advisory_evidence.py": "de486818cf43b60fbc702fa3e97ef1a490c4326cb7292107b8da5920232de88b",
-      "registry_candidate_diagnostics.py": "57cd6d3bf6298588ccd1e5136f5c5ea7465c9b2439a63eb0e50c27bb47defdf6",
+      "registry_candidate_diagnostics.py": "b30a8bc917fc01ab2b4e2bf8ad030f3132c69fc60904666fd1b80b1a49b36563",
       "registry_metadata_cache.py": "01128830beb4987754d21b3fb06006a5ba1704e47dc973ca832ffd9f11282b90",
       "registry_request_context.py": "8c21506247e61b9ffa05df3d74532e0e78d31ac0301a850f1c0dc781592ebeda",
       "reparse_materialization.py": "f617cee356d171ef306d44911f971b3a77b8a8ca00464c4f22a2c056aa24be9a",
@@ -162,8 +162,8 @@
       "yarn_berry.py": "bd769e797823ff99129983f8295a52b5aac1f01f9be2c2a8eac9ffeaf20903d2"
     },
     "repository": "https://github.com/levencode-labs/deploom-core",
-    "revision": "3e9a1859cc1c6f502683d56ae6dfaa3cfa852d8f",
-    "version": "0.1.20"
+    "revision": "bab1e6190e028256dc2935248ff8e454ee97f002",
+    "version": "0.1.21"
   },
   "mcpVersion": "0.2.33",
   "schemaSha256": "8f34bcc5005ee39c3d43131643216d6ce0ad5cdb1bc9f2447bcd55537481ae43",

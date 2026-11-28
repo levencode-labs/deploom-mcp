@@ -159,6 +159,7 @@ def refresh_all(root):
     """Refresh independent editions and preserve each source's failure status."""
     from .shared_records import refresh as refresh_records
     from .shared_records_v2 import refresh as refresh_records_v2
+    from .shared_records_v3 import refresh as refresh_records_v3
 
     root = Path(root)
     records = Path(os.environ.get("DEPLOOM_MCP_RECORDS_DIR") or root.parent / "records")
@@ -171,7 +172,8 @@ def refresh_all(root):
             "status": "UNKNOWN",
             "reason": exc.reason if isinstance(exc, CacheRefreshError) else "SNAPSHOT_UNAVAILABLE",
         }
-    for name, update in (("knowledgeV2", refresh_records_v2), ("knowledgeV1", refresh_records)):
+    for name, update in (("knowledgeV3", refresh_records_v3), ("knowledgeV2", refresh_records_v2),
+                         ("knowledgeV1", refresh_records)):
         try:
             ready = update(records) is True
         except errors:
