@@ -10,6 +10,7 @@ import sqlite3
 import tempfile
 import time
 from contextlib import closing
+from http.client import HTTPException
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
@@ -20,6 +21,14 @@ RELEASES = "https://github.com/levencode-labs/deploom-npm/releases/download/"
 SOURCE = "https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip"
 AGE = 7 * 86400
 SHA = re.compile("[a-f0-9]{64}")
+
+
+class CacheRefreshError(ValueError):
+    """A stable diagnostic for a refresh that must not activate an edition."""
+
+    def __init__(self, reason, message=None):
+        self.reason = reason
+        super().__init__(message or "Public cache refresh: " + reason)
 
 
 class ReleaseRedirects(HTTPRedirectHandler):
@@ -59,10 +68,12 @@ def manifest_fields(m, tag, previous):
             or m["asset"] != f"npm-{sha}.sqlite.gz"
             or not 0 < m["size"] <= 64_000_000 or not 0 < m["unpacked"] <= 256_000_000
             or m["rows"] < 1 or m["expires"] != m["published"] + AGE
-            or not m["published"] - 300 <= now < m["expires"]
+            or now < m["published"] - 300
             or m["published"] < previous.get("published", 0)
             or (m["published"] == previous.get("published") and previous.get("sha256") != sha)):
         raise ValueError("Invalid, stale, or regressing OSV edition")
+    if now >= m["expires"]:
+        raise CacheRefreshError("SNAPSHOT_STALE")
 
 
 def install_database(blob, m, path):
@@ -101,7 +112,7 @@ def usable(root, m):
 
 def refresh(root, fetch=get):
     if os.environ.get("DEPLOOM_MCP_LOCAL_CACHE_ONLY") == "1":
-        raise ValueError("Cache refresh disabled by DEPLOOM_MCP_LOCAL_CACHE_ONLY")
+        raise CacheRefreshError("REFRESH_DISABLED_BY_POLICY", "Cache refresh disabled by DEPLOOM_MCP_LOCAL_CACHE_ONLY")
     root = root.resolve()
     root.mkdir(parents=True, exist_ok=True)
     with closing(sqlite3.connect(root / "update-lock.sqlite", timeout=60)) as lock:
@@ -144,14 +155,42 @@ def refresh(root, fetch=get):
         return tag
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("cache_directory", type=Path)
+def refresh_all(root):
+    """Refresh independent editions and preserve each source's failure status."""
     from .shared_records import refresh as refresh_records
     from .shared_records_v2 import refresh as refresh_records_v2
 
-    root = parser.parse_args().cache_directory
-    print(refresh(root))
+    root = Path(root)
     records = Path(os.environ.get("DEPLOOM_MCP_RECORDS_DIR") or root.parent / "records")
-    refresh_records_v2(records)
-    refresh_records(records)
+    sources = {}
+    errors = (OSError, ValueError, KeyError, TypeError, AttributeError, sqlite3.Error, HTTPException)
+    try:
+        sources["osv"] = {"status": "READY", "edition": refresh(root)}
+    except errors as exc:
+        sources["osv"] = {
+            "status": "UNKNOWN",
+            "reason": exc.reason if isinstance(exc, CacheRefreshError) else "SNAPSHOT_UNAVAILABLE",
+        }
+    for name, update in (("knowledgeV2", refresh_records_v2), ("knowledgeV1", refresh_records)):
+        try:
+            ready = update(records) is True
+        except errors:
+            ready = False
+        sources[name] = ({"status": "READY"} if ready else
+                         {"status": "UNKNOWN", "reason": "KNOWLEDGE_REFRESH_FAILED"})
+    ready_count = sum(row["status"] == "READY" for row in sources.values())
+    status = "READY" if ready_count == len(sources) else "PARTIAL" if ready_count else "FAILED"
+    return {"schemaVersion": 1, "ok": status == "READY", "status": status, "sources": sources}
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("cache_directory", type=Path)
+    report = refresh_all(parser.parse_args(argv).cache_directory)
+    print(json.dumps(report, sort_keys=True))
+    return {"READY": 0, "PARTIAL": 1, "FAILED": 2}[report["status"]]
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
