@@ -57,6 +57,24 @@ class IndependentCacheStatusTests(unittest.TestCase):
         self.assertEqual(report["sources"]["osv"]["status"], "READY")
         self.assertEqual(report["sources"]["knowledgeV2"]["reason"], "KNOWLEDGE_INTEGRITY_INVALID")
 
+    def test_scoped_status_prefers_verified_v3_and_falls_back_after_corruption(self):
+        import test_shared_records_v3 as scoped_fixtures
+        fixture = scoped_fixtures.SignedKnowledgeV3Tests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        public_cache.refresh(self.osv_dir, self.osv.fetch)
+        self.assertTrue(fixture.v3.refresh(fixture.fixture.root, fixture.fetch))
+        report = cache_status.status_all(self.osv_dir, fixture.fixture.root)
+        self.assertEqual(report["status"], "READY")
+        self.assertEqual(report["preferredKnowledgeSchema"], 3)
+        self.assertEqual(report["sources"]["knowledgeV3"]["revision"], 30)
+        with sqlite3.connect(fixture.fixture.root / fixture.v3.DB) as db:
+            db.execute("UPDATE shard SET data=?", (b"{}",))
+        report = cache_status.status_all(self.osv_dir, fixture.fixture.root)
+        self.assertEqual(report["preferredKnowledgeSchema"], 2)
+        self.assertEqual(report["sources"]["knowledgeV3"]["reason"], "KNOWLEDGE_INTEGRITY_INVALID")
+        self.assertEqual(report["sources"]["knowledgeV2"]["status"], "READY")
+
 
 if __name__ == "__main__":
     unittest.main()

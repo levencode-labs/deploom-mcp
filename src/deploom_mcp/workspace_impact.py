@@ -162,7 +162,18 @@ def _transition_evidence(project, state, transitions, integrities, registry, mod
                                                        "relatedRecordCount", "relatedRecordIds")},
                              **{k: record[k] for k in ("conditions", "actions", "verification", "negativeControls")},
                              "recipientApplicability": "UNKNOWN",
-                             "applicabilityReason": "CONDITIONS_NOT_MACHINE_VERIFIED"}
+                             "applicabilityReason": "CONDITIONS_NOT_MACHINE_VERIFIED",
+                             "applicabilityChecks": {
+                                 "packageManager": {"status": "MATCHED", "observed": "npm"},
+                                 "transition": {
+                                     "status": "EXACT_MATCH" if record["matchStrength"] == "verified-exact-transition" else "CANDIDATE",
+                                     "requested": {"from": row["fromVersion"], "to": row["toVersion"]},
+                                     "tested": record["testedTransition"],
+                                 },
+                                 "ownership": {"status": "OBSERVED_DECLARATION", "owners": row["dependencyOwners"]},
+                                 "semanticConditions": {"status": "UNKNOWN"},
+                                 "runtime": {"status": "UNKNOWN", "reason": "RUNTIME_NOT_OBSERVED_BY_KNOWLEDGE_LOOKUP"},
+                             }}
                             for record in records],
             },
             "official": {"status": "UNAVAILABLE"},

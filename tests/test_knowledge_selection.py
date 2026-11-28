@@ -80,6 +80,13 @@ class KnowledgeSelectionTests(unittest.TestCase):
         self.assertIn("Migrate jsdom VirtualConsole forwarding", titles)
         self.assertIn("Replace jsdom ResourceLoader instances", titles)
         self.assertTrue(all(r["recipientApplicability"] == "UNKNOWN" for r in evidence["records"]))
+        for record in evidence["records"]:
+            checks = record["applicabilityChecks"]
+            self.assertEqual({"status": "MATCHED", "observed": "npm"}, checks["packageManager"])
+            self.assertEqual({"from": "23.0.0", "to": "31.0.0"}, checks["transition"]["requested"])
+            self.assertEqual(["."], checks["ownership"]["owners"])
+            self.assertEqual("UNKNOWN", checks["semanticConditions"]["status"])
+            self.assertEqual("UNKNOWN", checks["runtime"]["status"])
 
     def test_evidence_scope_is_closed_and_cannot_assert_recipient_success(self):
         row = copy.deepcopy(self.fixture.records[0])

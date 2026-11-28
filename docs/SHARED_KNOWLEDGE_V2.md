@@ -1,6 +1,29 @@
-# DepLoom signed collective migration knowledge v2
+# DepLoom signed collective migration knowledge
 
-**Status: development-only draft; no live Pages publication or new wheel release.**
+Public v2 remains the compatibility format for existing clients. Scoped evidence
+uses a separate v3 edition so strict older clients can keep reading v2.
+
+## Compatible v2 and scoped v3 editions
+
+The publisher keeps the legacy corpus at `v2/`. Records with `evidenceScope`
+are published at `v3/` using index schema 3, native shard/record schema 2 and
+the signature domain `DepLoom public migration records v3\x00`. Both editions
+use the pinned publisher key, but have separate SQLite databases and rollback
+histories (`signed-records-v2.sqlite` and `signed-records-v3.sqlite`).
+
+New readers prefer a complete locally verified v3 edition. If v3 is missing or
+unusable, they can read v2 with evidence scope explicitly `UNKNOWN`. The
+background updater tries v3 first and falls back to refreshing v2. Neither
+path sends project package names or versions to the publisher. A bad update
+retains the last trusted edition in its own domain; a v2 signature cannot
+activate v3 or vice versa.
+
+Each refresh fetches the index and signature and verifies all referenced shard
+bytes. Locally cached content-addressed shards are reused only after checking
+their size, digest and native record contract. Missing or corrupt shards are
+downloaded again. An unchanged verified edition therefore needs no shard
+download, while every activation remains atomic. `DEPLOOM_MCP_KNOWLEDGE_DISABLED`
+also prevents public knowledge refresh and background updater startup.
 
 ## Reader contract
 
@@ -52,6 +75,10 @@ module loading precede source inspection and metadata observations. This orders
 review material without changing applicability or execution authority.
 `projectStatus` must stay `UNKNOWN` and `conditionsRequired` must stay true.
 Plans preserve these fields and explain `CONDITIONS_NOT_MACHINE_VERIFIED`.
+Plan applicability details separately show the matched package manager, requested
+and tested transitions, and declaration owners from the bound inventory. These
+observations do not satisfy semantic conditions or establish an unobserved
+runtime; those checks remain `UNKNOWN`.
 
 ## Transport/integrity
 

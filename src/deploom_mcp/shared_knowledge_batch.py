@@ -17,6 +17,7 @@ from deploom_mcp.host_evidence_policy import cached_knowledge_disabled
 
 from . import private_knowledge_snapshot as private
 from . import shared_records_v2 as signed
+from . import shared_records_v3 as scoped
 from .knowledge_contract_v2 import MANAGERS, PKG, SOURCE, VERSION, projection, query_match
 
 MAX_QUERIES = 32
@@ -201,10 +202,18 @@ def lookup_batch(root, requests):
 
 
 def _lookup_public(root, requests):
+    for reader in (scoped, signed):
+        result = _lookup_edition(root, requests, reader)
+        if result["status"] == "ready":
+            return result
+    return _status_only(requests, "snapshot-unavailable")
+
+
+def _lookup_edition(root, requests, signed):
     if not (root / signed.DB).is_file():
         return _status_only(requests, "snapshot-unavailable")
     response = _status_only(requests, "ready", source="verified-pages")
-    response["snapshotSchema"] = 2
+    response["snapshotSchema"] = signed.SCHEMA
     try:
         with closing(sqlite3.connect((root / signed.DB).resolve().as_uri() + "?mode=ro", uri=True)) as db:
             trusted = signed._read(db)

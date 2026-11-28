@@ -7,7 +7,7 @@ from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import public_cache, shared_records, shared_records_v2
+from . import public_cache, shared_records, shared_records_v2, shared_records_v3
 
 
 def unknown(reason):
@@ -40,8 +40,8 @@ def _connect(path):
     return db
 
 
-def knowledge_status(root, *, legacy=False):
-    module = shared_records if legacy else shared_records_v2
+def knowledge_status(root, *, legacy=False, scoped=False):
+    module = shared_records if legacy else shared_records_v3 if scoped else shared_records_v2
     path = root / (module.DATABASE if legacy else module.DB)
     if not path.is_file():
         return unknown("KNOWLEDGE_SNAPSHOT_UNAVAILABLE")
@@ -83,12 +83,15 @@ def knowledge_status(root, *, legacy=False):
 
 def status_all(osv_root, records_root):
     sources = {"osv": osv_status(Path(osv_root)),
+               "knowledgeV3": knowledge_status(Path(records_root), scoped=True),
                "knowledgeV2": knowledge_status(Path(records_root)),
                "knowledgeV1": knowledge_status(Path(records_root), legacy=True)}
-    # v1 is a compatibility fallback; a complete v2 edition is sufficient.
-    required = (sources["osv"], sources["knowledgeV2"])
+    # v1 is a compatibility fallback; prefer v3 while retaining usable v2.
+    schema = 3 if sources["knowledgeV3"]["status"] == "READY" else 2
+    required = (sources["osv"], sources["knowledgeV" + str(schema)])
     ready = sum(row["status"] == "READY" for row in required)
     return {"schemaVersion": 1, "status": "READY" if ready == 2 else "PARTIAL" if ready else "UNKNOWN",
+            "preferredKnowledgeSchema": schema if required[1]["status"] == "READY" else None,
             "sources": sources}
 
 
