@@ -152,8 +152,16 @@ def _refresh(root, read, *, if_due):
             count = 0
             for bucket, descriptors in index["buckets"].items():
                 for desc in descriptors:
-                    payload = read(desc["path"], desc["bytes"])
-                    records = verified_shard(payload, desc, bucket)
+                    cached = db.execute("SELECT data FROM shard WHERE path=?", (desc["path"],)).fetchone()
+                    payload = cached[0] if cached is not None else None
+                    if payload is not None:
+                        try:
+                            records = verified_shard(payload, desc, bucket)
+                        except ERRORS:
+                            payload = None
+                    if payload is None:
+                        payload = read(desc["path"], desc["bytes"])
+                        records = verified_shard(payload, desc, bucket)
                     for record in records:
                         if record["id"] in all_ids:
                             raise ValueError("Knowledge ID duplicated across shards")
@@ -203,3 +211,4 @@ def lookup(root, package, from_version, to_version, *, manager="npm"):
             return result
     except ERRORS:
         return None
+

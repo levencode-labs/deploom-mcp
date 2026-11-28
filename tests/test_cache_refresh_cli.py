@@ -102,6 +102,13 @@ class CacheRefreshCliTests(unittest.TestCase):
     def test_bad_new_signed_shard_is_partial_and_preserves_previous_knowledge(self):
         self.assertTrue(signed.refresh(self.records_dir, self.knowledge.fetch))
         self.knowledge.index["revision"] += 1
+        self.knowledge.record["summary"] = "A newly approved source-exact observation."
+        self.knowledge.shard = knowledge_fixtures.encode({"schema": 2, "records": [self.knowledge.record]})
+        self.knowledge.shard_sha = signed.digest(self.knowledge.shard)
+        self.knowledge.path = f"shards/{self.knowledge.bucket}/{self.knowledge.shard_sha}.json"
+        self.knowledge.index["buckets"][self.knowledge.bucket] = [{
+            "path": self.knowledge.path, "sha256": self.knowledge.shard_sha,
+            "bytes": len(self.knowledge.shard), "records": 1}]
         self.knowledge._update()
         self.knowledge.resources[signed.BASE + self.knowledge.path] = self.knowledge.shard[:-1]
         observed = self._invoke()
