@@ -39,6 +39,26 @@ transition in the same major ranges and **must not be represented as verified**.
 - Max index 2 MB, shard 256 KB, full edition 32 MB, 2048 shards. Scale changes
   require measured, independent acceptance before adjustment.
 
+## Manual refresh results
+
+`python -m deploom_mcp.public_cache CACHE_DIRECTORY` attempts the OSV snapshot,
+signed knowledge v2 and legacy knowledge v1 independently. An unavailable or
+expired OSV edition does not prevent a valid signed knowledge update. Failed
+updates preserve the previously accepted data; an expired OSV snapshot remains
+`UNKNOWN` with reason `SNAPSHOT_STALE` and is never treated as fresh evidence.
+
+The command prints one JSON result with `schemaVersion: 1` and separate
+`sources.osv`, `sources.knowledgeV2` and `sources.knowledgeV1` entries. A source
+reports `READY` after a successful refresh or `UNKNOWN` with a reason when its
+refresh failed. These entries describe this update attempt; they do not revoke
+an older verified knowledge edition that remains locally available.
+
+The overall status is `READY` with exit code 0 when every source succeeds,
+`PARTIAL` with exit code 1 when some succeed, and `FAILED` with exit code 2 when
+none succeeds. Automation should inspect the per-source results before deciding
+whether to retry. The npm `deploom cache refresh` wrapper forwards this report
+and reports a nonzero exit for partial or failed updates.
+
 ## Operator-managed local private snapshot
 
 Corporate mirror-only profiles can opt in to private package recipes for
@@ -86,3 +106,4 @@ Cross-repository acceptance is tested in
 the exact pinned consumer SHA, a real first-party fixture, a poisoned signed
 index and a separate manifest revision case. The production signing private
 key is never exposed to a CI pull-request job.
+
