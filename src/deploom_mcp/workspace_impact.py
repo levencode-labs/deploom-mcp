@@ -154,12 +154,16 @@ def _transition_evidence(project, state, transitions, integrities, registry, mod
                 "snapshotRevision": None if "snapshotSha256" in matched else lookup.get("snapshotRevision"),
                 **{key: matched[key] for key in ("snapshotSource", "snapshotSha256") if key in matched},
                 "matchingCount": matched.get("matchingCount", 0),
-                "omittedCount": max(0, matched.get("matchingCount", 0) - len(records[:1])),
+                "matchingRecordCount": matched.get("matchingRecordCount", matched.get("matchingCount", 0)),
+                "deduplicatedCount": matched.get("deduplicatedCount", 0),
+                "omittedCount": max(0, matched.get("matchingCount", 0) - len(records)),
                 "records": [{**{k: record[k] for k in ("id", "kind", "title", "summary", "matchStrength",
-                                                       "sourceCommit", "evidence")},
-                             **{k: record[k][:3] for k in ("conditions", "actions", "verification", "negativeControls")},
-                             "recipientApplicability": "UNKNOWN"}
-                            for record in records[:1]],
+                                                       "sourceCommit", "evidence", "testedTransition", "evidenceScope",
+                                                       "relatedRecordCount", "relatedRecordIds")},
+                             **{k: record[k] for k in ("conditions", "actions", "verification", "negativeControls")},
+                             "recipientApplicability": "UNKNOWN",
+                             "applicabilityReason": "CONDITIONS_NOT_MACHINE_VERIFIED"}
+                            for record in records],
             },
             "official": {"status": "UNAVAILABLE"},
         }
@@ -299,3 +303,4 @@ def build_project_impact(project: Path, targets: list[dict], owners: list[str], 
         })
     result["evidenceMetrics"] = _transition_evidence(project, state, result["transitions"], integrities, registry, evidence_mode)
     return result
+

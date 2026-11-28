@@ -135,7 +135,10 @@ class SharedKnowledgeV2Tests(unittest.TestCase):
         candidate = v2.lookup(self.root, "react-dom", "18.1.0", "18.3.2")
         self.assertEqual("major-line-candidate", candidate["knowledge"][0]["matchStrength"])
         self.assertTrue(candidate["knowledge"][0]["requiresProjectVerification"])
-        self.assertEqual("no-matching-record", v2.lookup(self.root, "react-dom", "17.0.0", "18.3.1")["status"])
+        composed = v2.lookup(self.root, "react-dom", "17.0.0", "18.3.1")
+        self.assertEqual("intermediate-transition-candidate", composed["knowledge"][0]["matchStrength"])
+        self.assertTrue(composed["knowledge"][0]["requiresProjectVerification"])
+        self.assertEqual("no-matching-record", v2.lookup(self.root, "react-dom", "17.0.0", "18.0.0")["status"])
         self.assertEqual([], self.calls)
 
     def test_signature_corruption_rejected(self):
@@ -181,3 +184,4 @@ class SharedKnowledgeV2Tests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

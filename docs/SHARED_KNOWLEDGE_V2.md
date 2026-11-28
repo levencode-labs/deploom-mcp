@@ -22,6 +22,36 @@ that exact transition. It does NOT prove the recipient's final dependency
 tree, build, runtime, security posture or policy coverage.
 `major-line-candidate` is only an advisory possibility for a different
 transition in the same major ranges and **must not be represented as verified**.
+Non-exact candidates require a stable forward query crossing the fixture's
+observed target version: `query.from < fixture.to <= query.to`. That version is
+a retrieval boundary, not a claim about the first release introducing a change.
+Downgrades and prereleases receive only their own exact fixture matches.
+
+`intermediate-transition-candidate` describes a fixture boundary crossed by a
+larger upgrade with different endpoint major versions. This composes review
+candidates, not proof that their combination works. For example, a jsdom 23 to
+31 query can include earlier VirtualConsole and ResourceLoader changes alongside
+the exact-pair canvas observation. Recipient conditions remain `UNKNOWN`.
+
+The batch reader and `projectImpact` retain up to eight distinct recommendations
+per query under the existing 64 KiB batch output cap. Identical kind, title,
+summary, conditions, actions and checks are grouped; source record counts and
+related IDs remain visible. `matchingRecordCount` counts matching receipts,
+`matchingCount` counts distinct recommendations, and `deduplicatedCount` records
+the difference. `omittedCount` discloses distinct recommendations omitted by
+the card or byte budget. The single-query evidence tool can inspect all receipts.
+
+An optional signed `evidenceScope` states which observation was retained:
+`source-pinned-metadata`, `source-inspection`, `module-load`, `typecheck` or
+`fixture-behavior`, bound to `retainedInputSha256`. It separately reports archive
+verification (`UNKNOWN`/`MISSING_ARCHIVE_EVIDENCE` or
+`VERIFIED`/`ARCHIVE_BYTES_VERIFIED`). Missing scope on legacy records is projected
+as `UNKNOWN`; a passed `claim.check` never implies a retained runtime result.
+Within the same exact-match priority, retained fixture behavior, typechecks and
+module loading precede source inspection and metadata observations. This orders
+review material without changing applicability or execution authority.
+`projectStatus` must stay `UNKNOWN` and `conditionsRequired` must stay true.
+Plans preserve these fields and explain `CONDITIONS_NOT_MACHINE_VERIFIED`.
 
 ## Transport/integrity
 

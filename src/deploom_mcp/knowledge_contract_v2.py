@@ -18,6 +18,8 @@ MANAGERS = frozenset({"npm", "yarn", "pnpm"})
 MAX_RECORD_BYTES = 8192
 MAX_CORPUS_BYTES = 4_000_000
 MAX_RECORDS = 50_000
+EVIDENCE_LEVELS = frozenset({"source-pinned-metadata", "source-inspection", "module-load",
+                             "typecheck", "fixture-behavior"})
 
 
 def _expect(value, explanation):
@@ -57,11 +59,28 @@ def _major(version):
     return int(version.split(".", 1)[0])
 
 
+def _validate_evidence_scope(scope):
+    _fields(scope, {"schema", "level", "retainedInputSha256", "archiveStatus", "archiveReason",
+                    "projectStatus", "conditionsRequired"})
+    _expect(type(scope["schema"]) is int and scope["schema"] == 1, "evidence scope schema")
+    _expect(isinstance(scope["level"], str) and scope["level"] in EVIDENCE_LEVELS, "evidence level")
+    _expect(isinstance(scope["retainedInputSha256"], str) and SHA.fullmatch(scope["retainedInputSha256"]),
+            "retained input digest")
+    _expect((scope["archiveStatus"], scope["archiveReason"]) in (
+        ("UNKNOWN", "MISSING_ARCHIVE_EVIDENCE"), ("VERIFIED", "ARCHIVE_BYTES_VERIFIED")),
+        "archive evidence status")
+    _expect(scope["projectStatus"] == "UNKNOWN" and scope["conditionsRequired"] is True,
+            "fixture evidence cannot prove recipient applicability")
+
+
 def validate_record(row, *, source_pattern=SOURCE):
-    _fields(row, {"schema", "id", "kind", "package", "fromMajor", "toMajor",
-                  "packageManagers", "verifiedTransitions", "title", "summary",
-                  "conditions", "actions", "verification", "negativeControls",
-                  "evidence"})
+    fields = {"schema", "id", "kind", "package", "fromMajor", "toMajor",
+              "packageManagers", "verifiedTransitions", "title", "summary",
+              "conditions", "actions", "verification", "negativeControls", "evidence"}
+    if isinstance(row, dict) and "evidenceScope" in row:
+        fields.add("evidenceScope")
+        _validate_evidence_scope(row["evidenceScope"])
+    _fields(row, fields)
     _expect(type(row["schema"]) is int and row["schema"] == 2, "schema")
     _expect(isinstance(row["id"], str) and IDENT.fullmatch(row["id"]), "id")
     _expect(isinstance(row["kind"], str) and row["kind"] in KINDS, "unknown knowledge kind")
@@ -148,13 +167,30 @@ def validate_corpus(raw, *, source_pattern=SOURCE):
     return data
 
 
+def _stable_version(version):
+    if not isinstance(version, str) or not VERSION.fullmatch(version) or "-" in version:
+        return None
+    return tuple(int(part) for part in version.split("."))
+
+
 def query_match(row, package, from_version, to_version, manager="npm"):
     if row["package"] != package or manager not in row["packageManagers"]:
         return None
-    if _major(from_version) != row["fromMajor"] or _major(to_version) != row["toMajor"]:
+    if {"from": from_version, "to": to_version} in row["verifiedTransitions"]:
+        return "verified-exact-transition"
+    before, after = _stable_version(from_version), _stable_version(to_version)
+    tested = row["verifiedTransitions"][0]
+    tested_before, tested_after = _stable_version(tested["from"]), _stable_version(tested["to"])
+    # An observed fixture target is a retrieval boundary, not proof of the
+    # version where a behavior was introduced or of applicability to this tree.
+    # Never reuse upgrade guidance for a downgrade or an untested prerelease.
+    if (None in (before, after, tested_before, tested_after)
+            or not before < after or not tested_before < tested_after
+            or not before < tested_after <= after):
         return None
-    exact = {"from": from_version, "to": to_version} in row["verifiedTransitions"]
-    return "verified-exact-transition" if exact else "major-line-candidate"
+    if before[0] == row["fromMajor"] and after[0] == row["toMajor"]:
+        return "major-line-candidate"
+    return "intermediate-transition-candidate"
 
 
 def projection(row, strength):
@@ -164,6 +200,13 @@ def projection(row, strength):
         "conditions": row["conditions"], "actions": row["actions"],
         "verification": row["verification"],
         "negativeControls": row["negativeControls"], "evidence": row["evidence"],
+        "testedTransition": dict(row["verifiedTransitions"][0]),
+        "evidenceScope": dict(row.get("evidenceScope", {
+            "schema": 1, "level": "UNKNOWN", "archiveStatus": "UNKNOWN",
+            "archiveReason": "MISSING_ARCHIVE_EVIDENCE", "projectStatus": "UNKNOWN",
+            "conditionsRequired": True,
+        })),
         "matchStrength": strength, "authority": "ADVISORY_ONLY",
         "requiresProjectVerification": True,
     }
+
