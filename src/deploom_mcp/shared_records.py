@@ -44,8 +44,14 @@ def bundled():
     return {kind: validate(kind, data[kind]) for kind in KINDS}
 
 
+def _public_refresh_disabled():
+    return mirror_knowledge_only() or any(os.environ.get(flag) == "1" for flag in
+        ("DEPLOOM_MCP_LOCAL_CACHE_ONLY", "DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE",
+         "DEPLOOM_MCP_MIGRATION_OFFLINE", "DEPLOOM_MCP_KNOWLEDGE_DISABLED"))
+
+
 def refresh(root, fetch=get, *, if_due=False):
-    if mirror_knowledge_only() or os.environ.get("DEPLOOM_MCP_LOCAL_CACHE_ONLY") == "1":
+    if _public_refresh_disabled():
         return False
     try:
         root.mkdir(parents=True, exist_ok=True)
@@ -90,10 +96,7 @@ def directory():
 
 
 def start_refresh():
-    if (mirror_knowledge_only()
-            or os.environ.get("DEPLOOM_MCP_LOCAL_CACHE_ONLY") == "1"
-            or os.environ.get("DEPLOOM_MCP_DISABLE_EXTERNAL_EVIDENCE") == "1"
-            or os.environ.get("DEPLOOM_MCP_KNOWLEDGE_DISABLED") == "1"):
+    if _public_refresh_disabled():
         return
     def update():
         from .shared_records_v3 import refresh_preferred

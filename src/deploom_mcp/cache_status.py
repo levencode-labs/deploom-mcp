@@ -16,7 +16,13 @@ def unknown(reason):
 
 def osv_status(root):
     try:
-        manifest = json.loads((root / "active.json").read_bytes())
+        with (root / "active.json").open("rb") as stream:
+            raw = stream.read(16_385)
+        if len(raw) > 16_384:
+            return unknown("SNAPSHOT_INTEGRITY_INVALID")
+        manifest = json.loads(raw)
+        if not isinstance(manifest, dict):
+            return unknown("SNAPSHOT_INTEGRITY_INVALID")
         if not public_cache.usable(root, manifest):
             return unknown("SNAPSHOT_INTEGRITY_INVALID")
         details = {"edition": manifest["tag"], "sha256": manifest["sha256"],

@@ -99,13 +99,13 @@ runtime; those checks remain `UNKNOWN`.
 ## Manual refresh results
 
 `python -m deploom_mcp.public_cache CACHE_DIRECTORY` attempts the OSV snapshot,
-signed knowledge v2 and legacy knowledge v1 independently. An unavailable or
+scoped knowledge v3, compatible knowledge v2 and legacy knowledge v1 independently. An unavailable or
 expired OSV edition does not prevent a valid signed knowledge update. Failed
 updates preserve the previously accepted data; an expired OSV snapshot remains
 `UNKNOWN` with reason `SNAPSHOT_STALE` and is never treated as fresh evidence.
 
 The command prints one JSON result with `schemaVersion: 1` and separate
-`sources.osv`, `sources.knowledgeV2` and `sources.knowledgeV1` entries. A source
+`sources.osv`, `sources.knowledgeV3`, `sources.knowledgeV2` and `sources.knowledgeV1` entries. A source
 reports `READY` after a successful refresh or `UNKNOWN` with a reason when its
 refresh failed. These entries describe this update attempt; they do not revoke
 an older verified knowledge edition that remains locally available.
@@ -164,3 +164,14 @@ the exact pinned consumer SHA, a real first-party fixture, a poisoned signed
 index and a separate manifest revision case. The production signing private
 key is never exposed to a CI pull-request job.
 
+
+## Offline status
+
+`python -m deploom_mcp.cache_status OSV_DIRECTORY --records-directory RECORDS_DIRECTORY`
+opens local data read-only, checks the OSV manifest/database and every signed
+knowledge shard, and reports each source independently. It performs no network
+requests and creates no cache files. `preferredKnowledgeSchema` is 3 for valid
+scoped knowledge, 2 for compatible legacy knowledge, or null when neither is
+usable. Status is `READY` when OSV and a native edition are usable; a missing
+v1 fallback does not make valid native knowledge unavailable. Expired OSV
+remains `UNKNOWN/SNAPSHOT_STALE`, even alongside `READY` knowledge.

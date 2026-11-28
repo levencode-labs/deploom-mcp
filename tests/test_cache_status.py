@@ -49,6 +49,16 @@ class IndependentCacheStatusTests(unittest.TestCase):
         self.assertEqual(report["sources"]["osv"]["reason"], "SNAPSHOT_STALE")
         self.assertEqual(report["sources"]["knowledgeV2"]["status"], "READY")
 
+    def test_malformed_osv_manifest_never_hides_valid_knowledge(self):
+        self.prepare()
+        for raw in (b"[]", b"null", b'"text"', b"0", b"true", b" " * 16_385):
+            with self.subTest(raw=raw[:16]):
+                (self.osv_dir / "active.json").write_bytes(raw)
+                report = cache_status.status_all(self.osv_dir, self.records_dir)
+                self.assertEqual(report["status"], "PARTIAL")
+                self.assertEqual(report["sources"]["osv"]["reason"], "SNAPSHOT_INTEGRITY_INVALID")
+                self.assertEqual(report["sources"]["knowledgeV2"]["status"], "READY")
+
     def test_bad_local_shard_fails_knowledge_integrity_only(self):
         self.prepare()
         with sqlite3.connect(self.records_dir / shared_records_v2.DB) as db:
